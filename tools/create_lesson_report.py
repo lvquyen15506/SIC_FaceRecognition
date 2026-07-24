@@ -650,6 +650,189 @@ def build_document():
         widths=[5, 11],
     )
 
+    doc.add_page_break()
+    doc.add_heading("8. Giải thích chi tiết các thành phần bên trong Transformer", level=1)
+    doc.add_paragraph(
+        "Phần này giải thích từng thành phần theo đúng thứ tự chạy trong "
+        "TransformerEncoderBlock. Tensor đi vào block có dạng [B,T,E]. Với cấu hình "
+        "SIC-ViT-4: B là batch size, T=50 token (1 CLS + 49 patch), E=192 đặc trưng."
+    )
+    add_code(
+        doc,
+        "x [B,T,E]\n"
+        "x = x + Attention(LayerNorm(x))\n"
+        "x = x + FeedForward(LayerNorm(x))\n"
+        "output [B,T,E]",
+    )
+
+    doc.add_heading("8.1. LayerNorm là gì?", level=2)
+    doc.add_paragraph(
+        "LayerNorm (Layer Normalization) chuẩn hóa các giá trị đặc trưng bên trong từng "
+        "token. Nó không trộn các ảnh với nhau và cũng không trộn các token với nhau. "
+        "Với tensor [B,T,E], LayerNorm tính trung bình và độ lệch chuẩn dọc theo chiều "
+        "cuối E. Vì E=192, mỗi token được chuẩn hóa riêng trên 192 giá trị của chính nó."
+    )
+    add_code(
+        doc,
+        "Input:  x [16,50,192]\n"
+        "Có 16 x 50 = 800 token\n"
+        "Mỗi token gồm 192 số và được LayerNorm riêng\n"
+        "Output: [16,50,192]  (shape không đổi)",
+    )
+    doc.add_paragraph(
+        "Cách tính trực giác: lấy một token, tính mean, trừ mean để đưa dữ liệu về quanh "
+        "0, rồi chia cho độ lệch chuẩn để các giá trị có độ lớn ổn định. Sau đó LayerNorm "
+        "dùng hai tham số học được gamma và beta để model vẫn có thể điều chỉnh lại tỷ lệ "
+        "và độ dịch chuyển phù hợp."
+    )
+    add_code(
+        doc,
+        "mean = trung bình 192 đặc trưng\n"
+        "variance = trung bình bình phương khoảng cách tới mean\n"
+        "normalized = (x - mean) / sqrt(variance + epsilon)\n"
+        "output = gamma * normalized + beta",
+    )
+    doc.add_paragraph(
+        "Ví dụ rút gọn với token [2,4,6]: mean=4, sau khi trừ mean thành [-2,0,2]. "
+        "LayerNorm tiếp tục chia cho độ lệch chuẩn. Mục đích không phải làm mất thông tin, "
+        "mà đưa các đặc trưng về thang đo ổn định trước khi đi vào Attention hoặc MLP."
+    )
+    add_table(
+        doc,
+        ["Điểm cần nhớ", "LayerNorm trong model này"],
+        [
+            ("Chuẩn hóa theo chiều nào?", "Chiều đặc trưng E=192 của từng token."),
+            ("Có đổi shape không?", "Không: [B,T,192] vẫn là [B,T,192]."),
+            ("Có tham số học không?", "Có: gamma và beta, mỗi tham số có 192 giá trị."),
+            ("Tại sao cần?", "Giữ độ lớn dữ liệu ổn định, giúp gradient và quá trình train ổn định hơn."),
+            ("Khác BatchNorm?", "LayerNorm không phụ thuộc các ảnh khác trong batch; phù hợp chuỗi token và batch nhỏ."),
+        ],
+        widths=[5, 11],
+    )
+
+    doc.add_heading("8.2. Pre-Norm và hai LayerNorm", level=2)
+    doc.add_paragraph(
+        "Block có hai LayerNorm khác nhau. norm_attention chuẩn hóa trước Attention; "
+        "norm_mlp chuẩn hóa trước FeedForward. Chúng có cùng cách hoạt động nhưng sở hữu "
+        "gamma và beta riêng, vì dữ liệu ở hai vị trí đã khác nhau. Cách đặt LayerNorm "
+        "trước module được gọi là Pre-Norm."
+    )
+    add_code(
+        doc,
+        "attention_input = norm_attention(x)\n"
+        "attention_output = self_attention(attention_input)\n"
+        "x = x + attention_output\n\n"
+        "mlp_input = norm_mlp(x)\n"
+        "mlp_output = feed_forward(mlp_input)\n"
+        "x = x + mlp_output",
+    )
+
+    doc.add_heading("8.3. Self-Attention hoạt động như thế nào?", level=2)
+    doc.add_paragraph(
+        "Self-Attention cho phép mỗi token lấy thông tin từ tất cả token còn lại. Một patch "
+        "chứa mắt có thể chú ý tới patch chứa mũi, miệng hoặc đường nét khuôn mặt. CLS token "
+        "cũng chú ý tới 49 patch để dần tổng hợp thông tin của toàn ảnh."
+    )
+    add_table(
+        doc,
+        ["Thành phần", "Câu hỏi trực giác", "Vai trò"],
+        [
+            ("Query (Q)", "Token này đang tìm thông tin gì?", "Đại diện nhu cầu tìm kiếm của token hiện tại."),
+            ("Key (K)", "Token kia phù hợp đến mức nào?", "Dùng để tính độ liên quan với Query."),
+            ("Value (V)", "Nếu phù hợp thì lấy nội dung gì?", "Thông tin được cộng có trọng số vào kết quả."),
+        ],
+        widths=[3, 5, 8],
+    )
+    add_code(
+        doc,
+        "scores = Q @ K^T / sqrt(head_dim)\n"
+        "attention_weights = softmax(scores)\n"
+        "output = attention_weights @ V",
+    )
+    doc.add_paragraph(
+        "Softmax biến các điểm liên quan thành trọng số có tổng bằng 1. Token liên quan hơn "
+        "nhận trọng số lớn hơn. Phép chia cho căn bậc hai của head_dim giữ scores không quá "
+        "lớn, tránh Softmax bị bão hòa và giúp train ổn định."
+    )
+
+    doc.add_heading("8.4. Multi-Head Attention là gì?", level=2)
+    doc.add_paragraph(
+        "Thay vì chỉ thực hiện một Attention trên toàn bộ 192 chiều, model chia thành 3 head. "
+        "Mỗi head xử lý 64 chiều vì 192/3=64. Các head có trọng số riêng nên có thể học "
+        "những kiểu quan hệ khác nhau, chẳng hạn một head chú ý hình dạng mắt, một head chú ý "
+        "tỷ lệ giữa các bộ phận và một head chú ý đường nét tổng thể. Đây chỉ là cách hiểu trực "
+        "giác; model tự quyết định mỗi head thực sự học gì."
+    )
+    add_code(
+        doc,
+        "Input [B,50,192]\n"
+        "3 heads x 64 chiều\n"
+        "Attention chạy song song trên 3 head\n"
+        "Ghép kết quả: [B,50,192]\n"
+        "Output projection: [B,50,192]",
+    )
+
+    doc.add_heading("8.5. Residual connection là gì?", level=2)
+    doc.add_paragraph(
+        "Residual connection cộng đầu vào cũ với thông tin mới do Attention hoặc FeedForward "
+        "tạo ra. Module không phải xây lại toàn bộ biểu diễn từ đầu; nó chỉ cần học phần thông "
+        "tin cần bổ sung. Đường cộng trực tiếp cũng giúp gradient truyền qua nhiều block dễ hơn."
+    )
+    add_code(doc, "x_new = x_old + new_information")
+    doc.add_paragraph(
+        "Hai tensor phải cùng shape để cộng theo từng vị trí. Đây là lý do Attention và "
+        "FeedForward đều đưa output trở lại [B,T,E]."
+    )
+
+    doc.add_heading("8.6. FeedForward xử lý gì?", level=2)
+    doc.add_paragraph(
+        "Attention trao đổi thông tin giữa các token. FeedForward lại xử lý từng token riêng, "
+        "nhưng dùng cùng một bộ trọng số cho mọi token. Trong model hiện tại, mỗi vector 192 "
+        "chiều được mở rộng lên 384 chiều, đi qua GELU và Dropout, rồi thu về 192 chiều."
+    )
+    add_code(
+        doc,
+        "[B,T,192]\n"
+        "-> Linear(192,384)\n"
+        "-> GELU\n"
+        "-> Dropout\n"
+        "-> Linear(384,192)\n"
+        "-> Dropout\n"
+        "-> [B,T,192]",
+    )
+    add_table(
+        doc,
+        ["Thành phần", "Ý nghĩa"],
+        [
+            ("Linear 192->384", "Mở rộng không gian để học tổ hợp đặc trưng phong phú hơn."),
+            ("GELU", "Thêm tính phi tuyến; nếu chỉ có Linear liên tiếp thì khả năng biểu diễn bị giới hạn."),
+            ("Dropout", "Khi train, tắt ngẫu nhiên một phần giá trị để giảm phụ thuộc và hạn chế overfitting."),
+            ("Linear 384->192", "Đưa tensor về embed_dim để có thể cộng residual với đầu vào."),
+        ],
+        widths=[5, 11],
+    )
+
+    doc.add_heading("8.7. Toàn bộ luồng của một block", level=2)
+    add_table(
+        doc,
+        ["Bước", "Phép xử lý", "Shape"],
+        [
+            ("1", "Nhận token x", "[B,50,192]"),
+            ("2", "norm_attention(x)", "[B,50,192]"),
+            ("3", "Multi-Head Self-Attention", "[B,50,192]"),
+            ("4", "Cộng residual với x cũ", "[B,50,192]"),
+            ("5", "norm_mlp(x)", "[B,50,192]"),
+            ("6", "FeedForward 192->384->192", "[B,50,192]"),
+            ("7", "Cộng residual lần hai", "[B,50,192]"),
+        ],
+        widths=[2, 9, 5],
+    )
+    doc.add_paragraph(
+        "SIC-ViT-4 lặp lại luồng trên bốn lần; cấu hình depth=12 lặp lại mười hai lần. "
+        "Depth đếm số TransformerEncoderBlock, không phải tổng số Linear, LayerNorm hay "
+        "Attention nhỏ nằm bên trong các block."
+    )
+
     doc.save(OUTPUT_PATH)
     return OUTPUT_PATH
 
