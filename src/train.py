@@ -1,5 +1,6 @@
 import os
 import random
+import time
 
 import torch
 from torch import nn
@@ -8,6 +9,12 @@ from config import get_parser
 from data import build_dataloaders
 from model import build_model
 from visualization import plot_training_history, save_history
+
+
+def format_time(seconds):
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def set_seed(seed):
@@ -114,9 +121,14 @@ def main():
         "train_accuracy": [],
         "val_loss": [],
         "val_accuracy": [],
+        "epoch_time": [],
     }
 
+    training_start_time = time.perf_counter()
+
     for epoch in range(cfg.epochs):
+        epoch_start_time = time.perf_counter()
+
         train_loss, train_accuracy = train_one_epoch(
             model,
             train_loader,
@@ -132,18 +144,22 @@ def main():
             device,
         )
 
+        epoch_time = time.perf_counter() - epoch_start_time
+
         print(
             f"Epoch [{epoch + 1}/{cfg.epochs}] "
             f"Train Loss={train_loss:.4f} "
             f"Train Acc={train_accuracy:.2%} "
             f"Val Loss={val_loss:.4f} "
-            f"Val Acc={val_accuracy:.2%}"
+            f"Val Acc={val_accuracy:.2%} "
+            f"Time={format_time(epoch_time)}"
         )
 
         history["train_loss"].append(train_loss)
         history["train_accuracy"].append(train_accuracy)
         history["val_loss"].append(val_loss)
         history["val_accuracy"].append(val_accuracy)
+        history["epoch_time"].append(epoch_time)
 
         save_history(history, cfg.experiment_name)
         plot_training_history(history, cfg.experiment_name)
@@ -169,6 +185,9 @@ def main():
         if epochs_without_improvement >= cfg.early_stop:
             print(f"Early stopping at epoch {epoch + 1}")
             break
+
+    total_training_time = time.perf_counter() - training_start_time
+    print(f"Total training time: {format_time(total_training_time)}")
 
     checkpoint = torch.load(best_model_path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state_dict"])

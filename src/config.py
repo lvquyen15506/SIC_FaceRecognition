@@ -17,8 +17,8 @@ def get_parser():
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
-    parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--early_stop", type=int, default=7)
+    parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--early_stop", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--patch_size", type=int, default=16)
