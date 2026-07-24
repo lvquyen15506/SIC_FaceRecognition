@@ -1,8 +1,8 @@
-# PyTorch 2.5.1 with CUDA 12.1 for NVIDIA GPUs.
-# A recent NVIDIA driver is still required on the target computer.
---extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.5.1+cu121
-torchvision==0.20.1+cu121
+# PyTorch with CUDA 12.4 for NVIDIA GPUs (including RTX 4060).
+# Compatible with Python 3.13. A recent NVIDIA driver is required.
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
 
 # Training and data pipeline
 Pillow
