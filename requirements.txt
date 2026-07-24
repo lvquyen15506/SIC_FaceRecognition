@@ -1,0 +1,8 @@
+# Training and data pipeline
+torch
+torchvision
+Pillow
+matplotlib
+
+# Regenerate the lesson report in tools/
+python-docx
