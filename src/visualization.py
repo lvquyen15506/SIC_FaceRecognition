@@ -50,7 +50,7 @@ def plot_training_history(history, experiment_name):
     )
     axes[1].set_title(f"Validation Distances - {experiment_name}")
     axes[1].set_xlabel("Epoch")
-    axes[1].set_ylabel("Squared Euclidean Distance")
+    axes[1].set_ylabel("Euclidean Distance")
     axes[1].grid(True, alpha=0.3)
     axes[1].legend()
 

@@ -47,6 +47,36 @@ def calculate_triplet_metrics(anchor, positive, negative, margin):
     )
 
 
+def mine_batch_hard_triplets(embeddings, labels):
+    with torch.no_grad():
+        distances = torch.cdist(embeddings, embeddings, p=2)
+        same_identity = labels[:, None] == labels[None, :]
+        diagonal = torch.eye(
+            labels.size(0),
+            dtype=torch.bool,
+            device=labels.device,
+        )
+        positive_mask = same_identity & ~diagonal
+        negative_mask = ~same_identity
+
+        positive_distances = distances.masked_fill(
+            ~positive_mask,
+            float("-inf"),
+        )
+        negative_distances = distances.masked_fill(
+            ~negative_mask,
+            float("inf"),
+        )
+        hardest_positive_indices = positive_distances.argmax(dim=1)
+        hardest_negative_indices = negative_distances.argmin(dim=1)
+
+    return (
+        embeddings,
+        embeddings[hardest_positive_indices],
+        embeddings[hardest_negative_indices],
+    )
+
+
 def train_one_epoch(model, data_loader, optimizer, criterion, device, margin):
     model.train()
     total_loss = 0.0
@@ -55,15 +85,15 @@ def train_one_epoch(model, data_loader, optimizer, criterion, device, margin):
     total_triplet_rate = 0.0
     total_samples = 0
 
-    for anchors, positives, negatives in data_loader:
-        anchors = anchors.to(device, non_blocking=True)
-        positives = positives.to(device, non_blocking=True)
-        negatives = negatives.to(device, non_blocking=True)
+    for images, labels in data_loader:
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        anchor_embeddings = model(anchors)
-        positive_embeddings = model(positives)
-        negative_embeddings = model(negatives)
+        embeddings = model(images)
+        anchor_embeddings, positive_embeddings, negative_embeddings = (
+            mine_batch_hard_triplets(embeddings, labels)
+        )
 
         loss = criterion(
             anchor_embeddings,
@@ -81,7 +111,7 @@ def train_one_epoch(model, data_loader, optimizer, criterion, device, margin):
         loss.backward()
         optimizer.step()
 
-        batch_size = anchors.size(0)
+        batch_size = images.size(0)
         total_loss += loss.item() * batch_size
         total_positive_distance += positive_distance.item() * batch_size
         total_negative_distance += negative_distance.item() * batch_size
@@ -105,14 +135,14 @@ def evaluate(model, data_loader, criterion, device, margin):
     total_triplet_rate = 0.0
     total_samples = 0
 
-    for anchors, positives, negatives in data_loader:
-        anchors = anchors.to(device, non_blocking=True)
-        positives = positives.to(device, non_blocking=True)
-        negatives = negatives.to(device, non_blocking=True)
+    for images, labels in data_loader:
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
 
-        anchor_embeddings = model(anchors)
-        positive_embeddings = model(positives)
-        negative_embeddings = model(negatives)
+        embeddings = model(images)
+        anchor_embeddings, positive_embeddings, negative_embeddings = (
+            mine_batch_hard_triplets(embeddings, labels)
+        )
         loss = criterion(
             anchor_embeddings,
             positive_embeddings,
@@ -127,7 +157,7 @@ def evaluate(model, data_loader, criterion, device, margin):
             )
         )
 
-        batch_size = anchors.size(0)
+        batch_size = images.size(0)
         total_loss += loss.item() * batch_size
         total_positive_distance += positive_distance.item() * batch_size
         total_negative_distance += negative_distance.item() * batch_size
@@ -171,6 +201,7 @@ def main():
         f"{cfg.experiment_name}_best.pth",
     )
     best_val_loss = float("inf")
+    best_epoch = 0
     epochs_without_improvement = 0
     training_start = time.perf_counter()
     history = {
@@ -234,6 +265,7 @@ def main():
 
         if val_metrics["loss"] < best_val_loss:
             best_val_loss = val_metrics["loss"]
+            best_epoch = epoch + 1
             epochs_without_improvement = 0
             torch.save(
                 {
@@ -257,6 +289,8 @@ def main():
 
     total_time = time.perf_counter() - training_start
     print(f"Total training time: {format_time(total_time)}")
+    print(f"Best epoch: {best_epoch}")
+    print(f"Best validation loss: {best_val_loss:.4f}")
     print(f"Best checkpoint: {best_model_path}")
 
 

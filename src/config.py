@@ -9,7 +9,7 @@ def get_parser():
     parser.add_argument(
         "--experiment_name",
         type=str,
-        default="sic_facevit_triplet_v2",
+        default="sic_facevit_batch_hard",
     )
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--image_size", type=int, default=224)
@@ -18,6 +18,8 @@ def get_parser():
     parser.add_argument("--test_ratio", type=float, default=0.15)
 
     parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--identities_per_batch", type=int, default=4)
+    parser.add_argument("--images_per_identity", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
@@ -41,6 +43,10 @@ def get_parser():
         parser.error("train_ratio + val_ratio + test_ratio phai bang 1")
     if cfg.image_size % cfg.patch_size != 0:
         parser.error("image_size phai chia het cho patch_size")
+    if cfg.identities_per_batch < 2:
+        parser.error("identities_per_batch phai lon hon hoac bang 2")
+    if cfg.images_per_identity < 2:
+        parser.error("images_per_identity phai lon hon hoac bang 2")
 
     return cfg
 

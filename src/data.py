@@ -1,9 +1,9 @@
 import os
 import random
-from collections import defaultdict
+import math
 
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Sampler
 from torchvision import transforms
 
 
@@ -66,62 +66,6 @@ def read_data(root_path, train_ratio=0.70, val_ratio=0.15, seed=42):
     return splits, class_names, split_class_names
 
 
-class TripletFaceDataset(Dataset):
-    def __init__(self, image_paths, labels, transform=None, seed=None):
-        self.image_paths = image_paths
-        self.labels = labels
-        self.transform = transform
-        self.seed = seed
-        self.label_to_indices = defaultdict(list)
-
-        for index, label in enumerate(labels):
-            self.label_to_indices[label].append(index)
-
-        self.unique_labels = list(self.label_to_indices.keys())
-
-        if len(self.unique_labels) < 2:
-            raise ValueError("Triplet dataset phai co it nhat 2 nguoi.")
-
-        for label, indices in self.label_to_indices.items():
-            if len(indices) < 2:
-                raise ValueError(
-                    f"Label {label} phai co it nhat 2 anh de tao positive."
-                )
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, index):
-        rng = random if self.seed is None else random.Random(self.seed + index)
-        anchor_label = self.labels[index]
-
-        positive_candidates = [
-            candidate_index
-            for candidate_index in self.label_to_indices[anchor_label]
-            if candidate_index != index
-        ]
-        positive_index = rng.choice(positive_candidates)
-
-        negative_labels = [
-            label
-            for label in self.unique_labels
-            if label != anchor_label
-        ]
-        negative_label = rng.choice(negative_labels)
-        negative_index = rng.choice(self.label_to_indices[negative_label])
-
-        anchor = self._load_image(self.image_paths[index])
-        positive = self._load_image(self.image_paths[positive_index])
-        negative = self._load_image(self.image_paths[negative_index])
-        return anchor, positive, negative
-
-    def _load_image(self, image_path):
-        image = Image.open(image_path).convert("RGB")
-        if self.transform:
-            image = self.transform(image)
-        return image
-
-
 class FaceImageDataset(Dataset):
     def __init__(self, image_paths, labels, transform=None):
         self.image_paths = image_paths
@@ -136,6 +80,61 @@ class FaceImageDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         return image, self.labels[index]
+
+
+class PKBatchSampler(Sampler):
+    """Samples P identities and K images per identity for batch-hard mining."""
+
+    def __init__(
+        self,
+        labels,
+        identities_per_batch,
+        images_per_identity,
+        seed,
+        change_each_epoch,
+    ):
+        self.labels = labels
+        self.identities_per_batch = identities_per_batch
+        self.images_per_identity = images_per_identity
+        self.seed = seed
+        self.change_each_epoch = change_each_epoch
+        self.epoch = 0
+        self.label_to_indices = {}
+
+        for index, label in enumerate(labels):
+            self.label_to_indices.setdefault(label, []).append(index)
+
+        self.unique_labels = list(self.label_to_indices)
+        if len(self.unique_labels) < identities_per_batch:
+            raise ValueError("Khong du identity de tao mot P x K batch.")
+        self.number_of_batches = math.ceil(
+            len(labels) / (identities_per_batch * images_per_identity)
+        )
+
+    def __iter__(self):
+        rng = random.Random(self.seed + self.epoch)
+        if self.change_each_epoch:
+            self.epoch += 1
+
+        for _ in range(self.number_of_batches):
+            selected_labels = rng.sample(
+                self.unique_labels,
+                self.identities_per_batch,
+            )
+            batch = []
+            for label in selected_labels:
+                indices = self.label_to_indices[label]
+                if len(indices) >= self.images_per_identity:
+                    batch.extend(rng.sample(indices, self.images_per_identity))
+                else:
+                    batch.extend(
+                        rng.choices(indices, k=self.images_per_identity)
+                    )
+            rng.shuffle(batch)
+            yield batch
+
+    def __len__(self):
+        return self.number_of_batches
 
 
 def get_transforms(image_size):
@@ -171,31 +170,52 @@ def build_dataloaders(cfg):
     X_test, y_test = splits["test"]
     train_transform, eval_transform = get_transforms(cfg.image_size)
 
-    train_triplets = TripletFaceDataset(
-        X_train,
-        y_train,
-        transform=train_transform,
-        seed=None,
-    )
-    val_triplets = TripletFaceDataset(
-        X_val,
-        y_val,
-        transform=eval_transform,
-        seed=cfg.seed,
-    )
+    train_images = FaceImageDataset(X_train, y_train, train_transform)
+    val_images_for_mining = FaceImageDataset(X_val, y_val, eval_transform)
     val_images = FaceImageDataset(X_val, y_val, eval_transform)
     test_images = FaceImageDataset(X_test, y_test, eval_transform)
 
     loader_options = {
-        "batch_size": cfg.batch_size,
         "num_workers": cfg.num_workers,
         "pin_memory": True,
     }
+    train_batch_sampler = PKBatchSampler(
+        y_train,
+        cfg.identities_per_batch,
+        cfg.images_per_identity,
+        cfg.seed,
+        change_each_epoch=True,
+    )
+    val_batch_sampler = PKBatchSampler(
+        y_val,
+        cfg.identities_per_batch,
+        cfg.images_per_identity,
+        cfg.seed + 10000,
+        change_each_epoch=False,
+    )
     loaders = {
-        "train_triplet": DataLoader(train_triplets, shuffle=True, **loader_options),
-        "val_triplet": DataLoader(val_triplets, shuffle=False, **loader_options),
-        "val_images": DataLoader(val_images, shuffle=False, **loader_options),
-        "test_images": DataLoader(test_images, shuffle=False, **loader_options),
+        "train_triplet": DataLoader(
+            train_images,
+            batch_sampler=train_batch_sampler,
+            **loader_options,
+        ),
+        "val_triplet": DataLoader(
+            val_images_for_mining,
+            batch_sampler=val_batch_sampler,
+            **loader_options,
+        ),
+        "val_images": DataLoader(
+            val_images,
+            batch_size=cfg.batch_size,
+            shuffle=False,
+            **loader_options,
+        ),
+        "test_images": DataLoader(
+            test_images,
+            batch_size=cfg.batch_size,
+            shuffle=False,
+            **loader_options,
+        ),
     }
     return loaders, class_names, split_class_names
 
@@ -205,7 +225,7 @@ if __name__ == "__main__":
 
     cfg = get_parser()
     loaders, class_names, split_class_names = build_dataloaders(cfg)
-    anchors, positives, negatives = next(iter(loaders["train_triplet"]))
+    images, labels = next(iter(loaders["train_triplet"]))
 
     print(f"Number of classes: {len(class_names)}")
     print(
@@ -214,6 +234,6 @@ if __name__ == "__main__":
         f"{len(split_class_names['val'])}/"
         f"{len(split_class_names['test'])}"
     )
-    print(f"Anchor batch: {anchors.shape}")
-    print(f"Positive batch: {positives.shape}")
-    print(f"Negative batch: {negatives.shape}")
+    print(f"PK batch images: {images.shape}")
+    print(f"PK batch labels: {labels.shape}")
+    print(f"Unique labels in batch: {labels.unique().tolist()}")

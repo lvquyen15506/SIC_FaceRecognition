@@ -87,6 +87,8 @@ def main():
     model_cfg.dataset_root = cli_cfg.dataset_root
     model_cfg.batch_size = cli_cfg.batch_size
     model_cfg.num_workers = cli_cfg.num_workers
+    model_cfg.identities_per_batch = cli_cfg.identities_per_batch
+    model_cfg.images_per_identity = cli_cfg.images_per_identity
 
     loaders, _, _ = build_dataloaders(model_cfg)
     model = build_model(model_cfg).to(device)
