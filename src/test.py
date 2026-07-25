@@ -58,9 +58,10 @@ def create_verification_pairs(embeddings, labels, number_of_pairs, seed):
             second_index = rng.choice(label_to_indices[second_label])
             pair_label = 0
 
-        distance = (
-            embeddings[first_index] - embeddings[second_index]
-        ).pow(2).sum().item()
+        distance = torch.linalg.vector_norm(
+            embeddings[first_index] - embeddings[second_index],
+            ord=2,
+        ).item()
         pair_labels.append(pair_label)
         pair_distances.append(distance)
 
