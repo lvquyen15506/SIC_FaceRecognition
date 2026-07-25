@@ -83,7 +83,7 @@ class FaceImageDataset(Dataset):
 
 
 class PKBatchSampler(Sampler):
-    """Samples P identities and K images per identity for batch-hard mining."""
+    """Samples P identities and K images per identity for online mining."""
 
     def __init__(
         self,

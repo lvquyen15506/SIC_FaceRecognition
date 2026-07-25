@@ -9,7 +9,7 @@ def get_parser():
     parser.add_argument(
         "--experiment_name",
         type=str,
-        default="sic_facevit_batch_hard",
+        default="sic_facevit_semi_hard",
     )
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--image_size", type=int, default=224)
@@ -25,6 +25,7 @@ def get_parser():
     parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--early_stop", type=int, default=10)
+    parser.add_argument("--early_stop_min_delta", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--patch_size", type=int, default=16)

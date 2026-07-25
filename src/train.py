@@ -47,7 +47,7 @@ def calculate_triplet_metrics(anchor, positive, negative, margin):
     )
 
 
-def mine_batch_hard_triplets(embeddings, labels):
+def mine_semi_hard_triplets(embeddings, labels, margin):
     with torch.no_grad():
         distances = torch.cdist(embeddings, embeddings, p=2)
         same_identity = labels[:, None] == labels[None, :]
@@ -63,17 +63,42 @@ def mine_batch_hard_triplets(embeddings, labels):
             ~positive_mask,
             float("-inf"),
         )
-        negative_distances = distances.masked_fill(
-            ~negative_mask,
+        hardest_positive_indices = positive_distances.argmax(dim=1)
+        hardest_positive_distances = distances.gather(
+            1,
+            hardest_positive_indices.unsqueeze(1),
+        ).squeeze(1)
+
+        semi_hard_mask = (
+            negative_mask
+            & (distances > hardest_positive_distances.unsqueeze(1))
+            & (
+                distances
+                < hardest_positive_distances.unsqueeze(1) + margin
+            )
+        )
+        semi_hard_distances = distances.masked_fill(
+            ~semi_hard_mask,
             float("inf"),
         )
-        hardest_positive_indices = positive_distances.argmax(dim=1)
-        hardest_negative_indices = negative_distances.argmin(dim=1)
+        semi_hard_negative_indices = semi_hard_distances.argmin(dim=1)
+        has_semi_hard_negative = semi_hard_mask.any(dim=1)
+
+        fallback_distances = distances.masked_fill(
+            ~negative_mask,
+            float("-inf"),
+        )
+        fallback_negative_indices = fallback_distances.argmax(dim=1)
+        negative_indices = torch.where(
+            has_semi_hard_negative,
+            semi_hard_negative_indices,
+            fallback_negative_indices,
+        )
 
     return (
         embeddings,
         embeddings[hardest_positive_indices],
-        embeddings[hardest_negative_indices],
+        embeddings[negative_indices],
     )
 
 
@@ -92,7 +117,7 @@ def train_one_epoch(model, data_loader, optimizer, criterion, device, margin):
         optimizer.zero_grad()
         embeddings = model(images)
         anchor_embeddings, positive_embeddings, negative_embeddings = (
-            mine_batch_hard_triplets(embeddings, labels)
+            mine_semi_hard_triplets(embeddings, labels, margin)
         )
 
         loss = criterion(
@@ -141,7 +166,7 @@ def evaluate(model, data_loader, criterion, device, margin):
 
         embeddings = model(images)
         anchor_embeddings, positive_embeddings, negative_embeddings = (
-            mine_batch_hard_triplets(embeddings, labels)
+            mine_semi_hard_triplets(embeddings, labels, margin)
         )
         loss = criterion(
             anchor_embeddings,
@@ -263,7 +288,7 @@ def main():
         save_history(history, cfg.experiment_name)
         plot_training_history(history, cfg.experiment_name)
 
-        if val_metrics["loss"] < best_val_loss:
+        if val_metrics["loss"] < best_val_loss - cfg.early_stop_min_delta:
             best_val_loss = val_metrics["loss"]
             best_epoch = epoch + 1
             epochs_without_improvement = 0
