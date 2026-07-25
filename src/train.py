@@ -3,7 +3,6 @@ import random
 import time
 
 import torch
-from torch import nn
 
 from config import get_parser
 from data import build_dataloaders
@@ -11,19 +10,11 @@ from model import build_model
 from visualization import plot_training_history, save_history
 
 
-def format_time(seconds):
-    hours, remainder = divmod(int(seconds), 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-
 def set_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
-
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -34,74 +25,118 @@ def get_device():
     return device
 
 
-def train_one_epoch(model, train_loader, criterion, optimizer, device):
-    model.train()
+def triplet_loss(anchor, positive, negative, margin):
+    positive_distance = (anchor - positive).pow(2).sum(dim=1)
+    negative_distance = (anchor - negative).pow(2).sum(dim=1)
+    losses = torch.relu(
+        positive_distance - negative_distance + margin
+    )
+    loss = losses.mean()
+    triplet_rate = (
+        negative_distance > positive_distance + margin
+    ).float().mean()
+    return (
+        loss,
+        positive_distance.mean(),
+        negative_distance.mean(),
+        triplet_rate,
+    )
 
+
+def train_one_epoch(model, data_loader, optimizer, device, margin):
+    model.train()
     total_loss = 0.0
-    total_correct = 0
+    total_positive_distance = 0.0
+    total_negative_distance = 0.0
+    total_triplet_rate = 0.0
     total_samples = 0
 
-    for images, labels in train_loader:
-        images = images.to(device)
-        labels = labels.to(device)
+    for anchors, positives, negatives in data_loader:
+        anchors = anchors.to(device, non_blocking=True)
+        positives = positives.to(device, non_blocking=True)
+        negatives = negatives.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        logits = model(images)
-        loss = criterion(logits, labels)
+        anchor_embeddings = model(anchors)
+        positive_embeddings = model(positives)
+        negative_embeddings = model(negatives)
 
+        loss, positive_distance, negative_distance, triplet_rate = triplet_loss(
+            anchor_embeddings,
+            positive_embeddings,
+            negative_embeddings,
+            margin,
+        )
         loss.backward()
         optimizer.step()
 
-        batch_size = labels.size(0)
+        batch_size = anchors.size(0)
         total_loss += loss.item() * batch_size
-
-        predictions = logits.argmax(dim=1)
-        total_correct += (predictions == labels).sum().item()
+        total_positive_distance += positive_distance.item() * batch_size
+        total_negative_distance += negative_distance.item() * batch_size
+        total_triplet_rate += triplet_rate.item() * batch_size
         total_samples += batch_size
 
-    average_loss = total_loss / total_samples
-    accuracy = total_correct / total_samples
-    return average_loss, accuracy
+    return {
+        "loss": total_loss / total_samples,
+        "positive_distance": total_positive_distance / total_samples,
+        "negative_distance": total_negative_distance / total_samples,
+        "triplet_rate": total_triplet_rate / total_samples,
+    }
 
 
-def evaluate(model, data_loader, criterion, device):
+@torch.no_grad()
+def evaluate(model, data_loader, device, margin):
     model.eval()
-
     total_loss = 0.0
-    total_correct = 0
+    total_positive_distance = 0.0
+    total_negative_distance = 0.0
+    total_triplet_rate = 0.0
     total_samples = 0
 
-    with torch.no_grad():
-        for images, labels in data_loader:
-            images = images.to(device)
-            labels = labels.to(device)
+    for anchors, positives, negatives in data_loader:
+        anchors = anchors.to(device, non_blocking=True)
+        positives = positives.to(device, non_blocking=True)
+        negatives = negatives.to(device, non_blocking=True)
 
-            logits = model(images)
-            loss = criterion(logits, labels)
+        anchor_embeddings = model(anchors)
+        positive_embeddings = model(positives)
+        negative_embeddings = model(negatives)
+        loss, positive_distance, negative_distance, triplet_rate = triplet_loss(
+            anchor_embeddings,
+            positive_embeddings,
+            negative_embeddings,
+            margin,
+        )
 
-            batch_size = labels.size(0)
-            total_loss += loss.item() * batch_size
+        batch_size = anchors.size(0)
+        total_loss += loss.item() * batch_size
+        total_positive_distance += positive_distance.item() * batch_size
+        total_negative_distance += negative_distance.item() * batch_size
+        total_triplet_rate += triplet_rate.item() * batch_size
+        total_samples += batch_size
 
-            predictions = logits.argmax(dim=1)
-            total_correct += (predictions == labels).sum().item()
-            total_samples += batch_size
+    return {
+        "loss": total_loss / total_samples,
+        "positive_distance": total_positive_distance / total_samples,
+        "negative_distance": total_negative_distance / total_samples,
+        "triplet_rate": total_triplet_rate / total_samples,
+    }
 
-    average_loss = total_loss / total_samples
-    accuracy = total_correct / total_samples
-    return average_loss, accuracy
+
+def format_time(seconds):
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def main():
     cfg = get_parser()
     set_seed(cfg.seed)
     device = get_device()
+    loaders, class_names, split_class_names = build_dataloaders(cfg)
 
-    train_loader, val_loader, test_loader, class_names = build_dataloaders(cfg)
-
-    model = build_model(len(class_names), cfg)
-    model = model.to(device)
-
-    criterion = nn.CrossEntropyLoss()
+    model = build_model(cfg).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=cfg.lr,
@@ -113,68 +148,78 @@ def main():
         "checkpoints",
         f"{cfg.experiment_name}_best.pth",
     )
-
     best_val_loss = float("inf")
     epochs_without_improvement = 0
+    training_start = time.perf_counter()
     history = {
         "train_loss": [],
-        "train_accuracy": [],
         "val_loss": [],
-        "val_accuracy": [],
+        "train_positive_distance": [],
+        "val_positive_distance": [],
+        "train_negative_distance": [],
+        "val_negative_distance": [],
+        "train_triplet_rate": [],
+        "val_triplet_rate": [],
         "epoch_time": [],
     }
 
-    training_start_time = time.perf_counter()
-
     for epoch in range(cfg.epochs):
-        epoch_start_time = time.perf_counter()
-
-        train_loss, train_accuracy = train_one_epoch(
+        epoch_start = time.perf_counter()
+        train_metrics = train_one_epoch(
             model,
-            train_loader,
-            criterion,
+            loaders["train_triplet"],
             optimizer,
             device,
+            cfg.triplet_margin,
         )
-
-        val_loss, val_accuracy = evaluate(
+        val_metrics = evaluate(
             model,
-            val_loader,
-            criterion,
+            loaders["val_triplet"],
             device,
+            cfg.triplet_margin,
         )
-
-        epoch_time = time.perf_counter() - epoch_start_time
+        epoch_time = time.perf_counter() - epoch_start
 
         print(
             f"Epoch [{epoch + 1}/{cfg.epochs}] "
-            f"Train Loss={train_loss:.4f} "
-            f"Train Acc={train_accuracy:.2%} "
-            f"Val Loss={val_loss:.4f} "
-            f"Val Acc={val_accuracy:.2%} "
+            f"Train Loss={train_metrics['loss']:.4f} "
+            f"Val Loss={val_metrics['loss']:.4f} "
+            f"PosDist={val_metrics['positive_distance']:.4f} "
+            f"NegDist={val_metrics['negative_distance']:.4f} "
+            f"TripletRate={val_metrics['triplet_rate']:.2%} "
             f"Time={format_time(epoch_time)}"
         )
 
-        history["train_loss"].append(train_loss)
-        history["train_accuracy"].append(train_accuracy)
-        history["val_loss"].append(val_loss)
-        history["val_accuracy"].append(val_accuracy)
+        for split_name, metrics in (
+            ("train", train_metrics),
+            ("val", val_metrics),
+        ):
+            history[f"{split_name}_loss"].append(metrics["loss"])
+            history[f"{split_name}_positive_distance"].append(
+                metrics["positive_distance"]
+            )
+            history[f"{split_name}_negative_distance"].append(
+                metrics["negative_distance"]
+            )
+            history[f"{split_name}_triplet_rate"].append(
+                metrics["triplet_rate"]
+            )
         history["epoch_time"].append(epoch_time)
-
         save_history(history, cfg.experiment_name)
         plot_training_history(history, cfg.experiment_name)
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_metrics["loss"] < best_val_loss:
+            best_val_loss = val_metrics["loss"]
             epochs_without_improvement = 0
-
             torch.save(
                 {
                     "epoch": epoch + 1,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "val_loss": val_loss,
+                    "val_loss": best_val_loss,
+                    "config": vars(cfg),
                     "class_names": class_names,
+                    "split_class_names": split_class_names,
                 },
                 best_model_path,
             )
@@ -186,21 +231,9 @@ def main():
             print(f"Early stopping at epoch {epoch + 1}")
             break
 
-    total_training_time = time.perf_counter() - training_start_time
-    print(f"Total training time: {format_time(total_training_time)}")
-
-    checkpoint = torch.load(best_model_path, map_location=device, weights_only=True)
-    model.load_state_dict(checkpoint["model_state_dict"])
-
-    test_loss, test_accuracy = evaluate(
-        model,
-        test_loader,
-        criterion,
-        device,
-    )
-
-    print(f"Best epoch: {checkpoint['epoch']}")
-    print(f"Test Loss={test_loss:.4f} Test Acc={test_accuracy:.2%}")
+    total_time = time.perf_counter() - training_start
+    print(f"Total training time: {format_time(total_time)}")
+    print(f"Best checkpoint: {best_model_path}")
 
 
 if __name__ == "__main__":

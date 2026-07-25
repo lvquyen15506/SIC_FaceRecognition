@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 
 class PatchEmbedding(nn.Module):
@@ -16,8 +17,7 @@ class PatchEmbedding(nn.Module):
     def forward(self, images):
         patches = self.projection(images)
         patches = patches.flatten(start_dim=2)
-        patches = patches.transpose(1, 2)
-        return patches
+        return patches.transpose(1, 2)
 
 
 class FeedForward(nn.Module):
@@ -31,15 +31,14 @@ class FeedForward(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, tokens):
+        return self.layers(tokens)
 
 
 class TransformerEncoderBlock(nn.Module):
     def __init__(self, embed_dim, num_heads, mlp_ratio, dropout):
         super().__init__()
         hidden_dim = int(embed_dim * mlp_ratio)
-
         self.norm_attention = nn.LayerNorm(embed_dim)
         self.attention = nn.MultiheadAttention(
             embed_dim=embed_dim,
@@ -50,34 +49,33 @@ class TransformerEncoderBlock(nn.Module):
         self.norm_mlp = nn.LayerNorm(embed_dim)
         self.mlp = FeedForward(embed_dim, hidden_dim, dropout)
 
-    def forward(self, x):
-        normalized_x = self.norm_attention(x)
+    def forward(self, tokens):
+        normalized_tokens = self.norm_attention(tokens)
         attention_output, _ = self.attention(
-            normalized_x,
-            normalized_x,
-            normalized_x,
+            normalized_tokens,
+            normalized_tokens,
+            normalized_tokens,
             need_weights=False,
         )
-        x = x + attention_output
-        x = x + self.mlp(self.norm_mlp(x))
-        return x
+        tokens = tokens + attention_output
+        tokens = tokens + self.mlp(self.norm_mlp(tokens))
+        return tokens
 
 
-class VisionTransformer(nn.Module):
+class FaceVisionTransformer(nn.Module):
     def __init__(
         self,
-        num_classes,
-        image_size=112,
-        patch_size=16,
-        in_channels=3,
-        embed_dim=192,
-        depth=4,
-        num_heads=3,
-        mlp_ratio=2.0,
-        dropout=0.1,
+        image_size,
+        patch_size,
+        in_channels,
+        embed_dim,
+        depth,
+        num_heads,
+        mlp_ratio,
+        dropout,
+        face_embedding_dim,
     ):
         super().__init__()
-
         self.patch_embedding = PatchEmbedding(
             image_size,
             patch_size,
@@ -85,13 +83,11 @@ class VisionTransformer(nn.Module):
             embed_dim,
         )
         number_of_patches = self.patch_embedding.number_of_patches
-
         self.class_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.position_embedding = nn.Parameter(
             torch.zeros(1, number_of_patches + 1, embed_dim)
         )
         self.embedding_dropout = nn.Dropout(dropout)
-
         self.encoder_blocks = nn.Sequential(
             *[
                 TransformerEncoderBlock(
@@ -103,58 +99,53 @@ class VisionTransformer(nn.Module):
                 for _ in range(depth)
             ]
         )
-
         self.final_norm = nn.LayerNorm(embed_dim)
-        self.classifier = nn.Linear(embed_dim, num_classes)
+        self.embedding_head = nn.Linear(embed_dim, face_embedding_dim)
 
         nn.init.trunc_normal_(self.class_token, std=0.02)
         nn.init.trunc_normal_(self.position_embedding, std=0.02)
 
-    def forward(self, images):
+    def forward_features(self, images):
         patch_tokens = self.patch_embedding(images)
         batch_size = patch_tokens.shape[0]
-
         class_tokens = self.class_token.expand(batch_size, -1, -1)
         tokens = torch.cat((class_tokens, patch_tokens), dim=1)
-        tokens = tokens + self.position_embedding
-        tokens = self.embedding_dropout(tokens)
-
+        tokens = self.embedding_dropout(tokens + self.position_embedding)
         tokens = self.encoder_blocks(tokens)
         tokens = self.final_norm(tokens)
+        return tokens[:, 0]
 
-        class_features = tokens[:, 0]
-        logits = self.classifier(class_features)
-        return logits
+    def forward(self, images):
+        class_features = self.forward_features(images)
+        embeddings = self.embedding_head(class_features)
+        return F.normalize(embeddings, p=2, dim=1)
 
 
-def build_model(number_of_classes, cfg):
-    return VisionTransformer(
-        num_classes=number_of_classes,
+def build_model(cfg):
+    return FaceVisionTransformer(
         image_size=cfg.image_size,
         patch_size=cfg.patch_size,
+        in_channels=3,
         embed_dim=cfg.embed_dim,
         depth=cfg.depth,
         num_heads=cfg.num_heads,
         mlp_ratio=cfg.mlp_ratio,
         dropout=cfg.dropout,
+        face_embedding_dim=cfg.face_embedding_dim,
     )
 
 
 if __name__ == "__main__":
     from config import get_parser
-    from data import build_dataloaders
 
     cfg = get_parser()
-    train_loader, _, _, class_names = build_dataloaders(cfg)
-    images, labels = next(iter(train_loader))
-
-    model = build_model(len(class_names), cfg)
-    logits = model(images)
-
-    total_parameters = sum(parameter.numel() for parameter in model.parameters())
+    model = build_model(cfg)
+    images = torch.randn(2, 3, cfg.image_size, cfg.image_size)
+    embeddings = model(images)
+    norms = torch.linalg.vector_norm(embeddings, dim=1)
+    parameters = sum(parameter.numel() for parameter in model.parameters())
 
     print(f"Input image shape: {images.shape}")
-    print(f"Label shape: {labels.shape}")
-    print(f"Number of classes: {len(class_names)}")
-    print(f"Logits shape: {logits.shape}")
-    print(f"Total parameters: {total_parameters:,}")
+    print(f"Embedding shape: {embeddings.shape}")
+    print(f"Embedding norms: {norms}")
+    print(f"Total parameters: {parameters:,}")

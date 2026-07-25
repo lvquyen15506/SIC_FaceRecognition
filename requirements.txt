@@ -14,6 +14,7 @@ torchvision==0.21.0+cu124
 # Training and data pipeline
 Pillow
 matplotlib
+scikit-learn
 
 # Regenerate the lesson report in tools/
 python-docx
