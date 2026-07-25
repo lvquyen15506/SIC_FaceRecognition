@@ -3,6 +3,7 @@ import random
 import time
 
 import torch
+from torch import nn
 
 from config import get_parser
 from data import build_dataloaders
@@ -25,25 +26,28 @@ def get_device():
     return device
 
 
-def triplet_loss(anchor, positive, negative, margin):
-    positive_distance = (anchor - positive).pow(2).sum(dim=1)
-    negative_distance = (anchor - negative).pow(2).sum(dim=1)
-    losses = torch.relu(
-        positive_distance - negative_distance + margin
+def calculate_triplet_metrics(anchor, positive, negative, margin):
+    positive_distance = torch.linalg.vector_norm(
+        anchor - positive,
+        ord=2,
+        dim=1,
     )
-    loss = losses.mean()
+    negative_distance = torch.linalg.vector_norm(
+        anchor - negative,
+        ord=2,
+        dim=1,
+    )
     triplet_rate = (
         negative_distance > positive_distance + margin
     ).float().mean()
     return (
-        loss,
         positive_distance.mean(),
         negative_distance.mean(),
         triplet_rate,
     )
 
 
-def train_one_epoch(model, data_loader, optimizer, device, margin):
+def train_one_epoch(model, data_loader, optimizer, criterion, device, margin):
     model.train()
     total_loss = 0.0
     total_positive_distance = 0.0
@@ -61,11 +65,18 @@ def train_one_epoch(model, data_loader, optimizer, device, margin):
         positive_embeddings = model(positives)
         negative_embeddings = model(negatives)
 
-        loss, positive_distance, negative_distance, triplet_rate = triplet_loss(
+        loss = criterion(
             anchor_embeddings,
             positive_embeddings,
             negative_embeddings,
-            margin,
+        )
+        positive_distance, negative_distance, triplet_rate = (
+            calculate_triplet_metrics(
+                anchor_embeddings,
+                positive_embeddings,
+                negative_embeddings,
+                margin,
+            )
         )
         loss.backward()
         optimizer.step()
@@ -86,7 +97,7 @@ def train_one_epoch(model, data_loader, optimizer, device, margin):
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device, margin):
+def evaluate(model, data_loader, criterion, device, margin):
     model.eval()
     total_loss = 0.0
     total_positive_distance = 0.0
@@ -102,11 +113,18 @@ def evaluate(model, data_loader, device, margin):
         anchor_embeddings = model(anchors)
         positive_embeddings = model(positives)
         negative_embeddings = model(negatives)
-        loss, positive_distance, negative_distance, triplet_rate = triplet_loss(
+        loss = criterion(
             anchor_embeddings,
             positive_embeddings,
             negative_embeddings,
-            margin,
+        )
+        positive_distance, negative_distance, triplet_rate = (
+            calculate_triplet_metrics(
+                anchor_embeddings,
+                positive_embeddings,
+                negative_embeddings,
+                margin,
+            )
         )
 
         batch_size = anchors.size(0)
@@ -137,6 +155,10 @@ def main():
     loaders, class_names, split_class_names = build_dataloaders(cfg)
 
     model = build_model(cfg).to(device)
+    criterion = nn.TripletMarginLoss(
+        margin=cfg.triplet_margin,
+        p=2,
+    )
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=cfg.lr,
@@ -169,12 +191,14 @@ def main():
             model,
             loaders["train_triplet"],
             optimizer,
+            criterion,
             device,
             cfg.triplet_margin,
         )
         val_metrics = evaluate(
             model,
             loaders["val_triplet"],
+            criterion,
             device,
             cfg.triplet_margin,
         )

@@ -6,7 +6,11 @@ def get_parser():
         description="SIC FaceViT with FaceNet-style Triplet Loss"
     )
 
-    parser.add_argument("--experiment_name", type=str, default="sic_facevit_triplet")
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        default="sic_facevit_triplet_v2",
+    )
     parser.add_argument("--dataset_root", type=str, default="dataset")
     parser.add_argument("--image_size", type=int, default=224)
     parser.add_argument("--train_ratio", type=float, default=0.70)
