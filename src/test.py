@@ -90,6 +90,7 @@ def main():
     model_cfg.num_workers = cli_cfg.num_workers
     model_cfg.identities_per_batch = cli_cfg.identities_per_batch
     model_cfg.images_per_identity = cli_cfg.images_per_identity
+    model_cfg.validation_identity_ratio = cli_cfg.validation_identity_ratio
 
     loaders, _, _ = build_dataloaders(model_cfg)
     model = build_model(model_cfg).to(device)

@@ -9,13 +9,19 @@ def get_parser():
     parser.add_argument(
         "--experiment_name",
         type=str,
-        default="sic_facevit_semi_hard",
+        default="sic_facevit_vggface2_semi_hard",
     )
-    parser.add_argument("--dataset_root", type=str, default="dataset")
+    parser.add_argument(
+        "--dataset_root",
+        type=str,
+        default="dataset/vggface2",
+    )
     parser.add_argument("--image_size", type=int, default=224)
-    parser.add_argument("--train_ratio", type=float, default=0.70)
-    parser.add_argument("--val_ratio", type=float, default=0.15)
-    parser.add_argument("--test_ratio", type=float, default=0.15)
+    parser.add_argument(
+        "--validation_identity_ratio",
+        type=float,
+        default=0.5,
+    )
 
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--identities_per_batch", type=int, default=4)
@@ -39,9 +45,8 @@ def get_parser():
 
     cfg = parser.parse_args()
 
-    ratio_sum = cfg.train_ratio + cfg.val_ratio + cfg.test_ratio
-    if abs(ratio_sum - 1.0) > 1e-6:
-        parser.error("train_ratio + val_ratio + test_ratio phai bang 1")
+    if not 0.0 < cfg.validation_identity_ratio < 1.0:
+        parser.error("validation_identity_ratio phai nam trong khoang (0, 1)")
     if cfg.image_size % cfg.patch_size != 0:
         parser.error("image_size phai chia het cho patch_size")
     if cfg.identities_per_batch < 2:

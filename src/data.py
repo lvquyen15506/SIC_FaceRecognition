@@ -10,40 +10,56 @@ from torchvision import transforms
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
-def read_data(root_path, train_ratio=0.70, val_ratio=0.15, seed=42):
-    class_names = sorted(
+def read_data(root_path, validation_identity_ratio=0.5, seed=42):
+    train_root = os.path.join(root_path, "train")
+    holdout_root = os.path.join(root_path, "val")
+
+    if not os.path.isdir(train_root) or not os.path.isdir(holdout_root):
+        raise ValueError("VGGFace2 phai co hai thu muc train va val.")
+
+    train_class_names = sorted(
         name
-        for name in os.listdir(root_path)
-        if os.path.isdir(os.path.join(root_path, name))
+        for name in os.listdir(train_root)
+        if os.path.isdir(os.path.join(train_root, name))
+    )
+    holdout_class_names = sorted(
+        name
+        for name in os.listdir(holdout_root)
+        if os.path.isdir(os.path.join(holdout_root, name))
     )
 
-    if len(class_names) < 3:
-        raise ValueError("Dataset phai co it nhat 3 nguoi de chia train/val/test.")
+    if set(train_class_names) & set(holdout_class_names):
+        raise ValueError("Identity bi trung giua VGGFace2 train va val.")
+    if len(train_class_names) < 2 or len(holdout_class_names) < 2:
+        raise ValueError("Khong du identity de tao train/validation/test.")
 
-    shuffled_class_names = class_names.copy()
-    random.Random(seed).shuffle(shuffled_class_names)
-
-    number_of_classes = len(shuffled_class_names)
-    number_of_train_classes = round(number_of_classes * train_ratio)
-    number_of_val_classes = round(number_of_classes * val_ratio)
-    val_end = number_of_train_classes + number_of_val_classes
+    shuffled_holdout_names = holdout_class_names.copy()
+    random.Random(seed).shuffle(shuffled_holdout_names)
+    number_of_validation_classes = round(
+        len(shuffled_holdout_names) * validation_identity_ratio
+    )
+    number_of_validation_classes = max(
+        1,
+        min(number_of_validation_classes, len(shuffled_holdout_names) - 1),
+    )
 
     split_class_names = {
-        "train": shuffled_class_names[:number_of_train_classes],
-        "val": shuffled_class_names[number_of_train_classes:val_end],
-        "test": shuffled_class_names[val_end:],
+        "train": train_class_names,
+        "val": shuffled_holdout_names[:number_of_validation_classes],
+        "test": shuffled_holdout_names[number_of_validation_classes:],
     }
+    class_names = sorted(train_class_names + holdout_class_names)
     class_to_label = {
         class_name: label
         for label, class_name in enumerate(class_names)
     }
 
-    def collect_images(selected_class_names):
+    def collect_images(split_root, selected_class_names):
         image_paths = []
         labels = []
 
         for class_name in selected_class_names:
-            class_path = os.path.join(root_path, class_name)
+            class_path = os.path.join(split_root, class_name)
             class_image_paths = [
                 os.path.join(class_path, image_name)
                 for image_name in sorted(os.listdir(class_path))
@@ -60,8 +76,9 @@ def read_data(root_path, train_ratio=0.70, val_ratio=0.15, seed=42):
         return image_paths, labels
 
     splits = {
-        split_name: collect_images(selected_class_names)
-        for split_name, selected_class_names in split_class_names.items()
+        "train": collect_images(train_root, split_class_names["train"]),
+        "val": collect_images(holdout_root, split_class_names["val"]),
+        "test": collect_images(holdout_root, split_class_names["test"]),
     }
     return splits, class_names, split_class_names
 
@@ -161,8 +178,7 @@ def get_transforms(image_size):
 def build_dataloaders(cfg):
     splits, class_names, split_class_names = read_data(
         cfg.dataset_root,
-        train_ratio=cfg.train_ratio,
-        val_ratio=cfg.val_ratio,
+        validation_identity_ratio=cfg.validation_identity_ratio,
         seed=cfg.seed,
     )
     X_train, y_train = splits["train"]
