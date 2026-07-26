@@ -42,6 +42,12 @@ def get_parser():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--face_embedding_dim", type=int, default=128)
     parser.add_argument("--triplet_margin", type=float, default=0.2)
+    parser.add_argument("--verification_pairs", type=int, default=10000)
+    parser.add_argument(
+        "--gallery_images_per_identity",
+        type=int,
+        default=5,
+    )
 
     cfg = parser.parse_args()
 
@@ -53,6 +59,10 @@ def get_parser():
         parser.error("identities_per_batch phai lon hon hoac bang 2")
     if cfg.images_per_identity < 2:
         parser.error("images_per_identity phai lon hon hoac bang 2")
+    if cfg.verification_pairs < 2:
+        parser.error("verification_pairs phai lon hon hoac bang 2")
+    if cfg.gallery_images_per_identity < 1:
+        parser.error("gallery_images_per_identity phai lon hon hoac bang 1")
 
     return cfg
 

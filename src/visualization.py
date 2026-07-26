@@ -69,3 +69,94 @@ def plot_training_history(history, experiment_name):
     figure.savefig(figure_path, dpi=160)
     plt.close(figure)
     return figure_path
+
+
+def plot_test_results(
+    pair_labels,
+    pair_distances,
+    roc_curve,
+    verification_metrics,
+    identification_metrics,
+    experiment_name,
+):
+    experiment_dir = get_experiment_dir(experiment_name)
+    figure_path = os.path.join(experiment_dir, "test_results.png")
+    positive_distances = [
+        distance
+        for label, distance in zip(pair_labels, pair_distances)
+        if label == 1
+    ]
+    negative_distances = [
+        distance
+        for label, distance in zip(pair_labels, pair_distances)
+        if label == 0
+    ]
+
+    figure, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+    axes[0].hist(
+        positive_distances,
+        bins=50,
+        alpha=0.65,
+        density=True,
+        label="Same identity",
+    )
+    axes[0].hist(
+        negative_distances,
+        bins=50,
+        alpha=0.65,
+        density=True,
+        label="Different identities",
+    )
+    axes[0].axvline(
+        verification_metrics["eer_distance_threshold"],
+        color="black",
+        linestyle="--",
+        label="EER threshold",
+    )
+    axes[0].set_title("Verification Distance Distribution")
+    axes[0].set_xlabel("Euclidean Distance")
+    axes[0].set_ylabel("Density")
+    axes[0].grid(True, alpha=0.3)
+    axes[0].legend()
+
+    axes[1].plot(
+        roc_curve["false_positive_rate"],
+        roc_curve["true_positive_rate"],
+        label=f"AUC={verification_metrics['roc_auc']:.4f}",
+    )
+    axes[1].plot([0, 1], [0, 1], linestyle="--", color="gray")
+    axes[1].set_title("ROC Curve")
+    axes[1].set_xlabel("False Acceptance Rate")
+    axes[1].set_ylabel("True Acceptance Rate")
+    axes[1].set_xlim(0, 1)
+    axes[1].set_ylim(0, 1)
+    axes[1].grid(True, alpha=0.3)
+    axes[1].legend()
+
+    metric_names = ["Recall@1", "Recall@5", "mAP"]
+    metric_values = [
+        identification_metrics["recall_at_1"] * 100,
+        identification_metrics["recall_at_5"] * 100,
+        identification_metrics["mean_average_precision"] * 100,
+    ]
+    bars = axes[2].bar(metric_names, metric_values)
+    axes[2].set_title("Gallery-Probe Identification")
+    axes[2].set_ylabel("Score (%)")
+    axes[2].set_ylim(0, 100)
+    axes[2].grid(True, axis="y", alpha=0.3)
+    axes[2].bar_label(bars, fmt="%.2f")
+
+    figure.suptitle(f"Test Evaluation - {experiment_name}")
+    figure.tight_layout()
+    figure.savefig(figure_path, dpi=160)
+    plt.close(figure)
+    return figure_path
+
+
+def save_test_results(results, experiment_name):
+    experiment_dir = get_experiment_dir(experiment_name)
+    results_path = os.path.join(experiment_dir, "test_results.json")
+    with open(results_path, "w", encoding="utf-8") as file:
+        json.dump(results, file, indent=4)
+    return results_path
