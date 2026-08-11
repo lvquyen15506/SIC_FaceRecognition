@@ -1,4 +1,5 @@
 import os
+import urllib.request
 import cv2
 import numpy as np
 from PIL import Image
@@ -6,30 +7,45 @@ from PIL import Image
 
 class FaceDetector:
     """
-    Module Phat hien va Crop khuon mat (Face Detection & Alignment Pipeline)
-    Su dung OpenCV Haar Cascade / YuNet nhe, toc do cao, phat hien nhieu khuon mat
-    tren khung hinh realtime.
+    Module Phat hien va Crop khuon mat (SOTA Face Detection Pipeline)
+    Su dung OpenCV YuNet (Deep Learning Face Detector), phat hien va crop
+    khuon mat chinh xac tuyet doi voi toc do cao realtime.
     """
 
-    def __init__(self, min_face_size=(40, 40), scale_factor=1.1, min_neighbors=5):
-        """
-        Khoi tao FaceDetector voi OpenCV Cascade.
-        """
-        self.min_face_size = min_face_size
-        self.scale_factor = scale_factor
-        self.min_neighbors = min_neighbors
+    def __init__(self, score_threshold=0.6, nms_threshold=0.3, target_size=(320, 320)):
+        self.score_threshold = score_threshold
+        self.nms_threshold = nms_threshold
+        self.target_size = target_size
 
-        # Tim va nap file cascade xml cua OpenCV
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        if not os.path.exists(cascade_path):
-            raise FileNotFoundError(f"Khong tim thay file haarcascade tại: {cascade_path}")
+        # 1. Duong dan cu te toi file YuNet ONNX
+        local_data_dir = os.path.join(os.path.dirname(__file__), "data")
+        os.makedirs(local_data_dir, exist_ok=True)
+        yunet_path = os.path.join(local_data_dir, "face_detection_yunet_2023mar.onnx")
 
-        self.detector = cv2.CascadeClassifier(cascade_path)
-        print(f"[Detector] Da khoi tao OpenCV Face Detector tu: {cascade_path}")
+        # 2. Neu chua co model, tu dong tai YuNet tu GitHub OpenCV Zoo
+        if not os.path.exists(yunet_path):
+            print("[Detector] Dang tu dong tai SOTA YuNet Face Detector model...")
+            url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+            try:
+                urllib.request.urlretrieve(url, yunet_path)
+                print(f"[Detector] Da tai thanh cong YuNet model vao: {yunet_path}")
+            except Exception as e:
+                raise RuntimeError(f"Khong thê tai model YuNet: {e}")
+
+        # 3. Khoi tao OpenCV YuNet Detector
+        self.detector = cv2.FaceDetectorYN.create(
+            model=yunet_path,
+            config="",
+            input_size=self.target_size,
+            score_threshold=self.score_threshold,
+            nms_threshold=self.nms_threshold,
+            top_k=5000,
+        )
+        print(f"[Detector] Da khoi tao OpenCV YuNet Face Detector tu: {yunet_path}")
 
     def detect_faces(self, image):
         """
-        Phat hien tat ca cac khuon mat trong mot buc anh hoac frame camera.
+        Phat hien tat ca khuon mat trong buc anh hoac frame camera.
         :param image: numpy array BGR (cv2 frame) hoac PIL Image hoac string path
         :return: list cac bounding box [(x, y, w, h), ...]
         """
@@ -41,28 +57,24 @@ class FaceDetector:
         if image is None:
             return []
 
-        # Chuyen anh sang xam đe phat hien nhanh hon
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.equalizeHist(gray) # Tăng tuong phan xam
+        h, w = image.shape[:2]
+        self.detector.setInputSize((w, h))
 
-        # Phat hien bounding box
-        faces = self.detector.detectMultiScale(
-            gray,
-            scaleFactor=self.scale_factor,
-            minNeighbors=self.min_neighbors,
-            minSize=self.min_face_size,
-        )
+        # Perform YuNet Face Detection
+        _, faces = self.detector.detect(image)
 
-        return list(faces)
+        boxes = []
+        if faces is not None:
+            for face in faces:
+                # YuNet Format: [x, y, w, h, x_re, y_re, x_le, y_le, x_nt, y_nt, x_rc, y_rc, x_lc, y_lc, score]
+                x, y, box_w, box_h = int(face[0]), int(face[1]), int(face[2]), int(face[3])
+                boxes.append((x, y, box_w, box_h))
+
+        return boxes
 
     def crop_face(self, image, box, padding=0.15, target_size=(224, 224)):
         """
         Crop khuon mat tu bounding box (x, y, w, h) voi padding goc va resize ve target_size.
-        :param image: numpy array BGR
-        :param box: tuple (x, y, w, h)
-        :param padding: Ty le mo rong box (15% padding xung quanh tran va cam)
-        :param target_size: Kich thuoc anh dau ra (224, 224)
-        :return: (cropped_face_bgr, cropped_face_pil)
         """
         if isinstance(image, Image.Image):
             image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -70,7 +82,6 @@ class FaceDetector:
         h_img, w_img = image.shape[:2]
         x, y, w, h = box
 
-        # Tinh toán padding xung quanh khuon mat
         pad_w = int(w * padding)
         pad_h = int(h * padding)
 
@@ -79,13 +90,11 @@ class FaceDetector:
         x2 = min(w_img, x + w + pad_w)
         y2 = min(h_img, y + h + pad_h)
 
-        # Crop vung khuon mat
         face_crop = image[y1:y2, x1:x2]
 
         if face_crop.size == 0:
-            face_crop = image[y : y + h, x : x + w]
+            face_crop = image[max(0, y) : min(h_img, y + h), max(0, x) : min(w_img, x + w)]
 
-        # Resize ve target_size (224x224)
         face_resized_bgr = cv2.resize(face_crop, target_size, interpolation=cv2.INTER_CUBIC)
         face_resized_rgb = cv2.cvtColor(face_resized_bgr, cv2.COLOR_BGR2RGB)
         face_pil = Image.fromarray(face_resized_rgb)
@@ -94,10 +103,9 @@ class FaceDetector:
 
 
 if __name__ == "__main__":
-    print("=== TESTING FACE DETECTOR MODULE ===")
+    print("=== TESTING YUNET FACE DETECTOR MODULE ===")
     detector = FaceDetector()
 
-    # Tạo mot khung hinh synthetic test
     test_frame = np.zeros((480, 640, 3), dtype=np.uint8)
     cv2.rectangle(test_frame, (100, 100), (300, 300), (255, 255, 255), -1)
 
