@@ -1,8 +1,13 @@
 # PyTorch Deep Learning Framework
-# Note: For CUDA GPU support, run:
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+# Default: standard PyTorch CPU/GPU installation
 torch>=2.0.0
 torchvision>=0.15.0
+
+# Optional: PyTorch CUDA 12.4 for NVIDIA GPUs (RTX 30xx, 40xx, etc.)
+# If you want to explicitly force CUDA GPU wheel, uncomment the 3 lines below:
+# --extra-index-url https://download.pytorch.org/whl/cu124
+# torch>=2.0.0
+# torchvision>=0.15.0
 
 # Core Computer Vision & Data processing
 Pillow
