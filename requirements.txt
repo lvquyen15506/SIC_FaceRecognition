@@ -11,10 +11,16 @@ torchvision==0.21.0+cu124
 # torch==2.6.0+cpu
 # torchvision==0.21.0+cpu
 
-# Training and data pipeline
+# Core Computer Vision & Data processing
 Pillow
+numpy
+opencv-python
 matplotlib
 scikit-learn
 
-# Regenerate the lesson report in tools/
+# ONNX Engine & Fast Inference
+onnx
+onnxruntime
+
+# Report generation tools in tools/
 python-docx
