@@ -112,7 +112,7 @@ class FaceRecognitionApp:
 
         return embedding
 
-    def enroll_user_from_camera(self, name, capture_count=15, cooldown_sec=0.25):
+    def enroll_user_from_camera(self, name, capture_count=60, cooldown_sec=0.05):
         """Đang ky nguoi dung moi qua Webcam bang chuoi nhieu khung hinh (Multi-frame) smooth 60 FPS"""
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -120,7 +120,7 @@ class FaceRecognitionApp:
             return
 
         print(f"=== DANG KY NGUOI DUNG MOI: '{name}' ===")
-        print(f"Huong dan: Nhin vao camera va xoay nhe dau. Tieu chuan thu: {capture_count} anh.")
+        print(f"Huong dan: Nhin vao camera va xoay nhe dau. Đang thu thap {capture_count} mau dac trung...")
 
         captured = 0
         last_capture_time = 0.0
@@ -142,11 +142,10 @@ class FaceRecognitionApp:
                 largest_box = max(boxes, key=lambda b: b[2] * b[3])
                 x, y, w, h = largest_box
 
+                # Ve khung bounding box xanh la sach se (Da loai bo chu hien so luong anh)
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(display_frame, f"Dang thu thap: {captured}/{capture_count}", (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-                # Thu thap anh không dung time.sleep() de UI webcam chay sieu mươt 60 FPS
+                # Thu thap anh siêu toc khong dung time.sleep()
                 if now - last_capture_time >= cooldown_sec:
                     _, face_pil = self.detector.crop_face(frame, largest_box)
                     embedding = self.extract_embedding(face_pil)
