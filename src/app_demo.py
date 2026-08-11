@@ -221,6 +221,7 @@ def main():
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
     parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
     parser.add_argument("--capture_count", type=int, default=15, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 15)")
+    parser.add_argument("--clear_gallery", action="store_true", help="Xoa sach toan bo du lieu gallery da dang ky")
     parser.add_argument("--webcam", action="store_true", help="Chay nhan dien thoi gian thuc qua webcam")
 
     args = parser.parse_args()
@@ -231,7 +232,9 @@ def main():
         use_onnx=args.use_onnx,
     )
 
-    if args.enroll_name:
+    if args.clear_gallery:
+        app.gallery.clear_db()
+    elif args.enroll_name:
         app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count)
     elif args.webcam:
         app.run_webcam()

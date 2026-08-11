@@ -58,6 +58,17 @@ class GalleryManager:
         torch.save(data, save_path)
         print(f"[Gallery] Da luu database gallery gồm {len(self.gallery_names)} mau vao: {save_path}")
 
+    def clear_db(self, custom_path=None):
+        """Xoa sach du lieu gallery hien tai"""
+        save_path = custom_path if custom_path else self.db_path
+        self.gallery_embeddings = []
+        self.gallery_names = []
+        if os.path.exists(save_path):
+            os.remove(save_path)
+            print(f"[Gallery] Da xoa sach database gallery tai: {save_path}")
+        else:
+            print("[Gallery] Database gallery hien dang rông.")
+
     def load_db(self, custom_path=None):
         """Nap database gallery tu file .pt"""
         load_path = custom_path if custom_path else self.db_path
