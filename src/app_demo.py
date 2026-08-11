@@ -112,8 +112,8 @@ class FaceRecognitionApp:
 
         return embedding
 
-    def enroll_user_from_camera(self, name, capture_count=15):
-        """Đang ky nguoi dung moi qua Webcam bang chuoi nhieu khung hinh (Multi-frame)"""
+    def enroll_user_from_camera(self, name, capture_count=15, cooldown_sec=0.25):
+        """Đang ky nguoi dung moi qua Webcam bang chuoi nhieu khung hinh (Multi-frame) smooth 60 FPS"""
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("[Error] Khong the mo Webcam.")
@@ -123,6 +123,8 @@ class FaceRecognitionApp:
         print(f"Huong dan: Nhin vao camera va xoay nhe dau. Tieu chuan thu: {capture_count} anh.")
 
         captured = 0
+        last_capture_time = 0.0
+
         while captured < capture_count:
             ret, frame = cap.read()
             if not ret:
@@ -130,6 +132,7 @@ class FaceRecognitionApp:
 
             display_frame = frame.copy()
             boxes = self.detector.detect_faces(frame)
+            now = time.time()
 
             if len(boxes) > 0:
                 # Lay khuon mat lon nhat trong khung hinh
@@ -137,15 +140,16 @@ class FaceRecognitionApp:
                 x, y, w, h = largest_box
 
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(display_frame, f"Dang thu thap: {captured+1}/{capture_count}", (x, y - 10),
+                cv2.putText(display_frame, f"Dang thu thap: {captured}/{capture_count}", (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-                # Crop va trich xuat embedding
-                _, face_pil = self.detector.crop_face(frame, largest_box)
-                embedding = self.extract_embedding(face_pil)
-                self.gallery.add_identity(name, embedding)
-                captured += 1
-                time.sleep(0.2)
+                # Thu thap anh không dung time.sleep() de UI webcam chay sieu mươt 60 FPS
+                if now - last_capture_time >= cooldown_sec:
+                    _, face_pil = self.detector.crop_face(frame, largest_box)
+                    embedding = self.extract_embedding(face_pil)
+                    self.gallery.add_identity(name, embedding)
+                    captured += 1
+                    last_capture_time = now
 
             cv2.imshow("Enrollment - Nhan phim 'q' de huy", display_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
