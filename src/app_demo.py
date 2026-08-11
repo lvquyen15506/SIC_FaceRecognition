@@ -112,42 +112,63 @@ class FaceRecognitionApp:
 
         return embedding
 
-    def enroll_user_from_camera(self, name, capture_count=60, cooldown_sec=0.05):
-        """Đang ky nguoi dung moi qua Webcam bang chuoi nhieu khung hinh (Multi-frame) smooth 60 FPS"""
+    def enroll_user_from_camera(self, name, capture_count=60, min_duration_sec=5.0, cooldown_sec=0.08):
+        """Đang ky nguoi dung moi qua Webcam trong toi thieu 5s, tu dong huy neu co 2 khuon mat"""
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("[Error] Khong the mo Webcam.")
             return
 
         print(f"=== DANG KY NGUOI DUNG MOI: '{name}' ===")
-        print(f"Huong dan: Nhin vao camera va xoay nhe dau. Đang thu thap {capture_count} mau dac trung...")
+        print(f"Huong dan: Nhin vao camera va xoay nhe dau trong toi thieu {min_duration_sec}s...")
 
         captured = 0
         last_capture_time = 0.0
+        start_time = time.time()
 
-        while captured < capture_count:
+        while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
+            now = time.time()
+            elapsed = now - start_time
+
+            # Kiem tra dieu kien ket thuc: Duyen it nhat min_duration_sec VA da du capture_count mau
+            if elapsed >= min_duration_sec and captured >= capture_count:
+                break
+
             # Lat anh ngang de tao hieu ung guong soi tu nhien (Mirror Effect)
             frame = cv2.flip(frame, 1)
-
             display_frame = frame.copy()
+
+            # Phat hien tat ca khuon mat trong khung hinh
             boxes = self.detector.detect_faces(frame)
-            now = time.time()
 
-            if len(boxes) > 0:
-                # Lay khuon mat lon nhat trong khung hinh
-                largest_box = max(boxes, key=lambda b: b[2] * b[3])
-                x, y, w, h = largest_box
+            if len(boxes) > 1:
+                # ❌ PHAT HIEN NHIEU KHUON MAT: CANH BAO VA KHONG THU THAP
+                for (bx, by, bw, bh) in boxes:
+                    cv2.rectangle(display_frame, (bx, by), (bx + bw, by + bh), (0, 0, 255), 2)
 
-                # Ve khung bounding box xanh la sach se (Da loai bo chu hien so luong anh)
+                cv2.rectangle(display_frame, (10, 10), (frame.shape[1] - 10, 50), (0, 0, 255), -1)
+                cv2.putText(
+                    display_frame,
+                    f"CANH BAO: Phat hien {len(boxes)} khuon mat! Chi duoc dung 1 nguoi.",
+                    (20, 38),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (255, 255, 255),
+                    2,
+                )
+            elif len(boxes) == 1:
+                # ✅ CHINH XAC 1 KHUON MAT: THU THAP HOLE
+                box = boxes[0]
+                x, y, w, h = box
+
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                # Thu thap anh siêu toc khong dung time.sleep()
-                if now - last_capture_time >= cooldown_sec:
-                    _, face_pil = self.detector.crop_face(frame, largest_box)
+                if captured < capture_count and (now - last_capture_time >= cooldown_sec):
+                    _, face_pil = self.detector.crop_face(frame, box)
                     embedding = self.extract_embedding(face_pil)
                     self.gallery.add_identity(name, embedding)
                     captured += 1
@@ -162,7 +183,7 @@ class FaceRecognitionApp:
 
         if captured > 0:
             self.gallery.save_db()
-            print(f"[Success] Da dang ky thanh cong '{name}' voi {captured} mau dac trung.")
+            print(f"[Success] Da dang ky thanh cong '{name}' voi {captured} mau dac trung (Thoi gian: {time.time() - start_time:.1f}s).")
 
     def run_webcam(self):
         """Chay ung dung Nhan dien Thoi gian thuc qua Webcam (Real-time Demo)"""
@@ -229,7 +250,8 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.7641, help="EER distance threshold")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
     parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
-    parser.add_argument("--capture_count", type=int, default=15, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 15)")
+    parser.add_argument("--capture_count", type=int, default=60, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 60)")
+    parser.add_argument("--min_duration", type=float, default=5.0, help="Thoi gian mo camera dang ky toi thieu giay (mac dinh 5.0s)")
     parser.add_argument("--clear_gallery", action="store_true", help="Xoa sach toan bo du lieu gallery da dang ky")
     parser.add_argument("--webcam", action="store_true", help="Chay nhan dien thoi gian thuc qua webcam")
 
@@ -244,7 +266,7 @@ def main():
     if args.clear_gallery:
         app.gallery.clear_db()
     elif args.enroll_name:
-        app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count)
+        app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count, min_duration_sec=args.min_duration)
     elif args.webcam:
         app.run_webcam()
     else:
