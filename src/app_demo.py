@@ -112,7 +112,7 @@ class FaceRecognitionApp:
 
         return embedding
 
-    def enroll_user_from_camera(self, name, capture_count=5):
+    def enroll_user_from_camera(self, name, capture_count=15):
         """Đang ky nguoi dung moi qua Webcam bang chuoi nhieu khung hinh (Multi-frame)"""
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -145,7 +145,7 @@ class FaceRecognitionApp:
                 embedding = self.extract_embedding(face_pil)
                 self.gallery.add_identity(name, embedding)
                 captured += 1
-                time.sleep(0.3)
+                time.sleep(0.2)
 
             cv2.imshow("Enrollment - Nhan phim 'q' de huy", display_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -220,6 +220,7 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.7641, help="EER distance threshold")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
     parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
+    parser.add_argument("--capture_count", type=int, default=15, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 15)")
     parser.add_argument("--webcam", action="store_true", help="Chay nhan dien thoi gian thuc qua webcam")
 
     args = parser.parse_args()
@@ -231,7 +232,7 @@ def main():
     )
 
     if args.enroll_name:
-        app.enroll_user_from_camera(args.enroll_name)
+        app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count)
     elif args.webcam:
         app.run_webcam()
     else:
