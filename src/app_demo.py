@@ -130,6 +130,9 @@ class FaceRecognitionApp:
             if not ret:
                 break
 
+            # Lat anh ngang de tao hieu ung guong soi tu nhien (Mirror Effect)
+            frame = cv2.flip(frame, 1)
+
             display_frame = frame.copy()
             boxes = self.detector.detect_faces(frame)
             now = time.time()
@@ -179,6 +182,9 @@ class FaceRecognitionApp:
             ret, frame = cap.read()
             if not ret:
                 break
+
+            # Lat anh ngang de tao hieu ung guong soi tu nhien (Mirror Effect)
+            frame = cv2.flip(frame, 1)
 
             # Tinh toán FPS
             curr_time = time.time()
