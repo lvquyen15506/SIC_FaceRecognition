@@ -117,9 +117,16 @@ class GalleryManager:
         min_distance = min_distance.item()
         matched_name = self.gallery_names[min_index.item()]
 
-        # Tinh diem tin cay Confidence Score (%)
-        # Voi nguong threshold = 0.7641, neu distance = 0 -> 100%, neu distance = threshold -> 0%
-        confidence = max(0.0, min(100.0, (1.0 - (min_distance / self.threshold)) * 100.0))
+        # Tinh diem tin cay Confidence Score (%) phi tuyen hien thi tu nhien:
+        # Voi L2 distance <= 0.7641 (Known), khoang cach 0.35-0.45 la khop rat manh -> Hien thi 80%-90%
+        if min_distance <= self.threshold:
+            ratio = 1.0 - (min_distance / self.threshold)
+            confidence = 50.0 + 50.0 * (ratio ** 0.6)
+        else:
+            ratio = (min_distance - self.threshold) / (2.0 - self.threshold)
+            confidence = max(0.0, 50.0 * (1.0 - min(1.0, ratio)))
+
+        confidence = max(0.0, min(100.0, confidence))
 
         # Phân loai Known vs Unknown dua tren nguong EER Threshold
         is_known = min_distance <= self.threshold
