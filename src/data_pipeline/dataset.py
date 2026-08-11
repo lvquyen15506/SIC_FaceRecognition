@@ -240,7 +240,7 @@ def build_dataloaders(cfg):
 
 
 if __name__ == "__main__":
-    from config import get_parser
+    from .config import get_parser
 
     cfg = get_parser()
     loaders, class_names, split_class_names = build_dataloaders(cfg)

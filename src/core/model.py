@@ -299,8 +299,11 @@ def build_model(cfg):
 
 
 if __name__ == "__main__":
-
-    from config import get_parser
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from data_pipeline import get_parser
 
     cfg = get_parser()
 

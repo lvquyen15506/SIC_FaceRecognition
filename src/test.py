@@ -1,21 +1,21 @@
 import argparse
 import os
+import sys
 import random
+from pathlib import Path
+
+# Automatic Path Bootstrap
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR.parent if CURRENT_DIR.name == "src" else CURRENT_DIR
+for p in [str(PROJECT_ROOT / "src"), str(PROJECT_ROOT)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 import torch
 
-from config import get_parser
-from data import build_dataloaders
-from metrics import (
-    calculate_identification_metrics,
-    calculate_verification_metrics,
-)
-from model import build_model
-from visualization import (
-    get_experiment_dir,
-    plot_test_results,
-    save_test_results,
-)
+from data_pipeline import get_parser, build_dataloaders
+from core import build_model, calculate_verification_metrics, calculate_identification_metrics
+from utils import get_experiment_dir, plot_test_results, save_test_results
 
 
 def get_device():
@@ -55,10 +55,7 @@ def create_verification_pairs(embeddings, labels, number_of_pairs, seed):
 
         if same_person:
             label = rng.choice(unique_labels)
-            first_index, second_index = rng.sample(
-                label_to_indices[label],
-                2,
-            )
+            first_index, second_index = rng.sample(label_to_indices[label], 2)
             pair_label = 1
         else:
             first_label, second_label = rng.sample(unique_labels, 2)
@@ -76,11 +73,7 @@ def create_verification_pairs(embeddings, labels, number_of_pairs, seed):
     return pair_labels, pair_distances
 
 
-def create_gallery_probe_split(
-    labels,
-    gallery_images_per_identity,
-    seed,
-):
+def create_gallery_probe_split(labels, gallery_images_per_identity, seed):
     rng = random.Random(seed)
     label_to_indices = {}
 
@@ -93,15 +86,9 @@ def create_gallery_probe_split(
         shuffled_indices = indices.copy()
         rng.shuffle(shuffled_indices)
         if len(shuffled_indices) <= gallery_images_per_identity:
-            raise ValueError(
-                f"Identity {label} khong du anh de tao gallery va probe."
-            )
-        gallery_indices.extend(
-            shuffled_indices[:gallery_images_per_identity]
-        )
-        probe_indices.extend(
-            shuffled_indices[gallery_images_per_identity:]
-        )
+            raise ValueError(f"Identity {label} khong du anh de tao gallery va probe.")
+        gallery_indices.extend(shuffled_indices[:gallery_images_per_identity])
+        probe_indices.extend(shuffled_indices[gallery_images_per_identity:])
 
     return (
         torch.tensor(gallery_indices, dtype=torch.long),
@@ -112,46 +99,38 @@ def create_gallery_probe_split(
 def main():
     cli_cfg = get_parser()
     device = get_device()
-    checkpoint_path = os.path.join(
-        "checkpoints",
-        f"{cli_cfg.experiment_name}_best.pth",
-    )
+    
+    possible_paths = [
+        os.path.join("checkpoints", f"{cli_cfg.experiment_name}_best.pth"),
+        os.path.join("src", "checkpoints", f"{cli_cfg.experiment_name}_best.pth"),
+    ]
+    checkpoint_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            checkpoint_path = path
+            break
 
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    if not checkpoint_path:
+        raise FileNotFoundError(f"Checkpoint not found for experiment: {cli_cfg.experiment_name}")
 
-    checkpoint = torch.load(
-        checkpoint_path,
-        map_location=device,
-        weights_only=True,
-    )
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model_cfg = argparse.Namespace(**checkpoint["config"])
     model_cfg.dataset_root = cli_cfg.dataset_root
     model_cfg.batch_size = cli_cfg.batch_size
     model_cfg.num_workers = cli_cfg.num_workers
-    model_cfg.identities_per_batch = cli_cfg.identities_per_batch
-    model_cfg.images_per_identity = cli_cfg.images_per_identity
-    model_cfg.validation_identity_ratio = cli_cfg.validation_identity_ratio
 
     loaders, class_names, split_class_names = build_dataloaders(model_cfg)
     model = build_model(model_cfg).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
-    embeddings, labels = extract_embeddings(
-        model,
-        loaders["test_images"],
-        device,
-    )
+    embeddings, labels = extract_embeddings(model, loaders["test_images"], device)
     pair_labels, pair_distances = create_verification_pairs(
         embeddings,
         labels,
         number_of_pairs=cli_cfg.verification_pairs,
         seed=model_cfg.seed,
     )
-    verification_metrics, roc_curve = calculate_verification_metrics(
-        pair_labels,
-        pair_distances,
-    )
+    verification_metrics, roc_curve = calculate_verification_metrics(pair_labels, pair_distances)
     gallery_indices, probe_indices = create_gallery_probe_split(
         labels,
         cli_cfg.gallery_images_per_identity,
@@ -164,16 +143,8 @@ def main():
         probe_indices,
     )
 
-    positive_distances = [
-        distance
-        for label, distance in zip(pair_labels, pair_distances)
-        if label == 1
-    ]
-    negative_distances = [
-        distance
-        for label, distance in zip(pair_labels, pair_distances)
-        if label == 0
-    ]
+    positive_distances = [d for l, d in zip(pair_labels, pair_distances) if l == 1]
+    negative_distances = [d for l, d in zip(pair_labels, pair_distances) if l == 0]
 
     results = {
         "checkpoint": checkpoint_path,
@@ -181,25 +152,16 @@ def main():
         "test_identities": len(set(labels.tolist())),
         "test_images": len(labels),
         "verification_pairs": cli_cfg.verification_pairs,
-        "mean_positive_distance": (
-            sum(positive_distances) / len(positive_distances)
-        ),
-        "mean_negative_distance": (
-            sum(negative_distances) / len(negative_distances)
-        ),
+        "mean_positive_distance": sum(positive_distances) / len(positive_distances),
+        "mean_negative_distance": sum(negative_distances) / len(negative_distances),
         "verification": verification_metrics,
         "gallery_images": len(gallery_indices),
         "probe_images": len(probe_indices),
-        "gallery_images_per_identity": (
-            cli_cfg.gallery_images_per_identity
-        ),
+        "gallery_images_per_identity": cli_cfg.gallery_images_per_identity,
         "identification": identification_metrics,
     }
     experiment_dir = get_experiment_dir(cli_cfg.experiment_name)
-    embeddings_path = os.path.join(
-        experiment_dir,
-        "test_embeddings.pt",
-    )
+    embeddings_path = os.path.join(experiment_dir, "test_embeddings.pt")
     torch.save(
         {
             "embeddings": embeddings,
@@ -209,9 +171,7 @@ def main():
             "test_class_names": split_class_names["test"],
             "gallery_indices": gallery_indices,
             "probe_indices": probe_indices,
-            "eer_distance_threshold": verification_metrics[
-                "eer_distance_threshold"
-            ],
+            "eer_distance_threshold": verification_metrics["eer_distance_threshold"],
         },
         embeddings_path,
     )
@@ -230,47 +190,15 @@ def main():
     print(f"Best epoch: {checkpoint['epoch']}")
     print(f"Test identities: {len(set(labels.tolist()))}")
     print(f"Test images: {len(labels)}")
-    print(
-        "Mean positive distance: "
-        f"{sum(positive_distances) / len(positive_distances):.4f}"
-    )
-    print(
-        "Mean negative distance: "
-        f"{sum(negative_distances) / len(negative_distances):.4f}"
-    )
+    print(f"Mean positive distance: {sum(positive_distances) / len(positive_distances):.4f}")
+    print(f"Mean negative distance: {sum(negative_distances) / len(negative_distances):.4f}")
     print(f"ROC-AUC: {verification_metrics['roc_auc']:.4f}")
     print(f"EER: {verification_metrics['eer']:.2%}")
-    print(
-        "EER distance threshold: "
-        f"{verification_metrics['eer_distance_threshold']:.4f}"
-    )
-    print(
-        "Verification accuracy at EER: "
-        f"{verification_metrics['verification_accuracy_at_eer']:.2%}"
-    )
-    print(
-        "TAR@FAR=1%: "
-        f"{verification_metrics['tar_at_far_0.01']:.2%}"
-    )
-    print(
-        "TAR@FAR=0.1%: "
-        f"{verification_metrics['tar_at_far_0.001']:.2%}"
-    )
-    print(f"Gallery images: {len(gallery_indices)}")
-    print(f"Probe images: {len(probe_indices)}")
-    print(
-        f"Recall@1: {identification_metrics['recall_at_1']:.2%}"
-    )
-    print(
-        f"Recall@5: {identification_metrics['recall_at_5']:.2%}"
-    )
-    print(
-        "mAP: "
-        f"{identification_metrics['mean_average_precision']:.2%}"
-    )
-    print(f"Saved test results to: {results_path}")
-    print(f"Saved test figure to: {figure_path}")
-    print(f"Saved test embeddings to: {embeddings_path}")
+    print(f"EER distance threshold: {verification_metrics['eer_distance_threshold']:.4f}")
+    print(f"Verification accuracy at EER: {verification_metrics['verification_accuracy_at_eer']:.2%}")
+    print(f"Recall@1: {identification_metrics['recall_at_1']:.2%}")
+    print(f"Recall@5: {identification_metrics['recall_at_5']:.2%}")
+    print(f"mAP: {identification_metrics['mean_average_precision']:.2%}")
 
 
 if __name__ == "__main__":
