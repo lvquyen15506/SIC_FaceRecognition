@@ -51,10 +51,27 @@ def estimate_head_pose(landmarks):
     return pose, yaw_ratio, pitch_ratio
 
 
+def check_face_distance(box, frame_shape):
+    """
+    Kiem tra khoang cach tu khuon mat toi camera.
+    :return: (dist_code: str, is_optimal: bool, msg: str)
+    """
+    h_frame, w_frame = frame_shape[:2]
+    bw = box[2]
+    ratio = bw / float(w_frame)
+
+    if ratio < 0.22:
+        return "TOO_FAR", False, "CANH BAO: KHUON MAT XA QUA! Vui long tien lai gan."
+    elif ratio > 0.65:
+        return "TOO_CLOSE", False, "CANH BAO: KHUON MAT GAN QUA! Vui long lui ra xa."
+    else:
+        return "OPTIMAL", True, "Khoang cach dat chuan"
+
+
 def run_pose_test():
     print("=== TEST MO HINH EKYC LIVENESS & HEAD POSE ESTIMATION ===")
     print("Mô hinh se yeu cau ban thuc hien chuoi hanh dong eKYC:")
-    print("  1. Nhin thang -> 2. Quay Trai -> 3. Quay Phai -> 4. Nguoc Len")
+    print("  0. Kiem tra khoang cach -> 1. Nhin thang -> 2. Quay Trai -> 3. Quay Phai -> 4. Nguoc Len")
     print("Bấm phím 'q' de thoat.\n")
 
     detector = FaceDetector()
@@ -108,9 +125,18 @@ def run_pose_test():
 
             x, y, bw, bh = box
             pose, yaw_r, pitch_r = estimate_head_pose(landmarks)
+            dist_code, is_opt_dist, dist_msg = check_face_distance(box, frame.shape)
 
-            # Ve Bounding box
-            box_color = (0, 255, 0) if (completed_time or pose == challenges[current_step]["action"]) else (0, 165, 255)
+            if not is_opt_dist and completed_time is None:
+                # ⚠️ CANH BAO KHOANG CACH XA/GAN KHONG DAT CHUAN
+                box_color = (0, 165, 255)
+                cv2.rectangle(frame, (0, 0), (w, 60), (0, 165, 255), -1)
+                cv2.putText(frame, dist_msg, (20, 38),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+                step_start_time = time.time()
+            else:
+                box_color = (0, 255, 0) if (completed_time or pose == challenges[current_step]["action"]) else (0, 165, 255)
+
             cv2.rectangle(frame, (x, y), (x + bw, y + bh), box_color, 2)
 
             # Ve 5 diem moc Facial Landmarks YuNet: [Mắt Phải (Màu Đỏ), Mắt Trái (Màu Xanh), Mũi (Vàng), Miệng]
@@ -123,8 +149,8 @@ def run_pose_test():
             cv2.putText(frame, label_text, (x, max(30, y - 10)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
-            # Kiem tra xem nguoi dung da lam dung hanh dong thach thuc chua
-            if completed_time is None:
+            # Kiem tra xem nguoi dung da lam dung hanh dong thach thuc chua (KHI KHOANG CACH OPTIMAL)
+            if completed_time is None and is_opt_dist:
                 target_action = challenges[current_step]["action"]
                 if pose == target_action:
                     cv2.putText(frame, "OK!", (x + bw - 60, y - 10),

@@ -168,13 +168,26 @@ class FaceRecognitionApp:
                 face_bgr, face_pil = self.detector.crop_face(frame, box)
                 is_good_light, mean_brightness, light_msg = self.detector.check_lighting_quality(face_bgr)
 
-                if not is_good_light:
-                    # ⚠️ ANH SANG KHONG DAT CHUAN: CANH BAO VA TAM DUNG THU THAP
+                # Kiem tra ti le khoang cach (Xa qua hoac Gan qua)
+                face_ratio = w / float(frame.shape[1])
+                if face_ratio < 0.22:
+                    is_good_dist = False
+                    dist_msg = "CANH BAO: KHUON MAT XA QUA! Vui long tien lai gan camera."
+                elif face_ratio > 0.65:
+                    is_good_dist = False
+                    dist_msg = "CANH BAO: KHUON MAT GAN QUA! Vui long lui ra xa camera."
+                else:
+                    is_good_dist = True
+                    dist_msg = "OK"
+
+                if not is_good_light or not is_good_dist:
+                    # ⚠️ ANH SANG HOAC KHOANG CACH KHONG DAT CHUAN: CANH BAO VA TAM DUNG THU THAP
+                    warn_msg = light_msg if not is_good_light else dist_msg
                     cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 165, 255), 2)
                     cv2.rectangle(display_frame, (10, 10), (frame.shape[1] - 10, 50), (0, 165, 255), -1)
                     cv2.putText(
                         display_frame,
-                        f"CANH BAO: {light_msg}",
+                        warn_msg,
                         (20, 38),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.6,
