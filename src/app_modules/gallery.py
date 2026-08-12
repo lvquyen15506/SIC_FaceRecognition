@@ -109,9 +109,9 @@ class GalleryManager:
         # Gom toan bo gallery embeddings thanh matrix [N, 128]
         gallery_matrix = torch.stack(self.gallery_embeddings, dim=0)
 
-        # Hybrid Matching: Tim min distance giua cac mau dac trung + Centroid cua tung danh tinh
+        # Pure Identity Centroid Matching: So sanh khoang cach voi Vector Trung Tam (Centroid) dai dien cua tung nguoi
         unique_names = list(dict.fromkeys(self.gallery_names))
-        min_user_distances = []
+        user_distances = []
 
         for u_name in unique_names:
             idxs = [i for i, n in enumerate(self.gallery_names) if n == u_name]
@@ -119,14 +119,11 @@ class GalleryManager:
             user_centroid = user_matrix.mean(dim=0)
             user_centroid = user_centroid / torch.linalg.vector_norm(user_centroid, ord=2)
 
-            d_samples = torch.linalg.vector_norm(user_matrix - query_embedding, ord=2, dim=1)
-            d_centroid = torch.linalg.vector_norm(user_centroid - query_embedding, ord=2)
+            d_centroid = torch.linalg.vector_norm(user_centroid - query_embedding, ord=2).item()
+            user_distances.append(d_centroid)
 
-            best_d = min(d_samples.min().item(), d_centroid.item())
-            min_user_distances.append(best_d)
-
-        min_user_distances = torch.tensor(min_user_distances)
-        min_distance, min_index = torch.min(min_user_distances, dim=0)
+        user_distances = torch.tensor(user_distances)
+        min_distance, min_index = torch.min(user_distances, dim=0)
         min_distance = min_distance.item()
         matched_name = unique_names[min_index.item()]
 
