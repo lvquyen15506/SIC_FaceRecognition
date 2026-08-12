@@ -151,10 +151,20 @@ class FaceDetector:
         face_resized_bgr = cv2.resize(face_crop, target_size, interpolation=cv2.INTER_CUBIC)
 
         if enhance_light:
-            # Tu dong can bang anh sang toi/sang bang CLAHE tren kenh Y (Luminance)
+            # 1. Shadow Lifting cho anh bi nguoc sang: Tu dong bu sang cho khuon mat bi toi do den phau nén
+            gray = cv2.cvtColor(face_resized_bgr, cv2.COLOR_BGR2GRAY)
+            mean_val = float(np.mean(gray))
+            if mean_val < 110.0:
+                # Gamma Correction dong de keo sang cac chi tiet bi bong ram tren mat
+                gamma = float(np.clip(mean_val / 120.0, 0.45, 0.95))
+                inv_gamma = 1.0 / gamma
+                table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+                face_resized_bgr = cv2.LUT(face_resized_bgr, table)
+
+            # 2. Can bang anh sang toi/sang cuc bo bang CLAHE tren kenh Y (Luminance)
             ycrcb = cv2.cvtColor(face_resized_bgr, cv2.COLOR_BGR2YCrCb)
             y_chan, cr, cb = cv2.split(ycrcb)
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
             y_eq = clahe.apply(y_chan)
             ycrcb_eq = cv2.merge((y_eq, cr, cb))
             face_resized_bgr = cv2.cvtColor(ycrcb_eq, cv2.COLOR_YCrCb2BGR)
