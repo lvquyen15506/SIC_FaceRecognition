@@ -127,16 +127,20 @@ def run_pose_test():
             pose, yaw_r, pitch_r = estimate_head_pose(landmarks)
             dist_code, is_opt_dist, dist_msg = check_face_distance(box, frame.shape)
 
+            now = time.time()
+
+            # Kiem tra khoang cach hop le hay vuot nguong:
             if not is_opt_dist and completed_time is None:
-                # ⚠️ CANH BAO KHOANG CACH XA/GAN KHONG DAT CHUAN
-                box_color = (0, 165, 255)
-                cv2.rectangle(frame, (0, 0), (w, 60), (0, 165, 255), -1)
+                # ❌ KHUON MAT XA QUA HOAC GAN QUA: HIEN BOX DO VA CHAN KHONG CHO XAC THUC
+                box_color = (0, 0, 255)  # Box Do canh bao
+                cv2.rectangle(frame, (0, 0), (w, 60), (0, 0, 255), -1)
                 cv2.putText(frame, dist_msg, (20, 38),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
-                step_start_time = time.time()
+                step_start_time = now
             else:
                 box_color = (0, 255, 0) if (completed_time or pose == challenges[current_step]["action"]) else (0, 165, 255)
 
+            # Ve Bounding box quanh khuon mat
             cv2.rectangle(frame, (x, y), (x + bw, y + bh), box_color, 2)
 
             # Ve 5 diem moc Facial Landmarks YuNet: [Mắt Phải (Màu Đỏ), Mắt Trái (Màu Xanh), Mũi (Vàng), Miệng]
@@ -144,26 +148,27 @@ def run_pose_test():
             for pt, color in zip(landmarks, colors):
                 cv2.circle(frame, pt, 5, color, -1)
 
-            # Hien thi Tu the va Chi so thuc te tren man hinh
+            # Hien thi Tu the hien tai tren khung mat
             label_text = f"Tu the: {pose} (yaw={yaw_r:.2f}, pitch={pitch_r:.2f})"
             cv2.putText(frame, label_text, (x, max(30, y - 10)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
-            # Kiem tra xem nguoi dung da lam dung hanh dong thach thuc chua (KHI KHOANG CACH OPTIMAL)
+            # Kiem tra dieu kien thach thuc eKYC (KHI KHOANG CACH OPTIMAL): YEU CAU GIU TU THE TOI THIEU 1.0 GIÂY!
             if completed_time is None and is_opt_dist:
                 target_action = challenges[current_step]["action"]
                 if pose == target_action:
-                    cv2.putText(frame, "OK!", (x + bw - 60, y - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    hold_elapsed = now - step_start_time
+                    cv2.putText(frame, f"Giu tu the: {min(1.0, hold_elapsed):.1f}s / 1.0s", (x, y + bh + 25),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
 
-                    # Chuyen sang buoc tiep theo ngay lap tuc (0.2s hold)
-                    if time.time() - step_start_time >= 0.2:
+                    # BẮT BỘC GIỮ TƯ THẾ ĐỦ 1.0 GIÂY LIÊN TỤC MỚI ĐƯỢC CHUYỂN BƯỚC!
+                    if hold_elapsed >= 1.0:
                         current_step += 1
-                        step_start_time = time.time()
+                        step_start_time = now
                         if current_step >= len(challenges):
-                            completed_time = time.time()
+                            completed_time = now
                 else:
-                    step_start_time = time.time()
+                    step_start_time = now
 
         cv2.imshow("Test eKYC Head Pose Estimation & Liveness", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
