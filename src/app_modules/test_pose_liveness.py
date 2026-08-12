@@ -36,14 +36,14 @@ def estimate_head_pose(landmarks):
     d_nose_mouth = mouth_y - nose[1]
     pitch_ratio = d_nose_eyes / (d_nose_mouth + 1e-6)
 
-    # Xac dinh tư the hop li va nhay (Calibrated thresholds):
-    if yaw_ratio > 1.15:
+    # Xac dinh tư the chuan hoa theo goc nghieng Camera Laptop:
+    if yaw_ratio > 1.25:
         pose = "QUAY TRAI"
-    elif yaw_ratio < 0.85:
+    elif yaw_ratio < 0.75:
         pose = "QUAY PHAI"
-    elif pitch_ratio < 0.62:
+    elif pitch_ratio < 0.70:
         pose = "NGUOC LEN"
-    elif pitch_ratio > 1.05:
+    elif pitch_ratio > 1.45:
         pose = "CUI XUONG"
     else:
         pose = "NHIN THANG"
