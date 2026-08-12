@@ -227,6 +227,7 @@ class EKYCEnrollApp:
                                 if current_step >= len(challenges):
                                     completed = True
                                     print(f"\n🎉 HOAN THANH DANG KY DANH TINH eKYC DA TU THE CHO: '{name}'!")
+                                    self.gallery.save_db()
                 else:
                     cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 200, 0), -1)
                     cv2.putText(display_frame, f"DANG KY EKYC DA TU THE THANH CONG CHO: {name}! ({capture_count} mau)", (15, 38),
@@ -237,7 +238,10 @@ class EKYCEnrollApp:
 
             cv2.imshow("Test eKYC Enrollment Demo", display_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
-                print("[Huy] Da huy qua trinh dang ky eKYC.")
+                if sum(step_samples) > 0:
+                    print("[Gallery] Tu dong luu du lieu da thu thap truoc khi thoat...")
+                    self.gallery.save_db()
+                print("[Huy] Da thoat qua trinh dang ky eKYC.")
                 break
 
         cap.release()
