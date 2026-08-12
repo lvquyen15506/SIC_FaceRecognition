@@ -252,7 +252,7 @@ def main():
     parser = argparse.ArgumentParser(description="SIC FaceViT eKYC Enrollment Test Demo")
     parser.add_argument("--enroll_name", type=str, required=True, help="Ten nguoi muon dang ky qua eKYC")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Engine")
-    parser.add_argument("--capture_count", type=int, default=60, help="So luong mau thu thap sau eKYC")
+    parser.add_argument("--capture_count", type=int, default=120, help="So luong mau thu thap sau eKYC (mac dinh 120 mau - 30 mau/tu the)")
     args = parser.parse_args()
 
     app = EKYCEnrollApp(use_onnx=args.use_onnx)

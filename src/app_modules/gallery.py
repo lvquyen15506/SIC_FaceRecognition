@@ -109,18 +109,27 @@ class GalleryManager:
         # Gom toan bo gallery embeddings thanh matrix [N, 128]
         gallery_matrix = torch.stack(self.gallery_embeddings, dim=0)
 
-        # Pure Identity Centroid Matching: So sanh khoang cach voi Vector Trung Tam (Centroid) dai dien cua tung nguoi
+        # Hybrid Robust Multi-Pose Matching: Hop nhat Vector Trung Tam (Centroid) va Top-5 Mau Cung Tu The
         unique_names = list(dict.fromkeys(self.gallery_names))
         user_distances = []
 
         for u_name in unique_names:
             idxs = [i for i, n in enumerate(self.gallery_names) if n == u_name]
             user_matrix = gallery_matrix[idxs]
+            
+            # 1. Khoang cach toi Vector Trung Tam Toan Dien (Global Centroid)
             user_centroid = user_matrix.mean(dim=0)
             user_centroid = user_centroid / torch.linalg.vector_norm(user_centroid, ord=2)
-
             d_centroid = torch.linalg.vector_norm(user_centroid - query_embedding, ord=2).item()
-            user_distances.append(d_centroid)
+
+            # 2. Khoang cach Trung binh Top-5 mau trung khop nhat cua tư the hien tai (Top-5 Pose Cluster)
+            d_samples = torch.linalg.vector_norm(user_matrix - query_embedding, ord=2, dim=1)
+            k = min(5, len(user_matrix))
+            d_top5 = torch.topk(d_samples, k=k, largest=False).values.mean().item()
+
+            # Ket hop Hybrid: Trung binh trong so giua Centroid toan dien va Top-5 cum tư the
+            d_hybrid = 0.4 * d_centroid + 0.6 * d_top5
+            user_distances.append(d_hybrid)
 
         user_distances = torch.tensor(user_distances)
         min_distance, min_index = torch.min(user_distances, dim=0)
