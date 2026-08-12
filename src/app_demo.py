@@ -299,7 +299,7 @@ class FaceRecognitionApp:
 def main():
     parser = argparse.ArgumentParser(description="SIC FaceViT Real-time Face Recognition App")
     parser.add_argument("--experiment_name", type=str, default="sic_facevit_infonce_v2")
-    parser.add_argument("--threshold", type=float, default=0.45, help="Real-time L2 distance threshold (mac dinh 0.45 - An ninh cao chong lọt nguoi la)")
+    parser.add_argument("--threshold", type=float, default=0.28, help="Real-time L2 distance threshold (mac dinh 0.28 - Siêu an ninh chong lọt nguoi la)")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
     parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
     parser.add_argument("--capture_count", type=int, default=60, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 60)")
