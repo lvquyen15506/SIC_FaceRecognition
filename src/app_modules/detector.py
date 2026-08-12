@@ -72,6 +72,43 @@ class FaceDetector:
 
         return boxes
 
+    def detect_faces_with_landmarks(self, image):
+        """
+        Phat hien tat ca khuon mat va tra ve ca bounding box va 5 facial landmarks YuNet.
+        :return: list dict [{'box': (x,y,w,h), 'landmarks': [(x_re,y_re), (x_le,y_le), (x_nt,y_nt), (x_rc,y_rc), (x_lc,y_lc)], 'score': float}, ...]
+        """
+        if isinstance(image, str):
+            image = cv2.imread(image)
+        elif isinstance(image, Image.Image):
+            image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        if image is None:
+            return []
+
+        h, w = image.shape[:2]
+        self.detector.setInputSize((w, h))
+
+        _, faces = self.detector.detect(image)
+
+        results = []
+        if faces is not None:
+            for face in faces:
+                x, y, box_w, box_h = int(face[0]), int(face[1]), int(face[2]), int(face[3])
+                landmarks = [
+                    (int(face[4]), int(face[5])),    # Mắt phải
+                    (int(face[6]), int(face[7])),    # Mắt trái
+                    (int(face[8]), int(face[9])),    # Đỉnh mũi
+                    (int(face[10]), int(face[11])),  # Miệng phải
+                    (int(face[12]), int(face[13]))   # Miệng trái
+                ]
+                results.append({
+                    "box": (x, y, box_w, box_h),
+                    "landmarks": landmarks,
+                    "score": float(face[14])
+                })
+
+        return results
+
     def check_lighting_quality(self, face_bgr):
         """
         Kiem tra danh gia chat luong anh sang khuon mat.
