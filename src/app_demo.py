@@ -229,18 +229,42 @@ class FaceRecognitionApp:
             # 1. Phat hien tat ca khuon mat trong frame
             boxes = self.detector.detect_faces(frame)
 
-            # 2. Vong lap qua tung khuon mat
+            # 2. Thu thap ket qua truy van cua tat ca khuon mat
+            face_matches = []
             for box in boxes:
-                x, y, w, h = box
                 _, face_pil = self.detector.crop_face(frame, box)
-
-                # Trich xuat embedding va truy van Gallery
                 embedding = self.extract_embedding(face_pil)
                 match = self.gallery.identify(embedding)
+                face_matches.append({
+                    "box": box,
+                    "name": match["name"],
+                    "distance": match["distance"],
+                    "confidence": match["confidence"],
+                    "is_known": match["is_known"],
+                })
 
-                # Dinh dang mau sac: Xanh la (Known), Do (Unknown)
-                color = (0, 255, 0) if match["is_known"] else (0, 0, 255)
-                label_str = f"{match['name']} ({match['confidence']:.1f}% | d={match['distance']:.2f})" if match["is_known"] else f"Unknown (d={match['distance']:.2f})"
+            # 3. Thuat toan Rang buoc Doc quyen Danh tinh (Non-Duplicate Identity Constraint)
+            # Sap xep cac khuon mat theo khoang cach tang dan (uu tien nguoi khop nhat)
+            face_matches.sort(key=lambda item: item["distance"])
+            assigned_names = set()
+
+            for item in face_matches:
+                box = item["box"]
+                x, y, w, h = box
+                name = item["name"]
+                dist = item["distance"]
+                conf = item["confidence"]
+                is_known = item["is_known"]
+
+                if is_known and name not in assigned_names:
+                    # Trao danh tinh doc quyen cho khuon mat khop nhat trong frame!
+                    assigned_names.add(name)
+                    color = (0, 255, 0)
+                    label_str = f"{name} ({conf:.1f}% | d={dist:.2f})"
+                else:
+                    # Neu ten nay da duoc gan cho khuon mat khac tot hon -> Ep thanh Unknown (Vien Do)!
+                    color = (0, 0, 255)
+                    label_str = f"Unknown (d={dist:.2f})"
 
                 # Ve khung bounding box va nhan ten
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
