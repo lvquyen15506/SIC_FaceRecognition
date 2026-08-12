@@ -128,10 +128,12 @@ class EKYCEnrollApp:
             return "OPTIMAL", True, "Khoang cach dat chuan"
 
     def enroll_with_ekyc(self, name, capture_count=60):
-        print(f"\n=== BAT DAU DANG KY DANH TINH eKYC CHO: '{name}' ===")
-        print("Quy trinh eKYC gom 2 giai doan:")
-        print("  Giai doan 1: Thuc hien chuoi thach thuc eKYC de xac thuc nguoi that.")
-        print(f"  Giai doan 2: Tu dong thu thap {capture_count} mau dac trung du lieu.\n")
+        print(f"\n=== BAT DAU DANG KY DANH TINH eKYC DA TUP THE CHO: '{name}' ===")
+        print("Quy trinh thu thap du lieu eKYC chia deu 60 mau theo 4 tu the:")
+        print("  - Tu the 1 (Nhin thang): Thu thap 15 mau vector")
+        print("  - Tu the 2 (Quay trai) : Thu thap 15 mau vector")
+        print("  - Tu the 3 (Quay phai) : Thu thap 15 mau vector")
+        print("  - Tu the 4 (Nguoc len) : Thu thap 15 mau vector\n")
 
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -139,17 +141,17 @@ class EKYCEnrollApp:
             return
 
         challenges = [
-            {"action": "NHIN THANG", "instruction": "1/4: VOI LONG NHIN THANG VAO CAMERA"},
-            {"action": "QUAY TRAI",  "instruction": "2/4: VOI LONG QUAY DAU SANG TRAI"},
-            {"action": "QUAY PHAI",  "instruction": "3/4: VOI LONG QUAY DAU SANG PHAI"},
-            {"action": "NGUOC LEN",  "instruction": "4/4: VOI LONG NGUOC CAM LEN TREN"},
+            {"action": "NHIN THANG", "instruction": "1/4: VOI LONG NHIN THANG VAO CAMERA (Thu thap 15 mau)"},
+            {"action": "QUAY TRAI",  "instruction": "2/4: VOI LONG QUAY DAU SANG TRAI (Thu thap 15 mau)"},
+            {"action": "QUAY PHAI",  "instruction": "3/4: VOI LONG QUAY DAU SANG PHAI (Thu thap 15 mau)"},
+            {"action": "NGUOC LEN",  "instruction": "4/4: VOI LONG NGUOC CAM LEN TREN (Thu thap 15 mau)"},
         ]
 
+        samples_per_step = capture_count // len(challenges)  # 15 mau moi tu the
+        step_samples = [0] * len(challenges)
         current_step = 0
-        step_start_time = time.time()
-        ekyc_verified = False
-        captured = 0
         last_capture_time = time.time()
+        completed = False
 
         while True:
             ret, frame = cap.read()
@@ -169,7 +171,6 @@ class EKYCEnrollApp:
                 cv2.putText(display_frame, "KHONG PHAT HIEN KHUON MAT!", (20, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             elif len(results) > 1:
-                # Canh bao nhieu khuon mat
                 cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 0, 255), -1)
                 cv2.putText(display_frame, f"CANH BAO: Phat hien {len(results)} khuon mat! Chi duoc 1 nguoi.", (20, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
@@ -185,12 +186,16 @@ class EKYCEnrollApp:
                 is_good_light, mean_bright, light_msg = self.detector.check_lighting_quality(face_bgr)
 
                 now = time.time()
+                total_captured = sum(step_samples)
 
-                if not ekyc_verified:
-                    # GIAI DOAN 1: THUC HIEN THACH THUC EKYC
+                if not completed:
                     target = challenges[current_step]
-                    cv2.putText(display_frame, f"[eKYC VERIFICATION] {target['instruction']}", (15, 38),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                    step_count = step_samples[current_step]
+
+                    # Hien thi Header eKYC
+                    header_str = f"[{current_step+1}/4: {target['action']}] Layer {step_count}/{samples_per_step} mau | Tong: {total_captured}/{capture_count}"
+                    cv2.putText(display_frame, header_str, (15, 38),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2)
 
                     if not is_opt_dist or not is_good_light:
                         warn_msg = light_msg if not is_good_light else dist_msg
@@ -198,52 +203,37 @@ class EKYCEnrollApp:
                         cv2.putText(display_frame, warn_msg, (15, 38),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
                         cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 0, 255), 2)
-                        step_start_time = now
                     else:
                         cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
                         cv2.putText(display_frame, f"Tu the: {pose}", (x, max(30, y - 10)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
+                        # Kiem tra neu dang o dung tu thach thuc -> TIEN HANH CHUP MAU CHO TU THE DO
                         if pose == target["action"]:
-                            hold_elapsed = now - step_start_time
-                            cv2.putText(display_frame, f"Giu tu the: {min(1.0, hold_elapsed):.1f}s / 1.0s", (x, y + bh + 25),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+                            if now - last_capture_time >= 0.08:
+                                embedding = self.extract_embedding(face_pil)
+                                self.gallery.add_identity(name, embedding)
+                                step_samples[current_step] += 1
+                                last_capture_time = now
 
-                            if hold_elapsed >= 1.0:
+                            # Hien thanh tien trinh thu thap mau cho tu the nay
+                            pct = int((step_samples[current_step] / float(samples_per_step)) * 100)
+                            cv2.putText(display_frame, f"Dang thu thap {target['action']}: {step_samples[current_step]}/{samples_per_step} ({pct}%)", (x, y + bh + 25),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+                            # Khi thu thap du 15 mau cho tu the hien tai -> Chuyen sang tu the tiep theo!
+                            if step_samples[current_step] >= samples_per_step:
                                 current_step += 1
-                                step_start_time = now
                                 if current_step >= len(challenges):
-                                    ekyc_verified = True
-                                    print("✅ XAC THUC EKYC THANH CONG! BAT DAU THU THAP DU LIEU...")
-                        else:
-                            step_start_time = now
+                                    completed = True
+                                    print(f"\n🎉 HOAN THANH DANG KY DANH TINH eKYC DA TU THE CHO: '{name}'!")
                 else:
-                    # GIAI DOAN 2: eKYC DAH THONG QUA -> THU THAP 60 MAU VECTOR
-                    cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 180, 0), -1)
-                    cv2.putText(display_frame, f"eKYC PASSED! Dang thu thap du lieu: {captured}/{capture_count}", (15, 38),
+                    cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 200, 0), -1)
+                    cv2.putText(display_frame, f"DANG KY EKYC DA TU THE THANH CONG CHO: {name}! ({capture_count} mau)", (15, 38),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
-
-                    if not is_opt_dist or not is_good_light:
-                        warn_msg = light_msg if not is_good_light else dist_msg
-                        cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 165, 255), 2)
-                        cv2.putText(display_frame, f"TAM DUNG: {warn_msg}", (x, y + bh + 25),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 165, 255), 2)
-                    else:
-                        cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
-                        if captured < capture_count and (now - last_capture_time >= 0.08):
-                            embedding = self.extract_embedding(face_pil)
-                            self.gallery.add_identity(name, embedding)
-                            captured += 1
-                            last_capture_time = now
-
-                        if captured >= capture_count:
-                            print(f"\n🎉 HOAN THANH DANG KY DANH TINH eKYC CHO: '{name}'!")
-                            cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 200, 0), -1)
-                            cv2.putText(display_frame, f"DANG KY EKYC THANH CONG CHO: {name}!", (15, 38),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-                            cv2.imshow("Test eKYC Enrollment Demo", display_frame)
-                            cv2.waitKey(2000)
-                            break
+                    cv2.imshow("Test eKYC Enrollment Demo", display_frame)
+                    cv2.waitKey(2500)
+                    break
 
             cv2.imshow("Test eKYC Enrollment Demo", display_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
