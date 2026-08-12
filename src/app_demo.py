@@ -225,12 +225,12 @@ class FaceRecognitionApp:
 
                 # Dinh dang mau sac: Xanh la (Known), Do (Unknown)
                 color = (0, 255, 0) if match["is_known"] else (0, 0, 255)
-                label_str = f"{match['name']} ({match['confidence']:.1f}%)" if match["is_known"] else "Unknown"
+                label_str = f"{match['name']} ({match['confidence']:.1f}% | d={match['distance']:.2f})" if match["is_known"] else f"Unknown (d={match['distance']:.2f})"
 
                 # Ve khung bounding box va nhan ten
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 cv2.rectangle(frame, (x, y - 25), (x + w, y), color, -1)
-                cv2.putText(frame, label_str, (x + 5, y - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.putText(frame, label_str, (x + 5, y - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
             # Hien thi thông so FPS
             cv2.putText(frame, f"FPS: {fps:.1f} | Engine: {'ONNX' if self.use_onnx else 'PyTorch'}", (10, 30),
@@ -247,7 +247,7 @@ class FaceRecognitionApp:
 def main():
     parser = argparse.ArgumentParser(description="SIC FaceViT Real-time Face Recognition App")
     parser.add_argument("--experiment_name", type=str, default="sic_facevit_infonce_v2")
-    parser.add_argument("--threshold", type=float, default=0.7641, help="EER distance threshold")
+    parser.add_argument("--threshold", type=float, default=0.48, help="Real-time L2 distance threshold (mac dinh 0.48)")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
     parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
     parser.add_argument("--capture_count", type=int, default=60, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 60)")
