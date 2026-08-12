@@ -72,9 +72,25 @@ class FaceDetector:
 
         return boxes
 
-    def crop_face(self, image, box, padding=0.15, target_size=(224, 224)):
+    def check_lighting_quality(self, face_bgr):
+        """
+        Kiem tra danh gia chat luong anh sang khuon mat.
+        :return: (is_good: bool, mean_brightness: float, status_msg: str)
+        """
+        gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
+        mean_brightness = float(np.mean(gray))
+
+        if mean_brightness < 40.0:
+            return False, mean_brightness, "ANH QUA TOI! Vui long bat them den."
+        elif mean_brightness > 220.0:
+            return False, mean_brightness, "ANH QUA SANG! Vui long tranh anh sang chieu truc tiep."
+        else:
+            return True, mean_brightness, "Anh sang dat tieu chuan"
+
+    def crop_face(self, image, box, padding=0.15, target_size=(224, 224), enhance_light=True):
         """
         Crop khuon mat tu bounding box (x, y, w, h) voi padding goc va resize ve target_size.
+        Tu dong can bang anh sang bang thuat toan CLAHE.
         """
         if isinstance(image, Image.Image):
             image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -96,6 +112,16 @@ class FaceDetector:
             face_crop = image[max(0, y) : min(h_img, y + h), max(0, x) : min(w_img, x + w)]
 
         face_resized_bgr = cv2.resize(face_crop, target_size, interpolation=cv2.INTER_CUBIC)
+
+        if enhance_light:
+            # Tu dong can bang anh sang toi/sang bang CLAHE tren kenh Y (Luminance)
+            ycrcb = cv2.cvtColor(face_resized_bgr, cv2.COLOR_BGR2YCrCb)
+            y_chan, cr, cb = cv2.split(ycrcb)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            y_eq = clahe.apply(y_chan)
+            ycrcb_eq = cv2.merge((y_eq, cr, cb))
+            face_resized_bgr = cv2.cvtColor(ycrcb_eq, cv2.COLOR_YCrCb2BGR)
+
         face_resized_rgb = cv2.cvtColor(face_resized_bgr, cv2.COLOR_BGR2RGB)
         face_pil = Image.fromarray(face_resized_rgb)
 

@@ -161,18 +161,33 @@ class FaceRecognitionApp:
                     2,
                 )
             elif len(boxes) == 1:
-                # ✅ CHINH XAC 1 KHUON MAT: THU THAP HOLE
+                # ✅ CHINH XAC 1 KHUON MAT: KIEM TRA ANH SANG VA THU THAP
                 box = boxes[0]
                 x, y, w, h = box
 
-                cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                face_bgr, face_pil = self.detector.crop_face(frame, box)
+                is_good_light, mean_brightness, light_msg = self.detector.check_lighting_quality(face_bgr)
 
-                if captured < capture_count and (now - last_capture_time >= cooldown_sec):
-                    _, face_pil = self.detector.crop_face(frame, box)
-                    embedding = self.extract_embedding(face_pil)
-                    self.gallery.add_identity(name, embedding)
-                    captured += 1
-                    last_capture_time = now
+                if not is_good_light:
+                    # ⚠️ ANH SANG KHONG DAT CHUAN: CANH BAO VA TAM DUNG THU THAP
+                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 165, 255), 2)
+                    cv2.rectangle(display_frame, (10, 10), (frame.shape[1] - 10, 50), (0, 165, 255), -1)
+                    cv2.putText(
+                        display_frame,
+                        f"CANH BAO: {light_msg}",
+                        (20, 38),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (255, 255, 255),
+                        2,
+                    )
+                else:
+                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    if captured < capture_count and (now - last_capture_time >= cooldown_sec):
+                        embedding = self.extract_embedding(face_pil)
+                        self.gallery.add_identity(name, embedding)
+                        captured += 1
+                        last_capture_time = now
 
             cv2.imshow("Enrollment - Nhan phim 'q' de huy", display_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
