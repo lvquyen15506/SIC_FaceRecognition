@@ -36,16 +36,14 @@ def estimate_head_pose(landmarks):
     d_nose_mouth = mouth_y - nose[1]
     pitch_ratio = d_nose_eyes / (d_nose_mouth + 1e-6)
 
-    # Xac dinh tư the (Tren khung hinh da cv2.flip 1):
-    # - Quay sang trai tren man hinh (Yaw ratio nho)
-    # - Quay sang phai tren man hinh (Yaw ratio lon)
-    if yaw_ratio < 0.45:
+    # Xac dinh tư the voi nguong tu nhiên (Calibrated thresholds):
+    if yaw_ratio < 0.70:
         pose = "QUAY TRAI"
-    elif yaw_ratio > 2.20:
+    elif yaw_ratio > 1.40:
         pose = "QUAY PHAI"
-    elif pitch_ratio < 0.35:
+    elif pitch_ratio < 0.45:
         pose = "NGUOC LEN"
-    elif pitch_ratio > 1.30:
+    elif pitch_ratio > 1.15:
         pose = "CUI XUONG"
     else:
         pose = "NHIN THANG"
@@ -68,7 +66,7 @@ def run_pose_test():
 
     # Chuoi Thach thuc eKYC (Challenge sequence)
     challenges = [
-        {"action": "NHIN THANG", "instruction": "1/4: VOI LONG NHIN THANG VAP CAMERA"},
+        {"action": "NHIN THANG", "instruction": "1/4: VOI LONG NHIN THANG VAO CAMERA"},
         {"action": "QUAY TRAI",  "instruction": "2/4: VOI LONG QUAY DAU SANG TRAI"},
         {"action": "QUAY PHAI",  "instruction": "3/4: VOI LONG QUAY DAU SANG PHAI"},
         {"action": "NGUOC LEN",  "instruction": "4/4: VOI LONG NGUOC CAM LEN TREN"},
@@ -120,19 +118,20 @@ def run_pose_test():
             for pt, color in zip(landmarks, colors):
                 cv2.circle(frame, pt, 5, color, -1)
 
-            # Hien thi Tu the hien tai tren man hinh
-            cv2.putText(frame, f"Tu the: {pose}", (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            # Hien thi Tu the va Chi so thuc te tren man hinh
+            label_text = f"Tu the: {pose} (yaw={yaw_r:.2f}, pitch={pitch_r:.2f})"
+            cv2.putText(frame, label_text, (x, max(30, y - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
             # Kiem tra xem nguoi dung da lam dung hanh dong thach thuc chua
             if completed_time is None:
                 target_action = challenges[current_step]["action"]
                 if pose == target_action:
-                    cv2.putText(frame, "OK! HOP LE", (x + bw - 120, y - 10),
+                    cv2.putText(frame, "OK!", (x + bw - 60, y - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    
-                    # Chuyen sang buoc tiep theo
-                    if time.time() - step_start_time >= 0.8:  # Giữ tu the 0.8s
+
+                    # Chuyen sang buoc tiep theo ngay lap tuc (0.2s hold)
+                    if time.time() - step_start_time >= 0.2:
                         current_step += 1
                         step_start_time = time.time()
                         if current_step >= len(challenges):
