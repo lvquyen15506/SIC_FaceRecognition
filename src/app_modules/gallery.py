@@ -9,10 +9,10 @@ class GalleryManager:
     truy van nhan dien khuôn mat (Identification) kem phat hien Nguoi la (Unknown).
     """
 
-    def __init__(self, threshold=0.60, db_path="gallery_db.pt"):
+    def __init__(self, threshold=0.52, db_path="gallery_db.pt"):
         """
         Khoi tao GalleryManager.
-        :param threshold: Nguong khoang cach L2 Vang (mac dinh 0.60 cho camera realtime)
+        :param threshold: Nguong khoang cach L2 An ninh (mac dinh 0.52 chong nham nguoi)
         :param db_path: Duong dan den tệp luu tru database gallery
         """
         self.threshold = threshold
