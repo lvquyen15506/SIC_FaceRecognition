@@ -9,10 +9,10 @@ class GalleryManager:
     truy van nhan dien khuôn mat (Identification) kem phat hien Nguoi la (Unknown).
     """
 
-    def __init__(self, threshold=0.48, db_path="gallery_db.pt"):
+    def __init__(self, threshold=0.60, db_path="gallery_db.pt"):
         """
         Khoi tao GalleryManager.
-        :param threshold: Nguong khoang cach L2 thuc te (mac dinh 0.48 cho camera realtime)
+        :param threshold: Nguong khoang cach L2 Vang (mac dinh 0.60 cho camera realtime)
         :param db_path: Duong dan den tệp luu tru database gallery
         """
         self.threshold = threshold
@@ -85,7 +85,7 @@ class GalleryManager:
 
     def identify(self, query_embedding):
         """
-        Truy van vector khuon mat query voi Vector Trung Tam (Centroid) cua tung danh tinh trong Gallery.
+        Truy van vector khuon mat query dung Hybrid Matching (Mau don le + Vector Trung Tam Centroid).
         :param query_embedding: Tensor [128] hoac [1, 128]
         :return: dict(name, distance, confidence, is_known)
         """
@@ -109,37 +109,38 @@ class GalleryManager:
         # Gom toan bo gallery embeddings thanh matrix [N, 128]
         gallery_matrix = torch.stack(self.gallery_embeddings, dim=0)
 
-        # Gom nhom va tinh Vector Trung Tam (Centroid) cho tung danh tinh doc lap
+        # Hybrid Matching: Tim min distance giua cac mau dac trung + Centroid cua tung danh tinh
         unique_names = list(dict.fromkeys(self.gallery_names))
-        centroid_embeddings = []
+        min_user_distances = []
+
         for u_name in unique_names:
             idxs = [i for i, n in enumerate(self.gallery_names) if n == u_name]
             user_matrix = gallery_matrix[idxs]
             user_centroid = user_matrix.mean(dim=0)
             user_centroid = user_centroid / torch.linalg.vector_norm(user_centroid, ord=2)
-            centroid_embeddings.append(user_centroid)
 
-        centroids_matrix = torch.stack(centroid_embeddings, dim=0)
+            d_samples = torch.linalg.vector_norm(user_matrix - query_embedding, ord=2, dim=1)
+            d_centroid = torch.linalg.vector_norm(user_centroid - query_embedding, ord=2)
 
-        # Tinh khoang cach Euclid L2 toi cac Vector Trung Tam
-        distances = torch.linalg.vector_norm(centroids_matrix - query_embedding, ord=2, dim=1)
+            best_d = min(d_samples.min().item(), d_centroid.item())
+            min_user_distances.append(best_d)
 
-        # Tim danh tinh co khoang cach nho nhat (Min Distance)
-        min_distance, min_index = torch.min(distances, dim=0)
+        min_user_distances = torch.tensor(min_user_distances)
+        min_distance, min_index = torch.min(min_user_distances, dim=0)
         min_distance = min_distance.item()
         matched_name = unique_names[min_index.item()]
 
-        # Tinh diem tin cay Confidence Score (%) phi tuyen hien thi tu nhien:
+        # Tinh diem tin cay Confidence Score (%) muot ma voi threshold=0.60
         if min_distance <= self.threshold:
             ratio = 1.0 - (min_distance / self.threshold)
-            confidence = 50.0 + 50.0 * (ratio ** 0.6)
+            confidence = 50.0 + 50.0 * (ratio ** 0.5)
         else:
             ratio = (min_distance - self.threshold) / (2.0 - self.threshold)
             confidence = max(0.0, 50.0 * (1.0 - min(1.0, ratio)))
 
         confidence = max(0.0, min(100.0, confidence))
 
-        # Phân loai Known vs Unknown dua tren nguong Threshold thuc te (0.48)
+        # Phân loai Known vs Unknown dua tren nguong 0.60
         is_known = min_distance <= self.threshold
         final_name = matched_name if is_known else "Unknown"
 
