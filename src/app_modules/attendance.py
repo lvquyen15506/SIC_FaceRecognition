@@ -280,15 +280,24 @@ class ClassroomAttendanceSystem:
 
             face_matches = []
             for box in boxes:
+                x, y, bw, bh = box
+                # 1. Loc Khuon mat qua nho hoac qua xa (Avoid low-res blur false matches)
+                if bw < 36 or bh < 36:
+                    continue
+
                 _, face_pil = self.detector.crop_face(frame, box)
                 embedding = self.extract_embedding(face_pil)
                 match = self.gallery.identify(embedding)
+
+                # 2. Siết ngưỡng an ninh video (Video Strict Match Distance: dist <= 0.36 hoac conf >= 72%)
+                is_strict_known = match["is_known"] and match["distance"] <= 0.36
+
                 face_matches.append({
                     "box": box,
                     "name": match["name"],
                     "distance": match["distance"],
                     "confidence": match["confidence"],
-                    "is_known": match["is_known"],
+                    "is_known": is_strict_known,
                 })
 
             # Rang buoc Doc quyen Danh tinh trong cung 1 frame
@@ -474,15 +483,21 @@ class ClassroomAttendanceSystem:
                 boxes = self.detector.detect_faces(frame)
                 face_matches = []
                 for box in boxes:
+                    x, y, bw, bh = box
+                    if bw < 36 or bh < 36:
+                        continue
+
                     _, face_pil = self.detector.crop_face(frame, box)
                     embedding = self.extract_embedding(face_pil)
                     match = self.gallery.identify(embedding)
+                    is_strict_known = match["is_known"] and match["distance"] <= 0.36
+
                     face_matches.append({
                         "box": box,
                         "name": match["name"],
                         "distance": match["distance"],
                         "confidence": match["confidence"],
-                        "is_known": match["is_known"]
+                        "is_known": is_strict_known
                     })
 
                 face_matches.sort(key=lambda item: item["distance"])
