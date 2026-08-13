@@ -158,31 +158,51 @@ class ClassroomAttendanceSystem:
 
         display_img = image.copy()
 
-        for idx, box in enumerate(boxes):
-            x, y, bw, bh = box
+        face_matches = []
+        for box in boxes:
             _, face_pil = self.detector.crop_face(image, box)
             embedding = self.extract_embedding(face_pil)
             match = self.gallery.identify(embedding)
+            face_matches.append({
+                "box": box,
+                "name": match["name"],
+                "distance": match["distance"],
+                "confidence": match["confidence"],
+                "is_known": match["is_known"],
+            })
 
-            name = match["name"]
-            conf = match["confidence"]
-            dist = match["distance"]
-            is_known = match["is_known"]
+        # Rang buoc Doc quyen Danh tinh trong Anh tap the:
+        # Sap xep cac khuon mat theo khoang cach tang dan (1 ten trong DB chi duoc gan cho 1 mat khop nhat!)
+        face_matches.sort(key=lambda item: item["distance"])
+        assigned_names = set()
 
-            if is_known:
+        for item in face_matches:
+            box = item["box"]
+            x, y, bw, bh = box
+            name = item["name"]
+            dist = item["distance"]
+            conf = item["confidence"]
+            is_known = item["is_known"]
+
+            if is_known and name not in assigned_names:
+                assigned_names.add(name)
                 present_count += 1
                 color = (0, 255, 0)
                 label_str = f"{name} ({conf:.1f}%)"
+                rec_is_known = True
+                rec_name = name
             else:
                 unknown_count += 1
                 color = (0, 0, 255)
                 label_str = f"Unknown (d={dist:.2f})"
+                rec_is_known = False
+                rec_name = "Unknown"
 
             attendance_records.append({
-                "name": name,
+                "name": rec_name,
                 "confidence": conf,
                 "distance": dist,
-                "is_known": is_known,
+                "is_known": rec_is_known,
                 "timestamp": now_str
             })
 

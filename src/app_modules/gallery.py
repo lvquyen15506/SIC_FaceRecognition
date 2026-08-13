@@ -83,6 +83,10 @@ class GalleryManager:
         print(f"[Gallery] Nap thanh cong {len(self.gallery_names)} mau gallery tu: {load_path}")
         return True
 
+    def get_registered_names(self):
+        """Tra ve danh sach cac danh tinh (ten) doc nhat da dang ky trong Gallery"""
+        return list(dict.fromkeys(self.gallery_names))
+
     def identify(self, query_embedding):
         """
         Truy van vector khuon mat query dung Hybrid Matching (Mau don le + Vector Trung Tam Centroid).
