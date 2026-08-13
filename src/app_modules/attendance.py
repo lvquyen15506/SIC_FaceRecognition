@@ -393,6 +393,7 @@ class ClassroomAttendanceSystem:
 
         master_attendance_log = {}
         unregistered_log = []
+        file_unknown_counts = {}
 
         # 1. Quét tất cả các file ảnh trong thư mục
         for img_path in image_files:
@@ -420,6 +421,7 @@ class ClassroomAttendanceSystem:
             face_matches.sort(key=lambda item: item["distance"])
             assigned_names = set()
             display_img = img.copy()
+            file_unk_cnt = 0
 
             for item in face_matches:
                 box = item["box"]
@@ -446,6 +448,7 @@ class ClassroomAttendanceSystem:
                 else:
                     color = (0, 0, 255)
                     label_str = f"Unknown (d={dist:.2f})"
+                    file_unk_cnt += 1
                     unregistered_log.append({
                         "name": "Unknown",
                         "confidence": conf,
@@ -460,6 +463,7 @@ class ClassroomAttendanceSystem:
                 cv2.putText(display_img, label_str, (x + 5, max(15, y - 7)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
+            file_unknown_counts[img_path.name] = file_unk_cnt
             cv2.imwrite(str(img_out_dir / f"result_{img_path.name}"), display_img)
 
         # 2. Quét tất cả các file video trong thư mục và ghi video minh chứng
@@ -474,6 +478,7 @@ class ClassroomAttendanceSystem:
 
             out_v_path = str(vid_out_dir / f"result_{vid_path.stem}.mp4")
             v_writer = cv2.VideoWriter(out_v_path, fourcc, input_fps, (frame_w, frame_h))
+            vid_unk_cnt = 0
 
             while True:
                 ret, frame = cap.read()
@@ -502,6 +507,8 @@ class ClassroomAttendanceSystem:
 
                 face_matches.sort(key=lambda item: item["distance"])
                 assigned_names = set()
+                frame_unk = 0
+
                 for item in face_matches:
                     box = item["box"]
                     x, y, bw, bh = box
@@ -526,12 +533,14 @@ class ClassroomAttendanceSystem:
                     else:
                         color = (0, 0, 255)
                         label_str = f"Unknown (d={dist:.2f})"
+                        frame_unk += 1
 
                     cv2.rectangle(frame, (x, y), (x + bw, y + bh), color, 2)
                     cv2.rectangle(frame, (x, max(0, y - 25)), (x + bw, y), color, -1)
                     cv2.putText(frame, label_str, (x + 5, max(15, y - 7)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
+                vid_unk_cnt = max(vid_unk_cnt, frame_unk)
                 if v_writer is not None:
                     v_writer.write(frame)
 
@@ -540,8 +549,18 @@ class ClassroomAttendanceSystem:
                 v_writer.release()
                 print(f"   ✅ Đã lưu Video Minh chứng: {out_v_path}")
 
+            file_unknown_counts[vid_path.name] = vid_unk_cnt
+
+        # Loc trung lap nguoi la: Lay duy nhat so luong nguoi la DINH CAO (Peak Unregistered Count) trong 1 tep
+        # Tránh viec 21 nguoi la o anh 1 + 20 nguoi la o anh 2 bi nhan doi len 41!
+        peak_unknown_log = []
+        if file_unknown_counts:
+            max_unknown_peak = max(file_unknown_counts.values())
+            unregistered_log.sort(key=lambda x: x["distance"])
+            peak_unknown_log = unregistered_log[:max_unknown_peak]
+
         # 3. Xuất Báo cáo CSV Tổng hợp duy nhất vào thẳng thư mục Session
-        all_records = list(master_attendance_log.values()) + unregistered_log
+        all_records = list(master_attendance_log.values()) + peak_unknown_log
         summary_filename = str(session_dir / f"attendance_summary_{folder.name}.csv")
         self.export_csv_report(all_records, report_filename=summary_filename)
 
