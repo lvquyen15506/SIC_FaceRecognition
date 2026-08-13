@@ -112,106 +112,179 @@ class FaceRecognitionApp:
 
         return embedding
 
-    def enroll_user_from_camera(self, name, capture_count=60, min_duration_sec=5.0, cooldown_sec=0.08):
-        """Đang ky nguoi dung moi qua Webcam trong toi thieu 5s, tu dong huy neu co 2 khuon mat"""
+    @staticmethod
+    def estimate_head_pose(landmarks):
+        import math
+        re, le, nose, rm, lm = landmarks
+
+        d_right_eye = math.hypot(nose[0] - re[0], nose[1] - re[1])
+        d_left_eye = math.hypot(nose[0] - le[0], nose[1] - le[1])
+        yaw_ratio = d_left_eye / (d_right_eye + 1e-6)
+
+        eyes_y = (re[1] + le[1]) / 2.0
+        mouth_y = (rm[1] + lm[1]) / 2.0
+        d_nose_eyes = nose[1] - eyes_y
+        d_nose_mouth = mouth_y - nose[1]
+        pitch_ratio = d_nose_eyes / (d_nose_mouth + 1e-6)
+
+        if yaw_ratio > 1.25:
+            pose = "QUAY TRAI"
+        elif yaw_ratio < 0.75:
+            pose = "QUAY PHAI"
+        elif pitch_ratio < 0.95:
+            pose = "NGUOC LEN"
+        elif pitch_ratio > 1.45:
+            pose = "CUI XUONG"
+        else:
+            pose = "NHIN THANG"
+
+        return pose, yaw_ratio, pitch_ratio
+
+    def enroll_user_from_image(self, name, image_path):
+        """Đang ky nguoi dung moi qua tệp anh co san (Image File Enrollment)"""
+        print(f"\n=== DANG KY DANH TINH QUA FILE ANH: '{name}' ===")
+        print(f"File anh: {image_path}")
+
+        img = cv2.imread(image_path)
+        if img is None:
+            print(f"[Loi] Khong the mo file anh tu: {image_path}")
+            return False
+
+        boxes = self.detector.detect_faces(img)
+        if len(boxes) == 0:
+            print(f"[Loi] Khong tim thay khuon mat nao trong anh: {image_path}")
+            return False
+
+        # Cropped va nhap mau
+        face_bgr, face_pil = self.detector.crop_face(img, boxes[0])
+        embedding = self.extract_embedding(face_pil)
+        self.gallery.add_identity(name, embedding)
+        self.gallery.save_db()
+        print(f"🎉 [THANH CONG] Đã nạp danh tinh '{name}' tu file anh vao CSDL gallery_db.pt!")
+        return True
+
+    def enroll_user_from_camera(self, name, capture_count=120, min_duration_sec=5.0, cooldown_sec=0.08):
+        """Đang ky nguoi dung moi qua luong eKYC Đa tư the Challenge-Response (120 mau)"""
+        print(f"\n=== BAT DAU DANG KY DANH TINH eKYC DA TU THE CHO: '{name}' ===")
+        print("Quy trinh thu thap du lieu eKYC chia deu 120 mau theo 4 tu the:")
+        print("  - Tu the 1 (Nhin thang): Thu thap 30 mau vector")
+        print("  - Tu the 2 (Quay trai) : Thu thap 30 mau vector")
+        print("  - Tu the 3 (Quay phai) : Thu thap 30 mau vector")
+        print("  - Tu the 4 (Nguoc len) : Thu thap 30 mau vector\n")
+
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("[Error] Khong the mo Webcam.")
             return
 
-        print(f"=== DANG KY NGUOI DUNG MOI: '{name}' ===")
-        print(f"Huong dan: Nhin vao camera va xoay nhe dau trong toi thieu {min_duration_sec}s...")
+        challenges = [
+            {"action": "NHIN THANG", "instruction": "1/4: VOI LONG NHIN THANG VAO CAMERA (Thu thap 30 mau)"},
+            {"action": "QUAY TRAI",  "instruction": "2/4: VOI LONG QUAY DAU SANG TRAI (Thu thap 30 mau)"},
+            {"action": "QUAY PHAI",  "instruction": "3/4: VOI LONG QUAY DAU SANG PHAI (Thu thap 30 mau)"},
+            {"action": "NGUOC LEN",  "instruction": "4/4: VOI LONG NGUOC CAM LEN TREN (Thu thap 30 mau)"},
+        ]
 
-        captured = 0
-        last_capture_time = 0.0
-        start_time = time.time()
+        samples_per_step = capture_count // len(challenges)
+        step_samples = [0] * len(challenges)
+        current_step = 0
+        last_capture_time = time.time()
+        completed = False
 
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
-            now = time.time()
-            elapsed = now - start_time
-
-            # Kiem tra dieu kien ket thuc: Duyen it nhat min_duration_sec VA da du capture_count mau
-            if elapsed >= min_duration_sec and captured >= capture_count:
-                break
-
-            # Lat anh ngang de tao hieu ung guong soi tu nhien (Mirror Effect)
             frame = cv2.flip(frame, 1)
+            h, w = frame.shape[:2]
             display_frame = frame.copy()
 
-            # Phat hien tat ca khuon mat trong khung hinh
-            boxes = self.detector.detect_faces(frame)
+            results = self.detector.detect_faces_with_landmarks(frame)
 
-            if len(boxes) > 1:
-                # ❌ PHAT HIEN NHIEU KHUON MAT: CANH BAO VA KHONG THU THAP
-                for (bx, by, bw, bh) in boxes:
-                    cv2.rectangle(display_frame, (bx, by), (bx + bw, by + bh), (0, 0, 255), 2)
+            cv2.rectangle(display_frame, (0, 0), (w, 65), (30, 30, 30), -1)
 
-                cv2.rectangle(display_frame, (10, 10), (frame.shape[1] - 10, 50), (0, 0, 255), -1)
-                cv2.putText(
-                    display_frame,
-                    f"CANH BAO: Phat hien {len(boxes)} khuon mat! Chi duoc dung 1 nguoi.",
-                    (20, 38),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (255, 255, 255),
-                    2,
-                )
-            elif len(boxes) == 1:
-                # ✅ CHINH XAC 1 KHUON MAT: KIEM TRA ANH SANG VA THU THAP
-                box = boxes[0]
-                x, y, w, h = box
+            if len(results) == 0:
+                cv2.putText(display_frame, "KHONG PHAT HIEN KHUON MAT!", (20, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            elif len(results) > 1:
+                cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 0, 255), -1)
+                cv2.putText(display_frame, f"CANH BAO: Phat hien {len(results)} khuon mat! Chi duoc 1 nguoi.", (20, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+            else:
+                largest_face = results[0]
+                box = largest_face["box"]
+                landmarks = largest_face["landmarks"]
+                x, y, bw, bh = box
 
-                face_bgr, face_pil = self.detector.crop_face(frame, box)
-                is_good_light, mean_brightness, light_msg = self.detector.check_lighting_quality(face_bgr)
+                pose, yaw_r, pitch_r = self.estimate_head_pose(landmarks)
+                face_ratio = bw / float(w)
 
-                # Kiem tra ti le khoang cach (Xa qua hoac Gan qua)
-                face_ratio = w / float(frame.shape[1])
                 if face_ratio < 0.22:
-                    is_good_dist = False
-                    dist_msg = "CANH BAO: KHUON MAT XA QUA! Vui long tien lai gan camera."
+                    is_opt_dist = False
+                    dist_msg = "CANH BAO: KHUON MAT XA QUA! Vui long tien lai gan."
                 elif face_ratio > 0.65:
-                    is_good_dist = False
-                    dist_msg = "CANH BAO: KHUON MAT GAN QUA! Vui long lui ra xa camera."
+                    is_opt_dist = False
+                    dist_msg = "CANH BAO: KHUON MAT GAN QUA! Vui long lui ra xa."
                 else:
-                    is_good_dist = True
+                    is_opt_dist = True
                     dist_msg = "OK"
 
-                if not is_good_light or not is_good_dist:
-                    # ⚠️ ANH SANG HOAC KHOANG CACH KHONG DAT CHUAN: CANH BAO VA TAM DUNG THU THAP
-                    warn_msg = light_msg if not is_good_light else dist_msg
-                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 165, 255), 2)
-                    cv2.rectangle(display_frame, (10, 10), (frame.shape[1] - 10, 50), (0, 165, 255), -1)
-                    cv2.putText(
-                        display_frame,
-                        warn_msg,
-                        (20, 38),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (255, 255, 255),
-                        2,
-                    )
-                else:
-                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    if captured < capture_count and (now - last_capture_time >= cooldown_sec):
-                        embedding = self.extract_embedding(face_pil)
-                        self.gallery.add_identity(name, embedding)
-                        captured += 1
-                        last_capture_time = now
+                face_bgr, face_pil = self.detector.crop_face(frame, box)
+                is_good_light, mean_bright, light_msg = self.detector.check_lighting_quality(face_bgr)
+                now = time.time()
+                total_captured = sum(step_samples)
 
-            cv2.imshow("Enrollment - Nhan phim 'q' de huy", display_frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+                if not completed:
+                    target = challenges[current_step]
+                    step_count = step_samples[current_step]
+
+                    header_str = f"[{current_step+1}/4: {target['action']}] Layer {step_count}/{samples_per_step} mau | Tong: {total_captured}/{capture_count}"
+                    cv2.putText(display_frame, header_str, (15, 38),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2)
+
+                    if not is_opt_dist or not is_good_light:
+                        warn_msg = light_msg if not is_good_light else dist_msg
+                        cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 0, 255), -1)
+                        cv2.putText(display_frame, warn_msg, (15, 38),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 0, 255), 2)
+                    else:
+                        cv2.rectangle(display_frame, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
+                        cv2.putText(display_frame, f"Tu the: {pose}", (x, max(30, y - 10)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+                        if pose == target["action"]:
+                            if now - last_capture_time >= cooldown_sec:
+                                embedding = self.extract_embedding(face_pil)
+                                self.gallery.add_identity(name, embedding)
+                                step_samples[current_step] += 1
+                                last_capture_time = now
+
+                            pct = int((step_samples[current_step] / float(samples_per_step)) * 100)
+                            cv2.rectangle(display_frame, (x, y + bh + 10), (x + int(bw * (pct / 100.0)), y + bh + 25), (0, 255, 0), -1)
+
+                            if step_samples[current_step] >= samples_per_step:
+                                current_step += 1
+                                if current_step >= len(challenges):
+                                    completed = True
+
+                else:
+                    cv2.rectangle(display_frame, (0, 0), (w, 65), (0, 255, 0), -1)
+                    cv2.putText(display_frame, f"🎉 HOP LE! DA DANG KY eKYC THANH CONG FOR '{name}'!", (15, 40),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+            cv2.imshow(f"SIC FaceViT eKYC Enrollment - '{name}'", display_frame)
+            if cv2.waitKey(1) & 0xFF == ord('q') or completed:
+                if completed:
+                    cv2.waitKey(1500)
                 break
 
         cap.release()
         cv2.destroyAllWindows()
 
-        if captured > 0:
+        if sum(step_samples) > 0:
             self.gallery.save_db()
-            print(f"[Success] Da dang ky thanh cong '{name}' voi {captured} mau dac trung (Thoi gian: {time.time() - start_time:.1f}s).")
+            print(f"\n🎉 [THANH CONG] Đã dang ky eKYC cho '{name}' voi {sum(step_samples)} mau dac trung va luu vao CSDL gallery_db.pt!")
 
     def run_webcam(self):
         """Chay ung dung Nhan dien Thoi gian thuc qua Webcam (Real-time Demo)"""
@@ -301,8 +374,9 @@ def main():
     parser.add_argument("--experiment_name", type=str, default="sic_facevit_infonce_v2")
     parser.add_argument("--threshold", type=float, default=0.42, help="Real-time L2 distance threshold (mac dinh 0.42 - Can bang Vang cho do nhan dien cao)")
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime")
-    parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam")
-    parser.add_argument("--capture_count", type=int, default=60, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 60)")
+    parser.add_argument("--enroll_name", type=str, default=None, help="Ten nguoi muon dang ky qua webcam hoac file anh")
+    parser.add_argument("--enroll_image", type=str, default=None, help="Duong dan file anh co san de nap va dang ky danh tinh")
+    parser.add_argument("--capture_count", type=int, default=120, help="So luong anh thu thap khi dang ky nguoi moi (mac dinh 120 mau eKYC)")
     parser.add_argument("--min_duration", type=float, default=5.0, help="Thoi gian mo camera dang ky toi thieu giay (mac dinh 5.0s)")
     parser.add_argument("--clear_gallery", action="store_true", help="Xoa sach toan bo du lieu gallery da dang ky")
     parser.add_argument("--webcam", action="store_true", help="Chay nhan dien thoi gian thuc qua webcam")
@@ -317,17 +391,19 @@ def main():
 
     if args.clear_gallery:
         app.gallery.clear_db()
+    elif args.enroll_name and args.enroll_image:
+        app.enroll_user_from_image(args.enroll_name, args.enroll_image)
     elif args.enroll_name:
-        app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count, min_duration_sec=args.min_duration)
+        app.enroll_user_from_camera(args.enroll_name, capture_count=args.capture_count)
     elif args.webcam:
         app.run_webcam()
     else:
         print("\n[Huong dan su dung app_demo.py]:")
-        print("  1. Dang ky nguoi dung moi qua webcam:")
-        print("     python src/app_demo.py --enroll_name 'NguyenVanA'\n")
-        print("  2. Chay nhan dien realtime qua webcam:")
-        print("     python src/app_demo.py --webcam\n")
-        print("  3. Chay nhan dien sieu toc bang ONNX Engine:")
+        print("  1. Dang ky nguoi dung moi qua eKYC Đa tu thế (120 mau):")
+        print("     python src/app_demo.py --enroll_name 'NguyenVanA' --use_onnx\n")
+        print("  2. Dang ky nguoi dung qua File anh co san:")
+        print("     python src/app_demo.py --enroll_name 'NguyenVanA' --enroll_image 'path/to/photo.jpg'\n")
+        print("  3. Chay nhan dien realtime qua webcam ONNX Engine:")
         print("     python src/app_demo.py --webcam --use_onnx\n")
 
 
