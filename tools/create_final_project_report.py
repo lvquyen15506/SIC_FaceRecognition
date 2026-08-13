@@ -125,6 +125,16 @@ VGG_INTERIM = [
 
 def image_font(size, bold=False):
     path = FONT_BOLD if bold else FONT_REGULAR
+    if not path.exists():
+        for p in [
+            Path("/usr/share/fonts/google-carlito-fonts/Carlito-Bold.ttf" if bold else "/usr/share/fonts/google-carlito-fonts/Carlito-Regular.ttf"),
+            Path("/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/gnu-free/FreeSansBold.ttf" if bold else "/usr/share/fonts/gnu-free/FreeSans.ttf"),
+        ]:
+            if p.exists():
+                return ImageFont.truetype(str(p), size=size)
+        return ImageFont.load_default()
     return ImageFont.truetype(str(path), size=size)
 
 
