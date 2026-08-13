@@ -349,10 +349,15 @@ class ClassroomAttendanceSystem:
         image_files = [f for f in all_files if f.suffix.lower() in image_extensions]
         video_files = [f for f in all_files if f.suffix.lower() in video_extensions]
 
+        session_dir = PROJECT_ROOT / "outputs" / f"attendance_session_{folder.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        img_out_dir = session_dir / "annotated_images"
+        os.makedirs(img_out_dir, exist_ok=True)
+
         print(f"\n==================================================")
         print(f"📁 BAT DAU QUET DIEM DANH TOAN BO THU MUC: {folder.name}")
         print(f"   Vị tri: {folder}")
         print(f"   Tim thay: {len(image_files)} tệp anh, {len(video_files)} tệp video")
+        print(f"   Thu muc ket qua tong hop: {session_dir}")
         print(f"==================================================\n")
 
         master_attendance_log = {}
@@ -424,9 +429,7 @@ class ClassroomAttendanceSystem:
                 cv2.putText(display_img, label_str, (x + 5, max(15, y - 7)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
 
-            batch_out_dir = PROJECT_ROOT / "outputs" / f"batch_{folder.name}"
-            os.makedirs(batch_out_dir, exist_ok=True)
-            cv2.imwrite(str(batch_out_dir / f"result_{img_path.name}"), display_img)
+            cv2.imwrite(str(img_out_dir / f"result_{img_path.name}"), display_img)
 
         # 2. Quét tất cả các file video trong thư mục
         for vid_path in video_files:
@@ -476,16 +479,18 @@ class ClassroomAttendanceSystem:
 
             cap.release()
 
-        # 3. Xuất Báo cáo CSV Tổng hợp toàn bộ Thư mục
+        # 3. Xuất Báo cáo CSV Tổng hợp duy nhất vào thẳng thư mục Session
         all_records = list(master_attendance_log.values()) + unregistered_log
-        summary_filename = str(PROJECT_ROOT / "outputs" / f"attendance_summary_{folder.name}_{datetime.now().strftime('%Y%m%d')}.csv")
+        summary_filename = str(session_dir / f"attendance_summary_{folder.name}.csv")
         self.export_csv_report(all_records, report_filename=summary_filename)
 
         print(f"\n==================================================")
         print(f"📊 BÁO CÁO TỔNG HỢP ĐIỂM DANH TOÀN BỘ THƯ MỤC: {folder.name}")
-        print(f"   Tổng số tệp đã quét: {len(image_files)} ảnh, {len(video_files)} video")
+        print(f"   Gom chung toàn bộ tệp vào duy nhất 1 Thư mục Session:")
+        print(f"   📍 {session_dir}")
+        print(f"   - File Báo cáo CSV: {summary_filename}")
+        print(f"   - Thư mục Ảnh quét: {img_out_dir}")
         print(f"   Tổng số sinh viên CÓ MẶT: {len(master_attendance_log)} SV")
-        print(f"   Tệp báo cáo tổng hợp: {summary_filename}")
         print(f"==================================================\n")
 
 
