@@ -333,6 +333,161 @@ class ClassroomAttendanceSystem:
         records_list = list(attendance_log.values())
         self.export_csv_report(records_list)
 
+    def process_folder(self, folder_path):
+        """
+        3. Điểm danh tự động qua Thư mục Folder chứa tất cả ảnh và video của ngày hôm đó.
+        """
+        folder = Path(folder_path)
+        if not folder.exists() or not folder.is_dir():
+            print(f"[Loi] Thu muc khong ton tai hoac khong hop le: {folder_path}")
+            return
+
+        image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        video_extensions = {".mp4", ".avi", ".mov", ".mkv"}
+
+        all_files = sorted(list(folder.iterdir()))
+        image_files = [f for f in all_files if f.suffix.lower() in image_extensions]
+        video_files = [f for f in all_files if f.suffix.lower() in video_extensions]
+
+        print(f"\n==================================================")
+        print(f"📁 BAT DAU QUET DIEM DANH TOAN BO THU MUC: {folder.name}")
+        print(f"   Vị tri: {folder}")
+        print(f"   Tim thay: {len(image_files)} tệp anh, {len(video_files)} tệp video")
+        print(f"==================================================\n")
+
+        master_attendance_log = {}
+        unregistered_log = []
+
+        # 1. Quét tất cả các file ảnh trong thư mục
+        for img_path in image_files:
+            print(f"[Scanning Image] {img_path.name}...")
+            img = cv2.imread(str(img_path))
+            if img is None:
+                continue
+
+            h, w = img.shape[:2]
+            boxes = self.detector.detect_faces(img)
+
+            face_matches = []
+            for box in boxes:
+                _, face_pil = self.detector.crop_face(img, box)
+                embedding = self.extract_embedding(face_pil)
+                match = self.gallery.identify(embedding)
+                face_matches.append({
+                    "box": box,
+                    "name": match["name"],
+                    "distance": match["distance"],
+                    "confidence": match["confidence"],
+                    "is_known": match["is_known"]
+                })
+
+            face_matches.sort(key=lambda item: item["distance"])
+            assigned_names = set()
+            display_img = img.copy()
+
+            for item in face_matches:
+                box = item["box"]
+                x, y, bw, bh = box
+                name = item["name"]
+                dist = item["distance"]
+                conf = item["confidence"]
+                is_known = item["is_known"]
+
+                if is_known and name not in assigned_names:
+                    assigned_names.add(name)
+                    color = (0, 255, 0)
+                    label_str = f"{name} ({conf:.1f}%)"
+
+                    if name not in master_attendance_log or conf > master_attendance_log[name]["confidence"]:
+                        master_attendance_log[name] = {
+                            "name": name,
+                            "confidence": conf,
+                            "distance": dist,
+                            "is_known": True,
+                            "timestamp": datetime.now().strftime("%H:%M:%S"),
+                            "source": img_path.name
+                        }
+                else:
+                    color = (0, 0, 255)
+                    label_str = f"Unknown (d={dist:.2f})"
+                    unregistered_log.append({
+                        "name": "Unknown",
+                        "confidence": conf,
+                        "distance": dist,
+                        "is_known": False,
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "source": img_path.name
+                    })
+
+                cv2.rectangle(display_img, (x, y), (x + bw, y + bh), color, 2)
+                cv2.rectangle(display_img, (x, max(0, y - 25)), (x + bw, y), color, -1)
+                cv2.putText(display_img, label_str, (x + 5, max(15, y - 7)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
+
+            batch_out_dir = PROJECT_ROOT / "outputs" / f"batch_{folder.name}"
+            os.makedirs(batch_out_dir, exist_ok=True)
+            cv2.imwrite(str(batch_out_dir / f"result_{img_path.name}"), display_img)
+
+        # 2. Quét tất cả các file video trong thư mục
+        for vid_path in video_files:
+            print(f"[Scanning Video] {vid_path.name}...")
+            cap = cv2.VideoCapture(str(vid_path))
+            frame_idx = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame_idx += 1
+                if frame_idx % 5 != 0:
+                    continue
+
+                boxes = self.detector.detect_faces(frame)
+                face_matches = []
+                for box in boxes:
+                    _, face_pil = self.detector.crop_face(frame, box)
+                    embedding = self.extract_embedding(face_pil)
+                    match = self.gallery.identify(embedding)
+                    face_matches.append({
+                        "name": match["name"],
+                        "distance": match["distance"],
+                        "confidence": match["confidence"],
+                        "is_known": match["is_known"]
+                    })
+
+                face_matches.sort(key=lambda item: item["distance"])
+                assigned_names = set()
+                for item in face_matches:
+                    name = item["name"]
+                    dist = item["distance"]
+                    conf = item["confidence"]
+                    is_known = item["is_known"]
+
+                    if is_known and name not in assigned_names:
+                        assigned_names.add(name)
+                        if name not in master_attendance_log or conf > master_attendance_log[name]["confidence"]:
+                            master_attendance_log[name] = {
+                                "name": name,
+                                "confidence": conf,
+                                "distance": dist,
+                                "is_known": True,
+                                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                                "source": vid_path.name
+                            }
+
+            cap.release()
+
+        # 3. Xuất Báo cáo CSV Tổng hợp toàn bộ Thư mục
+        all_records = list(master_attendance_log.values()) + unregistered_log
+        summary_filename = str(PROJECT_ROOT / "outputs" / f"attendance_summary_{folder.name}_{datetime.now().strftime('%Y%m%d')}.csv")
+        self.export_csv_report(all_records, report_filename=summary_filename)
+
+        print(f"\n==================================================")
+        print(f"📊 BÁO CÁO TỔNG HỢP ĐIỂM DANH TOÀN BỘ THƯ MỤC: {folder.name}")
+        print(f"   Tổng số tệp đã quét: {len(image_files)} ảnh, {len(video_files)} video")
+        print(f"   Tổng số sinh viên CÓ MẶT: {len(master_attendance_log)} SV")
+        print(f"   Tệp báo cáo tổng hợp: {summary_filename}")
+        print(f"==================================================\n")
+
 
 def main():
     parser = argparse.ArgumentParser(description="SIC FaceViT Classroom Student Attendance System")
@@ -341,6 +496,7 @@ def main():
     parser.add_argument("--use_onnx", action="store_true", help="Chay bang ONNX Runtime Engine")
     parser.add_argument("--image", type=str, default=None, help="Duong dan file anh tap the lop hoc (--image classroom.jpg)")
     parser.add_argument("--video", type=str, default=None, help="Duong dan file video stream camera lop hoc (--video class.mp4)")
+    parser.add_argument("--folder", type=str, default=None, help="Duong dan thu muc chua tat ca anh va video cua ngay hoc (--folder path/to/day_folder)")
     parser.add_argument("--webcam", action="store_true", help="Diem danh webcam camera truc tiep")
 
     args = parser.parse_args()
@@ -351,7 +507,9 @@ def main():
         use_onnx=args.use_onnx
     )
 
-    if args.image:
+    if args.folder:
+        app.process_folder(args.folder)
+    elif args.image:
         app.process_image(args.image)
     elif args.video:
         app.process_video(args.video)
@@ -359,8 +517,9 @@ def main():
         app.process_video(0)
     else:
         print("[HD] Vui long cung cap 1 trong cac tham so:")
-        print("  --image path/to/classroom.jpg   (Diem danh qua anh tap the)")
-        print("  --video path/to/class_video.mp4 (Diem danh qua video stream)")
+        print("  --folder path/to/day_folder     (Diem danh tu dong toan bo thu muc anh & video)")
+        print("  --image path/to/classroom.jpg   (Diem danh qua 1 file anh tap the)")
+        print("  --video path/to/class_video.mp4 (Diem danh qua 1 file video stream)")
         print("  --webcam                        (Diem danh qua webcam truc tiep)")
 
 
