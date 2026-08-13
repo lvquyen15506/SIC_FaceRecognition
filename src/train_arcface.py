@@ -106,8 +106,9 @@ def main():
     model = build_model(cfg).to(device)
 
     # Initialize ArcFace Loss Module (Angular Margin m = 0.50 rad, Scale s = 30.0)
+    in_feat = getattr(cfg, "face_embedding_dim", getattr(cfg, "embed_dim", 128))
     criterion = ArcFaceLoss(
-        in_features=cfg.embed_dim if hasattr(cfg, "embed_dim") else 128,
+        in_features=in_feat,
         num_classes=num_classes,
         s=30.0,
         m=0.50,
