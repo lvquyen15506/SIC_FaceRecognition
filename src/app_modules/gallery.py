@@ -136,15 +136,15 @@ class GalleryManager:
         min_distance = min_distance.item()
         matched_name = unique_names[min_index.item()]
 
-        # Tinh diem tin cay Confidence Score (%) muot ma voi threshold=0.60
+        # Tinh diem tin cay Confidence Score (%) muot ma theo duong cong sinh trac hoc
         if min_distance <= self.threshold:
             ratio = 1.0 - (min_distance / self.threshold)
-            confidence = 50.0 + 50.0 * (ratio ** 0.5)
+            confidence = 50.0 + 50.0 * (ratio ** 0.35)
         else:
             ratio = (min_distance - self.threshold) / (2.0 - self.threshold)
             confidence = max(0.0, 50.0 * (1.0 - min(1.0, ratio)))
 
-        confidence = max(0.0, min(100.0, confidence))
+        confidence = max(0.0, min(99.9, confidence))
 
         # Phân loai Known vs Unknown dua tren nguong 0.60
         is_known = min_distance <= self.threshold
