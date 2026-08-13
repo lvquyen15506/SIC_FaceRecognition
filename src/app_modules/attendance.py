@@ -249,6 +249,19 @@ class ClassroomAttendanceSystem:
         prev_time = time.time()
         attendance_log = {}  # {student_name: {timestamp, confidence, distance}}
 
+        out_video_writer = None
+        out_vid_path = None
+        if isinstance(video_source, str) or video_source == 0:
+            out_vid_name = f"attendance_video_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+            out_vid_path = str(PROJECT_ROOT / "outputs" / out_vid_name)
+            input_fps = cap.get(cv2.CAP_PROP_FPS)
+            input_fps = 20.0 if input_fps <= 0 or np.isnan(input_fps) else input_fps
+            frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out_video_writer = cv2.VideoWriter(out_vid_path, fourcc, input_fps, (frame_w, frame_h))
+            print(f"[Video Writer] Sẽ xuất Video Minh chứng điểm danh vào: {out_vid_path}")
+
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -321,12 +334,19 @@ class ClassroomAttendanceSystem:
             cv2.putText(frame, summary_str, (15, 32),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2)
 
+            if out_video_writer is not None:
+                out_video_writer.write(frame)
+
             cv2.imshow("SIC FaceViT - Camera Giam Sat Diem Danh Lop Hoc", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 print("[User] Nguoi dung thuc hien ket thuc diem danh.")
                 break
 
         cap.release()
+        if out_video_writer is not None:
+            out_video_writer.release()
+            print(f"✅ ĐÃ XUẤT VIDEO MINH CHỨNG THÀNH CÔNG VÀO: {out_vid_path}")
+
         cv2.destroyAllWindows()
 
         # Xuat bao cao CSV sau khi ket thuc luong video
@@ -351,7 +371,9 @@ class ClassroomAttendanceSystem:
 
         session_dir = PROJECT_ROOT / "outputs" / f"attendance_session_{folder.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         img_out_dir = session_dir / "annotated_images"
+        vid_out_dir = session_dir / "annotated_videos"
         os.makedirs(img_out_dir, exist_ok=True)
+        os.makedirs(vid_out_dir, exist_ok=True)
 
         print(f"\n==================================================")
         print(f"📁 BAT DAU QUET DIEM DANH TOAN BO THU MUC: {folder.name}")
@@ -431,18 +453,23 @@ class ClassroomAttendanceSystem:
 
             cv2.imwrite(str(img_out_dir / f"result_{img_path.name}"), display_img)
 
-        # 2. Quét tất cả các file video trong thư mục
+        # 2. Quét tất cả các file video trong thư mục và ghi video minh chứng
         for vid_path in video_files:
             print(f"[Scanning Video] {vid_path.name}...")
             cap = cv2.VideoCapture(str(vid_path))
-            frame_idx = 0
+            input_fps = cap.get(cv2.CAP_PROP_FPS)
+            input_fps = 20.0 if input_fps <= 0 or np.isnan(input_fps) else input_fps
+            frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+            out_v_path = str(vid_out_dir / f"result_{vid_path.stem}.mp4")
+            v_writer = cv2.VideoWriter(out_v_path, fourcc, input_fps, (frame_w, frame_h))
+
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
-                frame_idx += 1
-                if frame_idx % 5 != 0:
-                    continue
 
                 boxes = self.detector.detect_faces(frame)
                 face_matches = []
@@ -451,6 +478,7 @@ class ClassroomAttendanceSystem:
                     embedding = self.extract_embedding(face_pil)
                     match = self.gallery.identify(embedding)
                     face_matches.append({
+                        "box": box,
                         "name": match["name"],
                         "distance": match["distance"],
                         "confidence": match["confidence"],
@@ -460,6 +488,8 @@ class ClassroomAttendanceSystem:
                 face_matches.sort(key=lambda item: item["distance"])
                 assigned_names = set()
                 for item in face_matches:
+                    box = item["box"]
+                    x, y, bw, bh = box
                     name = item["name"]
                     dist = item["distance"]
                     conf = item["confidence"]
@@ -467,6 +497,8 @@ class ClassroomAttendanceSystem:
 
                     if is_known and name not in assigned_names:
                         assigned_names.add(name)
+                        color = (0, 255, 0)
+                        label_str = f"{name} ({conf:.1f}%)"
                         if name not in master_attendance_log or conf > master_attendance_log[name]["confidence"]:
                             master_attendance_log[name] = {
                                 "name": name,
@@ -476,8 +508,22 @@ class ClassroomAttendanceSystem:
                                 "timestamp": datetime.now().strftime("%H:%M:%S"),
                                 "source": vid_path.name
                             }
+                    else:
+                        color = (0, 0, 255)
+                        label_str = f"Unknown (d={dist:.2f})"
+
+                    cv2.rectangle(frame, (x, y), (x + bw, y + bh), color, 2)
+                    cv2.rectangle(frame, (x, max(0, y - 25)), (x + bw, y), color, -1)
+                    cv2.putText(frame, label_str, (x + 5, max(15, y - 7)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
+
+                if v_writer is not None:
+                    v_writer.write(frame)
 
             cap.release()
+            if v_writer is not None:
+                v_writer.release()
+                print(f"   ✅ Đã lưu Video Minh chứng: {out_v_path}")
 
         # 3. Xuất Báo cáo CSV Tổng hợp duy nhất vào thẳng thư mục Session
         all_records = list(master_attendance_log.values()) + unregistered_log
