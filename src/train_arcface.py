@@ -105,23 +105,28 @@ def main():
     # Build Vision Transformer model
     model = build_model(cfg).to(device)
 
-    # Initialize ArcFace Loss Module (Angular Margin m = 0.50 rad, Scale s = 30.0)
+    # Initialize ArcFace Loss Module (Angular Margin m = 0.35 rad cho do tong quat cao, Scale s = 30.0)
     in_feat = getattr(cfg, "face_embedding_dim", getattr(cfg, "embed_dim", 128))
+    margin = getattr(cfg, "arcface_margin", 0.35)
     criterion = ArcFaceLoss(
         in_features=in_feat,
         num_classes=num_classes,
         s=30.0,
-        m=0.50,
+        m=margin,
     ).to(device)
 
-    # Optimizer trains both ViT model weights and ArcFace class weights
+    # Optimizer trains both ViT model weights and ArcFace class weights with weight decay
+    weight_decay = getattr(cfg, "weight_decay", 1e-3)
     optimizer = torch.optim.AdamW(
         [
             {"params": model.parameters(), "lr": cfg.lr},
             {"params": criterion.parameters(), "lr": cfg.lr},
         ],
-        weight_decay=cfg.weight_decay,
+        weight_decay=weight_decay,
     )
+
+    # Cosine Annealing Learning Rate Scheduler: Giai quyet triet de overfitting
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs, eta_min=1e-6)
 
     os.makedirs("checkpoints", exist_ok=True)
     os.makedirs("src/checkpoints", exist_ok=True)
@@ -136,9 +141,10 @@ def main():
         "train_loss": [],
         "val_loss": [],
         "epoch_time": [],
+        "lr": [],
     }
 
-    print(f"=== STARTING ARCFACE TRAINING EXPERIMENT: {cfg.experiment_name} ===")
+    print(f"=== STARTING ARCFACE TRAINING EXPERIMENT: {cfg.experiment_name} (Margin m={margin}, Cosine LR Scheduler) ===")
     train_loader = loaders.get("train_triplet", loaders.get("train"))
     val_loader = loaders.get("val_triplet", loaders.get("val"))
 
@@ -157,12 +163,15 @@ def main():
             criterion,
             device,
         )
+        current_lr = optimizer.param_groups[0]["lr"]
+        scheduler.step()
         epoch_time = time.perf_counter() - epoch_start
 
         print(
             f"Epoch [{epoch+1}/{cfg.epochs}] "
             f"Train Loss={train_metrics['loss']:.4f} "
             f"Val Loss={val_metrics['loss']:.4f} "
+            f"LR={current_lr:.6f} "
             f"Time={format_time(epoch_time)}"
         )
 
