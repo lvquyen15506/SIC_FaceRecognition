@@ -49,8 +49,9 @@ class ArcFaceLoss(nn.Module):
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
 
-        # 7. Tinh Cross Entropy Loss
-        loss = F.cross_entropy(output, labels)
+        # 7. Tinh Cross Entropy Loss voi Label Smoothing 0.1 de chong Overfitting
+        label_smoothing = getattr(self, "label_smoothing", 0.1)
+        loss = F.cross_entropy(output, labels, label_smoothing=label_smoothing)
         return loss
 
 

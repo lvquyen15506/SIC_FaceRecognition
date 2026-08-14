@@ -125,8 +125,8 @@ def main():
         weight_decay=weight_decay,
     )
 
-    # Cosine Annealing Learning Rate Scheduler: Giai quyet triet de overfitting
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs, eta_min=1e-6)
+    # StepLR: Giam Learning Rate 50% sau moi 8 epoch de ep Val Loss sut giam va chong Overfitting
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=0.5)
 
     os.makedirs("checkpoints", exist_ok=True)
     os.makedirs("src/checkpoints", exist_ok=True)
