@@ -175,6 +175,10 @@ class FaceDetector:
         return face_resized_bgr, face_pil
 
 
+# Alias for backward compatibility
+YuNetFaceDetector = FaceDetector
+
+
 if __name__ == "__main__":
     print("=== TESTING YUNET FACE DETECTOR MODULE ===")
     detector = FaceDetector()

@@ -32,12 +32,13 @@ class FaceViTAIEngineService:
         detector_path = os.path.join(weights_dir, "face_detection_yunet_2023mar.onnx")
         model_onnx_path = os.path.join(weights_dir, f"{self.experiment_name}.onnx")
 
-        # 1. Initialize YuNet Face Detector
-        if not os.path.exists(detector_path):
-            detector_path = "face_detection_yunet_2023mar.onnx"
+        # Ensure src is in sys.path for app_modules import
+        src_dir = os.path.join(project_root, "src")
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
 
         from app_modules.detector import YuNetFaceDetector
-        self.detector = YuNetFaceDetector(model_path=detector_path)
+        self.detector = YuNetFaceDetector()
 
         # 2. Initialize ONNX Runtime Session
         if not os.path.exists(model_onnx_path):
