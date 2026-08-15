@@ -122,23 +122,26 @@ def process_ekyc_frame():
         if frame_bgr is None:
             return jsonify({"error": "Ảnh base64 không hợp lệ"}), 400
 
+        # Mirror frame horizontally to match selfie camera (exactly like app_demo.py line 198)
+        frame_bgr = cv2.flip(frame_bgr, 1)
+
         ai_engine = FaceViTAIEngineService()
         
         # Detect with landmarks using YuNet
         if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
             results = ai_engine.detector.detect_faces_with_landmarks(frame_bgr)
         else:
-            faces = ai_engine.detector.detect(frame_bgr)
-            results = [{"box": list(f[:4]), "landmarks": []} for f in (faces if faces is not None else [])]
+            boxes = ai_engine.detector.detect_faces(frame_bgr)
+            results = [{"box": list(b), "landmarks": []} for b in (boxes if boxes else [])]
 
         if not results:
-            return jsonify({"detected": False, "message": "Không tìm thấy khuôn mặt"}), 200
+            return jsonify({"detected": False, "message": "Không tìm thấy khuôn mặt trong khung hình"}), 200
 
         largest_face = max(results, key=lambda f: f["box"][2] * f["box"][3])
         x, y, w, h = map(int, largest_face["box"])
         landmarks = largest_face.get("landmarks", [])
 
-        # Estimate pose
+        # Estimate pose with YuNet 5 landmarks
         detected_pose, yaw_r, pitch_r = estimate_head_pose_from_landmarks(landmarks)
 
         h_img, w_img, _ = frame_bgr.shape
@@ -149,23 +152,16 @@ def process_ekyc_frame():
         if face_crop.size == 0:
             return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
 
-        # Check face distance ratio
-        face_ratio = w / float(w_img)
-        if face_ratio < 0.18:
-            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: KHUON MAT XA QUAI Vui long tien lai gan camera."}), 200
-        elif face_ratio > 0.70:
-            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: KHUON MAT GAN QUAI Vui long lui ra xa."}), 200
-
-        # Check lighting brightness
-        gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
-        mean_brightness = float(np.mean(gray_crop))
-        if mean_brightness < 35:
-            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: THIEU SANG! Vui long bat den hoac di chuyen ra noi sang hon."}), 200
-        elif mean_brightness > 225:
-            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: NGUOC SANG! Vui long tranh anh sang choi truc tiep."}), 200
-
-        # Check pose match
-        pose_matched = (detected_pose == target_action) or (target_action == "NHIN THANG" and detected_pose == "NHIN THANG")
+        # Check pose match with realistic threshold margins
+        pose_matched = False
+        if target_action == "NHIN THANG" and (detected_pose == "NHIN THANG" or (0.65 <= yaw_r <= 1.35)):
+            pose_matched = True
+        elif target_action == "QUAY TRAI" and (detected_pose == "QUAY TRAI" or yaw_r > 1.15):
+            pose_matched = True
+        elif target_action == "QUAY PHAI" and (detected_pose == "QUAY PHAI" or yaw_r < 0.85):
+            pose_matched = True
+        elif target_action == "NGUOC LEN" and (detected_pose == "NGUOC LEN" or pitch_r < 1.05):
+            pose_matched = True
 
         emb_np = None
         if pose_matched:

@@ -192,6 +192,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
           audio={false}
           ref={webcamRef}
           screenshotFormat="image/jpeg"
+          mirrored={true}
           width={480}
           height={360}
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
