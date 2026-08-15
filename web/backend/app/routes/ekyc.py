@@ -159,10 +159,12 @@ def process_ekyc_frame():
         if face_crop.size == 0:
             return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
 
-        # Flexible pose matching logic (always accept detected face in frame)
-        pose_matched = True
+        # Strict Pose Matching Logic (exclusively match current step pose like app_demo.py)
+        pose_matched = (detected_pose == target_action)
 
-        emb_np = ai_engine.extract_embedding(face_crop)
+        emb_np = None
+        if pose_matched:
+            emb_np = ai_engine.extract_embedding(face_crop)
 
         return jsonify({
             "detected": True,
