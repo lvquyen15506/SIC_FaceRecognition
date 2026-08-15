@@ -159,8 +159,20 @@ def process_ekyc_frame():
         if face_crop.size == 0:
             return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
 
-        # Strict Pose Matching Logic (exclusively match current step pose like app_demo.py)
-        pose_matched = (detected_pose == target_action)
+        # Check face distance ratio matching app_demo.py lines 222-230
+        face_ratio = w / float(w_img)
+        is_opt_dist = True
+        dist_msg = "OK"
+
+        if face_ratio < 0.22:
+            is_opt_dist = False
+            dist_msg = "⚠️ KHUÔN MẶT XÁ QUÁ! Vui lòng tiến lại gần camera."
+        elif face_ratio > 0.60:
+            is_opt_dist = False
+            dist_msg = "⚠️ KHUÔN MẶT GẦN QUÁ! Vui lòng lùi ra xa."
+
+        # Strict Pose and Distance Matching Logic (matching app_demo.py)
+        pose_matched = (detected_pose == target_action) and is_opt_dist
 
         emb_np = None
         if pose_matched:
@@ -172,6 +184,8 @@ def process_ekyc_frame():
             "frame_size": [w_img, h_img],
             "detected_pose": detected_pose,
             "pose_matched": pose_matched,
+            "is_opt_dist": is_opt_dist,
+            "dist_msg": dist_msg,
             "embedding": emb_np.tolist() if emb_np is not None else None
         }), 200
     except Exception as e:

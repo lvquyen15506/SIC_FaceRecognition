@@ -60,6 +60,8 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
           if (res.data.detected) {
             const detectedPose = res.data.detected_pose || 'Khuôn mặt'
             const isMatched = res.data.pose_matched
+            const isOptDist = res.data.is_opt_dist
+            const distMsg = res.data.dist_msg
 
             setPoseMatchedStatus(isMatched)
 
@@ -75,6 +77,8 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
                   runStep(stepIndex + 1, accumEmbeddings)
                 }, 400)
               }
+            } else if (!isOptDist) {
+              setFaceDetectedStatus(distMsg)
             } else {
               setFaceDetectedStatus(`⚠️ Nhận diện tư thế hiện tại: '${detectedPose}'. Vui lòng làm đúng chỉ dẫn: ${currentChallenge.action}`)
             }
