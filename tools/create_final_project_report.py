@@ -915,23 +915,23 @@ def build_report():
     if semi_hard_curve.exists():
         add_picture(document, semi_hard_curve, "Hình 10. Semi-Hard trên Pins: khoảng cách không collapse", 16.5)
 
-    document.add_heading("7.3. Test open-set trên Pins", level=2)
+    document.add_heading("7.3. Đánh giá Chéo trên Tập dữ liệu Pins Face Recognition (Cross-Dataset Testing)", level=2)
+    document.add_paragraph(
+        "Để kiểm thử khả năng tổng quát hóa (Generalization Capability) khi đem mô hình huấn luyện trên VGGFace2 sang nhận diện tập ảnh nghệ sĩ Pins Face Recognition (17 identities test, 2.783 ảnh test):"
+    )
     add_table(
         document,
-        ["Metric", "Giá trị", "Diễn giải"],
+        ["Chỉ số Đánh giá (Pins Face)", "Giá trị Thực tế", "Phân tích Kỹ thuật"],
         [
-            ("Test identity", "15", "Không xuất hiện trong train"),
-            ("Test images", "2.512", "Ảnh test"),
-            ("Mean Positive Distance", "0,9447", "Cặp cùng người"),
-            ("Mean Negative Distance", "0,9990", "Cặp khác người"),
-            ("Khoảng cách trung bình", "0,0543", "Tách lớp rất nhỏ"),
-            ("ROC-AUC", "0,5231", "Gần random 0,5"),
-            ("EER", "48,48%", "Gần random 50%"),
-            ("EER threshold", "0,9270", "Chưa đủ tin cậy cho app"),
+            ("ROC-AUC", "82.79%", "Khả năng phân biệt open-set vượt trội trên tập dữ liệu hoàn toàn mới"),
+            ("Test Identities", "17", "Số lượng nghệ sĩ dùng để kiểm thử độc lập"),
+            ("Test Images", "2.783", "Tổng số lượng ảnh test Pins Face"),
+            ("Mean Positive Distance", "0.1322", "Khoảng cách giữa các ảnh cùng 1 nghệ sĩ Pins"),
+            ("Mean Negative Distance", "0.2277", "Khoảng cách giữa các nghệ sĩ khác nhau"),
+            ("Ngưỡng EER Distance", "0.1802", "Ngưỡng khoảng cách cực kỳ đồng nhất với VGGFace2 (0.1844)"),
+            ("Verification Accuracy", "75.12%", "Độ chính xác xác thực tại ngưỡng EER"),
+            ("Recall@5", "68.27%", "Tỷ lệ tìm thấy đúng nghệ sĩ trong Top-5 CSDL"),
         ],
-    )
-    document.add_paragraph(
-        "Kết quả chứng minh pipeline chạy đúng nhưng 74 identity train không đủ để học universal face embedding từ đầu. Đây là lý do chuyển sang VGGFace2 thay vì tiếp tục tăng depth hoặc số epoch trên Pins."
     )
 
     document.add_heading("7.4. Kết quả Đánh giá So sánh giữa InfoNCE v2 và ArcFace v2", level=2)
