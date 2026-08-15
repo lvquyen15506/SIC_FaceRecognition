@@ -15,7 +15,7 @@ export default function AttendanceCenter({ token }) {
   const [err, setErr] = useState('')
 
   // Upload Mode States
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedFiles, setSelectedFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [attendanceResult, setAttendanceResult] = useState(null)
 
@@ -130,14 +130,16 @@ export default function AttendanceCenter({ token }) {
     }
   }, [isLiveStreaming, selectedClassId])
 
-  // Handle File Upload Attendance Processing
+  // Handle File Upload Attendance Processing (Supports Single or Multiple File Batch Selection)
   const handleProcessUpload = async (e) => {
     e.preventDefault()
-    if (!selectedClassId || !selectedFile) return
+    if (!selectedClassId || selectedFiles.length === 0) return
     setUploading(true); setMsg(''); setErr('')
 
     const formData = new FormData()
-    formData.append('file', selectedFile)
+    selectedFiles.forEach(file => {
+      formData.append('files', file)
+    })
     formData.append('classroom_id', selectedClassId)
     formData.append('title', title || `Điểm danh Buổi ${new Date().toLocaleDateString()}`)
 
@@ -284,8 +286,22 @@ export default function AttendanceCenter({ token }) {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1', marginBottom: '6px' }}>Chọn Tệp Ảnh (.jpg/.png) HOẶC Video (.mp4/.avi) (*):</label>
-              <input type="file" accept="image/*,video/*" onChange={e => setSelectedFile(e.target.files[0])} required style={{ color: '#cbd5e1', width: '100%' }} />
+              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1', marginBottom: '6px' }}>
+                Chọn 1 Hoặc NHIỀU Tệp Ảnh (.jpg/.png) / Video (.mp4/.avi) Cùng Lúc (*):
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                onChange={e => setSelectedFiles(Array.from(e.target.files))}
+                required
+                style={{ color: '#cbd5e1', width: '100%' }}
+              />
+              {selectedFiles.length > 0 && (
+                <div style={{ color: '#00ff66', fontSize: '12px', marginTop: '6px' }}>
+                  📁 Đã chọn <strong>{selectedFiles.length}</strong> tệp điểm danh
+                </div>
+              )}
             </div>
 
             <button type="submit" disabled={uploading} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(90deg, #00ff66 0%, #00f0ff 100%)', color: '#000', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}>
