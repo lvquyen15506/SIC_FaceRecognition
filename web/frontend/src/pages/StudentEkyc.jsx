@@ -228,7 +228,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
           style={{
             padding: '14px 32px', borderRadius: '12px', border: 'none',
             background: 'linear-gradient(90deg, #ff3366 0%, #7000ff 100%)',
-            color: '#fff', fontSize: '16px', fontWeight 700, cursor: 'pointer',
+            color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer',
             boxShadow: '0 6px 24px rgba(255, 51, 102, 0.5)',
             transition: 'all 0.3s ease'
           }}
