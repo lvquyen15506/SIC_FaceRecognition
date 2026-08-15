@@ -193,7 +193,14 @@ def process_photo_attendance():
                                 "confidence": conf
                             }
                         cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        cv2.putText(display_img, f"{match_res['name']} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        
+                        # Convert Unicode Vietnamese name to ASCII for safe OpenCV putText rendering
+                        import unicodedata
+                        raw_name = match_res['name']
+                        ascii_name = unicodedata.normalize('NFD', raw_name)
+                        ascii_name = ''.join(c for c in ascii_name if unicodedata.category(c) != 'Mn').replace('Đ', 'D').replace('đ', 'd')
+                        
+                        cv2.putText(display_img, f"{ascii_name} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     else:
                         unregistered_count += 1
                         cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
