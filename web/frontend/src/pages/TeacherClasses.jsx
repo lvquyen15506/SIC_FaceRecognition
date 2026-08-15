@@ -125,7 +125,7 @@ export default function TeacherClasses({ token }) {
       setAttendanceResult(res.data)
       setMsg(res.data.message)
     } catch (e) {
-      setErr(e.response?.data?.error || 'Lỗi xử lý ảnh điểm danh AI')
+      setErr(e.response?.data?.error || 'Lỗi xử lý điểm danh AI')
     } finally {
       setUploading(false)
     }
@@ -137,7 +137,6 @@ export default function TeacherClasses({ token }) {
       const res = await axios.put(`/api/attendance/records/${recordId}/toggle`, { status: nextStatus }, config)
       setMsg(res.data.message)
       
-      // Local state update
       setAttendanceResult(prev => {
         if (!prev) return prev
         return {
@@ -151,17 +150,17 @@ export default function TeacherClasses({ token }) {
   }
 
   return (
-    <div style={{ marginTop: '24px' }}>
-      <h2 style={{ color: '#00ff66', marginBottom: '16px' }}>👨‍🏫 QUẢN LÝ LỚP HỌC & ĐIỂM DANH TỰ ĐỘNG AI</h2>
+    <div style={{ marginTop: '12px' }}>
+      <h2 style={{ color: '#00ff66', marginBottom: '16px', fontSize: '20px' }}>👨‍🏫 QUẢN LÝ LỚP HỌC & ĐIỂM DANH TỰ ĐỘNG AI</h2>
 
       {msg && <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', color: '#00ff66', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>✅ {msg}</div>}
       {err && <div style={{ background: 'rgba(255, 51, 102, 0.15)', border: '1px solid #ff3366', color: '#ff3366', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>⚠️ {err}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+      <div className="responsive-two-col">
         {/* LEFT COLUMN: CREATE CLASS & CLASS LIST */}
         <div>
-          <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', marginBottom: '24px' }}>
-            <h3 style={{ color: '#00ff66', marginTop: 0 }}>➕ Tạo Lớp Học Mới</h3>
+          <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', marginBottom: '20px' }}>
+            <h3 style={{ color: '#00ff66', marginTop: 0, fontSize: '16px' }}>➕ Tạo Lớp Học Mới</h3>
             <form onSubmit={handleCreateClass}>
               <input type="text" placeholder="Mã Lớp (VD: INT1340_01)" value={classCode} onChange={e => setClassCode(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '12px', boxSizing: 'border-box' }} />
               <input type="text" placeholder="Tên Môn Học (VD: Nhập môn AI)" value={className} onChange={e => setClassName(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '12px', boxSizing: 'border-box' }} />
@@ -170,7 +169,7 @@ export default function TeacherClasses({ token }) {
           </div>
 
           <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            <h3 style={{ color: '#ffffff', marginTop: 0 }}>📚 Lớp Học Của Bạn ({classes.length})</h3>
+            <h3 style={{ color: '#ffffff', marginTop: 0, fontSize: '16px' }}>📚 Lớp Học Của Bạn ({classes.length})</h3>
             {classes.map(c => (
               <div key={c.id} onClick={() => handleSelectClass(c)} style={{
                 padding: '14px', borderRadius: '10px', marginBottom: '10px', cursor: 'pointer',
@@ -187,13 +186,12 @@ export default function TeacherClasses({ token }) {
         {/* RIGHT COLUMN: CLASS DETAILS, CO-TEACHERS, STUDENTS & ATTENDANCE UPLOAD */}
         {selectedClass ? (
           <div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(0, 255, 102, 0.3)', marginBottom: '24px' }}>
-              <h3 style={{ color: '#00ff66', marginTop: 0 }}>🏫 Chi Tiết Lớp: [{selectedClass.class_code}] {selectedClass.class_name}</h3>
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(0, 255, 102, 0.3)', marginBottom: '20px' }}>
+              <h3 style={{ color: '#00ff66', marginTop: 0, fontSize: '16px' }}>🏫 Chi Tiết Lớp: [{selectedClass.class_code}] {selectedClass.class_name}</h3>
 
-              {/* ADD CO-TEACHER & ADD STUDENT */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginTop: '14px' }}>
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', color: '#00f0ff', fontSize: '14px' }}>👨‍🏫 Thêm Giảng Viên Phụ (Co-Teacher):</h4>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#00f0ff', fontSize: '13px' }}>👨‍🏫 Thêm Co-Teacher:</h4>
                   <select value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#1e293b', color: '#fff', marginBottom: '8px' }}>
                     <option value="">-- Chọn Giảng viên --</option>
                     {allUsers.filter(u => u.system_role === 'TEACHER' || u.system_role === 'ADMIN').map(u => (
@@ -204,7 +202,7 @@ export default function TeacherClasses({ token }) {
                 </div>
 
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', color: '#00ff66', fontSize: '14px' }}>👨‍🎓 Thêm Sinh Viên & Gán Vai Trò:</h4>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#00ff66', fontSize: '13px' }}>👨‍🎓 Thêm Sinh Viên:</h4>
                   <select value={addStudentId} onChange={e => setAddStudentId(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#1e293b', color: '#fff', marginBottom: '8px' }}>
                     <option value="">-- Chọn Sinh viên --</option>
                     {allUsers.filter(u => u.system_role === 'STUDENT').map(u => (
@@ -221,97 +219,85 @@ export default function TeacherClasses({ token }) {
               </div>
             </div>
 
-            {/* UNIFIED ATTENDANCE UPLOAD SECTION (PHOTO & VIDEO) */}
-            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(0, 240, 255, 0.3)', marginBottom: '24px' }}>
-              <h3 style={{ color: '#00f0ff', marginTop: 0 }}>📸 THUẬT TOÁN AI ĐIỂM DANH (HỖ TRỢ CẢ ẢNH & VIDEO MP4)</h3>
+            {/* UNIFIED ATTENDANCE UPLOAD SECTION */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(0, 240, 255, 0.3)', marginBottom: '20px' }}>
+              <h3 style={{ color: '#00f0ff', marginTop: 0, fontSize: '16px' }}>📸 ĐIỂM DANH AI (HỖ TRỢ CẢ ẢNH & VIDEO MP4)</h3>
               <form onSubmit={handleProcessAttendance}>
-                <input type="text" placeholder="Tiêu đề phiên (VD: Điểm danh Buổi 5 - Nhận diện khuôn mặt)" value={attendanceTitle} onChange={e => setAttendanceTitle(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '12px', boxSizing: 'border-box' }} />
+                <input type="text" placeholder="Tiêu đề phiên (VD: Điểm danh Buổi 5)" value={attendanceTitle} onChange={e => setAttendanceTitle(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '12px', boxSizing: 'border-box' }} />
                 
-                <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
                   Tải lên tệp Ảnh (.jpg/.png) HOẶC Video (.mp4/.avi):
                 </label>
-                <input type="file" accept="image/*,video/*" onChange={e => setSelectedFile(e.target.files[0])} required style={{ marginBottom: '16px', display: 'block', color: '#cbd5e1' }} />
+                <input type="file" accept="image/*,video/*" onChange={e => setSelectedFile(e.target.files[0])} required style={{ marginBottom: '16px', display: 'block', color: '#cbd5e1', width: '100%' }} />
                 
                 <button type="submit" disabled={uploading} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(90deg, #00f0ff 0%, #7000ff 100%)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {uploading ? '⚡ AI Đang Xử Lý & Phân Tích Khuôn Mặt...' : '🚀 BẮT ĐẦU QUÉT AI & XUẤT BÁO CÁO CSV'}
+                  {uploading ? '⚡ AI Đang Phân Tích Khuôn Mặt...' : '🚀 QUÉT AI & XUẤT CSV'}
                 </button>
               </form>
             </div>
 
-            {/* ANNOTATED PROOF OUTPUT DISPLAY & ATTENDANCE RESULTS TABLE */}
+            {/* ANNOTATED PROOF OUTPUT DISPLAY */}
             {attendanceResult && (
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid #00ff66' }}>
-                <h3 style={{ color: '#00ff66', marginTop: 0 }}>🎉 BÁO CÁO PHIÊN ĐIỂM DANH THÀNH CÔNG</h3>
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid #00ff66' }}>
+                <h3 style={{ color: '#00ff66', marginTop: 0, fontSize: '16px' }}>🎉 BÁO CÁO PHIÊN ĐIỂM DANH THÀNH CÔNG</h3>
 
-                {/* PROOF MEDIA OUTPUT */}
                 {attendanceResult.session?.media_proof_path && (
-                  <div style={{ marginBottom: '20px', textAlign: 'center', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px' }}>
-                    <h4 style={{ color: '#00f0ff', margin: '0 0 10px 0' }}>🖼️ ẢNH / VIDEO MINH CHỨNG ĐÃ KHOANH TÊN AI VIỀN XANH / ĐỎ</h4>
+                  <div style={{ marginBottom: '16px', textAlign: 'center', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px' }}>
+                    <h4 style={{ color: '#00f0ff', margin: '0 0 8px 0', fontSize: '14px' }}>🖼️ ẢNH / VIDEO MINH CHỨNG KHOANH TÊN AI VIỀN XANH / ĐỎ</h4>
                     <img
                       src={`/api/attendance/proof/${attendanceResult.session.media_proof_path.split('/').pop()}`}
                       alt="Minh chứng AI"
-                      style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px', border: '1px solid rgba(0, 240, 255, 0.4)' }}
+                      style={{ maxWidth: '100%', maxHeight: '380px', borderRadius: '8px', border: '1px solid rgba(0, 240, 255, 0.4)' }}
                       onError={(e) => { e.target.style.display = 'none' }}
                     />
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ color: '#cbd5e1', fontSize: '13px' }}>
-                    Tệp CSV xuất ra: <code style={{ color: '#00ff66' }}>{attendanceResult.csv_filename}</code>
-                  </span>
-                  <button
-                    onClick={() => window.alert(`File CSV '${attendanceResult.csv_filename}' đã được lưu an toàn tại thư mục server outputs/!`)}
-                    style={{ background: '#00ff66', color: '#000', padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    📥 TẢI VỀ FILE CSV BÁO CÁO
-                  </button>
-                </div>
-
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', marginTop: '12px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#00f0ff' }}>
-                      <th style={{ padding: '8px' }}>Tên Sinh Viên</th>
-                      <th style={{ padding: '8px' }}>Trạng Thái AI</th>
-                      <th style={{ padding: '8px' }}>Độ Tin Cậy %</th>
-                      <th style={{ padding: '8px' }}>Tích Sửa Bằng Tay</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceResult.records.map(r => (
-                      <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <td style={{ padding: '10px 8px' }}>
-                          <strong>{r.student_name}</strong>
-                        </td>
-                        <td style={{ padding: '10px 8px' }}>
-                          {r.status === 'PRESENT' ? <span style={{ color: '#00ff66', fontWeight: 700 }}>✅ CÓ MẶT</span> : r.status === 'ABSENT' ? <span style={{ color: '#ff3366' }}>❌ VẮNG MẶT</span> : <span style={{ color: '#ffaa00' }}>❓ NGƯỜI LẠ</span>}
-                          {r.is_manually_edited && <span style={{ color: '#00f0ff', fontSize: '11px', marginLeft: '6px' }}>(Đã tích sửa)</span>}
-                        </td>
-                        <td style={{ padding: '10px 8px' }}>{r.confidence_score.toFixed(1)}%</td>
-                        <td style={{ padding: '10px 8px' }}>
-                          {r.status !== 'UNREGISTERED' && (
-                            <button
-                              onClick={() => handleToggleRecord(r.id, r.status)}
-                              style={{
-                                padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', border: 'none', fontWeight: 600,
-                                background: r.status === 'PRESENT' ? 'rgba(255,51,102,0.2)' : 'rgba(0,255,102,0.2)',
-                                color: r.status === 'PRESENT' ? '#ff6688' : '#00ff66',
-                              }}
-                            >
-                              Đổi thành {r.status === 'PRESENT' ? '❌ Vắng mặt' : '✅ Có mặt'}
-                            </button>
-                          )}
-                        </td>
+                <div className="table-container">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '460px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#00f0ff' }}>
+                        <th style={{ padding: '8px' }}>Tên Sinh Viên</th>
+                        <th style={{ padding: '8px' }}>Trạng Thái AI</th>
+                        <th style={{ padding: '8px' }}>Độ Tin Cậy %</th>
+                        <th style={{ padding: '8px' }}>Tích Sửa Bằng Tay</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {attendanceResult.records.map(r => (
+                        <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '10px 8px' }}>
+                            <strong>{r.student_name}</strong>
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>
+                            {r.status === 'PRESENT' ? <span style={{ color: '#00ff66', fontWeight: 700 }}>✅ CÓ MẶT</span> : r.status === 'ABSENT' ? <span style={{ color: '#ff3366' }}>❌ VẮNG MẶT</span> : <span style={{ color: '#ffaa00' }}>❓ NGƯỜI LẠ</span>}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>{r.confidence_score.toFixed(1)}%</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            {r.status !== 'UNREGISTERED' && (
+                              <button
+                                onClick={() => handleToggleRecord(r.id, r.status)}
+                                style={{
+                                  padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', border: 'none', fontWeight: 600, fontSize: '12px',
+                                  background: r.status === 'PRESENT' ? 'rgba(255,51,102,0.2)' : 'rgba(0,255,102,0.2)',
+                                  color: r.status === 'PRESENT' ? '#ff6688' : '#00ff66',
+                                }}
+                              >
+                                Đổi thành {r.status === 'PRESENT' ? '❌ Vắng mặt' : '✅ Có mặt'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ padding: '40px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '16px', border: '1px dashed rgba(255, 255, 255, 0.1)', textAlign: 'center', color: '#94a3b8' }}>
-            👈 Vui lòng chọn một Lớp học bên trái để xem chi tiết, thêm Giảng viên/Sinh viên và chạy điểm danh AI!
+          <div style={{ padding: '30px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '16px', border: '1px dashed rgba(255, 255, 255, 0.1)', textAlign: 'center', color: '#94a3b8' }}>
+            👈 Chọn một Lớp học để xem chi tiết, thêm Giảng viên/Sinh viên và chạy điểm danh AI!
           </div>
         )}
       </div>

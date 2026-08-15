@@ -180,8 +180,9 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
       <div style={{
         position: 'relative',
         margin: '0 auto 24px auto',
-        width: '480px',
-        height: '360px',
+        width: '100%',
+        maxWidth: '480px',
+        height: '340px',
         borderRadius: '20px',
         overflow: 'hidden',
         border: capturing ? `3px solid ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}` : '2px solid rgba(255, 255, 255, 0.2)',
@@ -193,8 +194,6 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
           ref={webcamRef}
           screenshotFormat="image/jpeg"
           mirrored={true}
-          width={480}
-          height={360}
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
         />
 
@@ -205,8 +204,8 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '240px',
-            height: '300px',
+            width: '210px',
+            height: '270px',
             borderRadius: '50%',
             border: `4px dashed ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}`,
             boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.45), 0 0 20px ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}`,

@@ -13,16 +13,19 @@ export default function Sidebar({ activeTab, setActiveTab, currentUser }) {
   ]
 
   return (
-    <div style={{
-      background: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      borderRadius: '16px',
-      padding: '20px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
-      <div style={{ padding: '0 8px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>
+    <div
+      className="sidebar-container"
+      style={{
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '16px',
+        padding: '20px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}
+    >
+      <div style={{ padding: '0 8px 8px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>
         ⚙️ ĐIỀU HƯỚNG DASHBOARD
       </div>
 
@@ -32,6 +35,7 @@ export default function Sidebar({ activeTab, setActiveTab, currentUser }) {
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
+            className="sidebar-btn"
             style={{
               display: 'flex',
               alignItems: 'center',

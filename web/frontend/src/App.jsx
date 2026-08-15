@@ -57,17 +57,17 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: '16px', maxWidth: '1440px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
       {/* TOP NAVBAR */}
       <Navbar currentUser={currentUser} onLogout={handleLogout} />
 
-      {/* MAIN TWO-COLUMN DASHBOARD LAYOUT */}
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '24px' }}>
+      {/* MAIN RESPONSIVE DASHBOARD LAYOUT */}
+      <div className="dashboard-grid">
         {/* LEFT SIDEBAR NAVIGATION */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} />
 
         {/* RIGHT MAIN CONTENT AREA */}
-        <main>
+        <main style={{ minWidth: 0 }}>
           {activeTab === 'ADMIN' && currentUser.system_role === 'ADMIN' && (
             <AdminUsers token={token} />
           )}

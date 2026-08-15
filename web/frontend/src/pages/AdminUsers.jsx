@@ -95,39 +95,39 @@ export default function AdminUsers({ token }) {
   }
 
   return (
-    <div style={{ marginTop: '24px' }}>
-      <h2 style={{ color: '#00f0ff', marginBottom: '16px' }}>👑 QUẢN TRỊ VIÊN — TẠO & PHÂN QUYỀN TÀI KHOẢN</h2>
+    <div style={{ marginTop: '12px' }}>
+      <h2 style={{ color: '#00f0ff', marginBottom: '16px', fontSize: '20px' }}>👑 QUẢN TRỊ VIÊN — TẠO & PHÂN QUYỀN TÀI KHOẢN</h2>
 
       {msg && <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', color: '#00ff66', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>✅ {msg}</div>}
       {err && <div style={{ background: 'rgba(255, 51, 102, 0.15)', border: '1px solid #ff3366', color: '#ff3366', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>⚠️ {err}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '24px' }}>
+      <div className="responsive-two-col">
         {/* CREATE USER FORM */}
-        <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <h3 style={{ color: '#ffffff', marginTop: 0 }}>➕ Tạo Tài Khoản Mới</h3>
+        <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <h3 style={{ color: '#ffffff', marginTop: 0, fontSize: '16px' }}>➕ Tạo Tài Khoản Mới</h3>
           <form onSubmit={handleCreateUser}>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Username (*):</label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Username (*):</label>
               <input type="text" value={username} onChange={e => setUsername(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Email (*):</label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Email (*):</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Mật khẩu (*):</label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Mật khẩu (*):</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Họ và Tên (*):</label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Họ và Tên (*):</label>
               <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Vai trò Hệ thống (*):</label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Vai trò Hệ thống (*):</label>
               <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}>
                 <option value="STUDENT">STUDENT (Sinh viên)</option>
                 <option value="TEACHER">TEACHER (Giảng viên)</option>
@@ -136,8 +136,8 @@ export default function AdminUsers({ token }) {
             </div>
 
             {role === 'STUDENT' && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1' }}>Mã Sinh Viên (Student ID):</label>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1' }}>Mã Sinh Viên (Student ID):</label>
                 <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} placeholder="Ví dụ: B20DCCN001" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
               </div>
             )}
@@ -149,73 +149,75 @@ export default function AdminUsers({ token }) {
         </div>
 
         {/* USERS LIST TABLE */}
-        <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <h3 style={{ color: '#ffffff', marginTop: 0 }}>📜 Danh Sách Tài Khoản Toàn Trường ({users.length})</h3>
+        <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <h3 style={{ color: '#ffffff', marginTop: 0, fontSize: '16px' }}>📜 Danh Sách Tài Khoản Toàn Trường ({users.length})</h3>
           
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#00f0ff' }}>
-                <th style={{ padding: '8px' }}>Họ Tên / Username</th>
-                <th style={{ padding: '8px' }}>Mã SV / Email</th>
-                <th style={{ padding: '8px' }}>Vai Trò</th>
-                <th style={{ padding: '8px' }}>eKYC</th>
-                <th style={{ padding: '8px' }}>Hành Động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '10px 8px' }}>
-                    <strong>{u.full_name}</strong><br/>
-                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>@{u.username}</span>
-                  </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    {u.student_id_code ? <code style={{ color: '#00ff66' }}>{u.student_id_code}</code> : u.email}
-                  </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <select
-                      value={u.system_role}
-                      onChange={e => handleChangeRole(u.id, e.target.value)}
-                      style={{ padding: '4px 8px', borderRadius: '4px', background: '#1e293b', color: '#fff', border: '1px solid #475569' }}
-                    >
-                      <option value="STUDENT">STUDENT</option>
-                      <option value="TEACHER">TEACHER</option>
-                      <option value="ADMIN">ADMIN</option>
-                    </select>
-                  </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    {u.ekyc_completed ? (
-                      <span style={{ color: '#00ff66', fontWeight: 600 }}>✅ Đã làm</span>
-                    ) : (
-                      <span style={{ color: '#ff3366' }}>⚠️ Chưa</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {u.ekyc_completed && (
-                        <button
-                          onClick={() => handleResetEkyc(u.id, u.full_name)}
-                          title="Xóa dữ liệu sinh trắc học eKYC để chụp lại"
-                          style={{ background: 'rgba(255, 170, 0, 0.2)', border: '1px solid #ffaa00', color: '#ffaa00', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                        >
-                          🗑️ Xóa eKYC
-                        </button>
-                      )}
-
-                      {u.username !== 'admin' && (
-                        <button
-                          onClick={() => handleDeleteUser(u.id, u.full_name)}
-                          style={{ background: 'rgba(255,51,102,0.2)', border: '1px solid #ff3366', color: '#ff6688', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                        >
-                          ❌ Xóa TK
-                        </button>
-                      )}
-                    </div>
-                  </td>
+          <div className="table-container">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', minWidth: '480px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#00f0ff' }}>
+                  <th style={{ padding: '8px' }}>Họ Tên / Username</th>
+                  <th style={{ padding: '8px' }}>Mã SV / Email</th>
+                  <th style={{ padding: '8px' }}>Vai Trò</th>
+                  <th style={{ padding: '8px' }}>eKYC</th>
+                  <th style={{ padding: '8px' }}>Hành Động</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '10px 8px' }}>
+                      <strong>{u.full_name}</strong><br/>
+                      <span style={{ color: '#94a3b8', fontSize: '11px' }}>@{u.username}</span>
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      {u.student_id_code ? <code style={{ color: '#00ff66' }}>{u.student_id_code}</code> : u.email}
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <select
+                        value={u.system_role}
+                        onChange={e => handleChangeRole(u.id, e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '4px', background: '#1e293b', color: '#fff', border: '1px solid #475569' }}
+                      >
+                        <option value="STUDENT">STUDENT</option>
+                        <option value="TEACHER">TEACHER</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      {u.ekyc_completed ? (
+                        <span style={{ color: '#00ff66', fontWeight: 600 }}>✅ Đã làm</span>
+                      ) : (
+                        <span style={{ color: '#ff3366' }}>⚠️ Chưa</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {u.ekyc_completed && (
+                          <button
+                            onClick={() => handleResetEkyc(u.id, u.full_name)}
+                            title="Xóa dữ liệu sinh trắc học eKYC để chụp lại"
+                            style={{ background: 'rgba(255, 170, 0, 0.2)', border: '1px solid #ffaa00', color: '#ffaa00', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            🗑️ Xóa eKYC
+                          </button>
+                        )}
+
+                        {u.username !== 'admin' && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.full_name)}
+                            style={{ background: 'rgba(255,51,102,0.2)', border: '1px solid #ff3366', color: '#ff6688', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            ❌ Xóa TK
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
