@@ -1,8 +1,6 @@
 import React, { useState, useRef } from 'react'
 import Webcam from 'react-webcam'
-import axios from 'axis' // or 'axios'
-
-import axiosObj from 'axios'
+import axios from 'axios'
 
 export default function StudentEkyc({ currentUser, token, onEkycDone }) {
   const webcamRef = useRef(null)
@@ -62,7 +60,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
     const normVector = dummyVector.map(v => v / norm)
 
     try {
-      const res = await axiosObj.post('/api/ekyc/save-embedding', { vector: normVector }, config)
+      const res = await axios.post('/api/ekyc/save-embedding', { vector: normVector }, config)
       setMsg(res.data.message || '🎉 XÁC THỰC eKYC ĐA TƯ THẾ THÀNH CÔNG!')
       setCapturing(false)
       setCurrentStep(0)
