@@ -49,9 +49,11 @@ def process_photo_attendance():
         )
         db.session.add(session)
 
-        # Create Records for live recognized students
+        # Create Records for live recognized students & generate CSV file
         records_to_return = []
-        for rec_data in live_records:
+        csv_data = []
+
+        for idx, rec_data in enumerate(live_records, 1):
             s_id = rec_data.get("student_id")
             s_name = rec_data.get("student_name", "Sinh viên")
             conf = rec_data.get("confidence_score", 100.0)
@@ -67,12 +69,32 @@ def process_photo_attendance():
             db.session.add(rec)
             records_to_return.append(rec.to_dict())
 
+            csv_data.append({
+                "STT": idx,
+                "Mã Sinh Viên": s_id or "N/A",
+                "Họ và Tên": s_name,
+                "Trạng Thái": "Có mặt",
+                "Độ Tin Cậy (%)": f"{conf:.1f}%",
+                "Thời Gian": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+        # Save physical CSV file
+        output_dir = os.path.join(os.getcwd(), "outputs", "attendance_sessions")
+        os.makedirs(output_dir, exist_ok=True)
+        csv_filename = f"DiemDanh_{classroom.class_code}_{session_id[:8]}.csv"
+        csv_path = os.path.join(output_dir, csv_filename)
+
+        if csv_data:
+            df = pd.DataFrame(csv_data)
+            df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+
+        session.csv_export_path = csv_path
         db.session.commit()
 
         return jsonify({
             "message": f"🎉 Đã lưu phiên điểm danh trực tiếp thành công cho Lớp [{classroom.class_code}]!",
             "session": session.to_dict(),
-            "csv_filename": f"DiemDanh_{classroom.class_code}_{session_id[:8]}.csv",
+            "csv_filename": csv_filename,
             "records": records_to_return
         }), 200
 
@@ -345,9 +367,23 @@ def process_live_attendance_frame():
                     "confidence": match_res.get("confidence", 0.0)
                 })
 
+        # Deduplicate detections per student_id (keep highest confidence box)
+        seen_students = {}
+        unregistered_list = []
+
+        for det in detections:
+            s_id = det.get("student_id")
+            if s_id:
+                if s_id not in seen_students or det["confidence"] > seen_students[s_id]["confidence"]:
+                    seen_students[s_id] = det
+            else:
+                unregistered_list.append(det)
+
+        final_detections = list(seen_students.values()) + unregistered_list
+
         return jsonify({
             "frame_size": [w_img, h_img],
-            "detections": detections
+            "detections": final_detections
         }), 200
 
     except Exception as e:

@@ -22,6 +22,8 @@ export default function AttendanceCenter({ token }) {
   // Live Camera Mode States
   const [isLiveStreaming, setIsLiveStreaming] = useState(false)
   const [liveAccumulatedRecords, setLiveAccumulatedRecords] = useState({}) // student_id -> record
+  const [currentFrameFaceCount, setCurrentFrameFaceCount] = useState(0)
+  const [currentFrameStrangerCount, setCurrentFrameStrangerCount] = useState(0)
 
   const config = {
     headers: { Authorization: `Bearer ${token}` }
@@ -58,50 +60,56 @@ export default function AttendanceCenter({ token }) {
               const ctx = canvas.getContext('2d')
               ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-              if (res.data.detections && res.data.detections.length > 0) {
-                const [fw, fh] = res.data.frame_size || [480, 360]
-                const scaleX = canvas.width / fw
-                const scaleY = canvas.height / fh
+              if (res.data.detections) {
+                setCurrentFrameFaceCount(res.data.detections.length)
+                const strangers = res.data.detections.filter(d => d.status !== 'PRESENT').length
+                setCurrentFrameStrangerCount(strangers)
 
-                res.data.detections.forEach(det => {
-                  const [bx, by, bw, bh] = det.bbox
-                  const x = bx * scaleX
-                  const y = by * scaleY
-                  const w = bw * scaleX
-                  const h = bh * scaleY
+                if (res.data.detections.length > 0) {
+                  const [fw, fh] = res.data.frame_size || [480, 360]
+                  const scaleX = canvas.width / fw
+                  const scaleY = canvas.height / fh
 
-                  const isMatched = det.status === 'PRESENT'
-                  const color = isMatched ? '#00ff66' : '#ff3366'
-                  const label = isMatched ? `${det.name} (${det.confidence.toFixed(1)}%)` : 'Người Lạ (Unregistered)'
+                  res.data.detections.forEach(det => {
+                    const [bx, by, bw, bh] = det.bbox
+                    const x = bx * scaleX
+                    const y = by * scaleY
+                    const w = bw * scaleX
+                    const h = bh * scaleY
 
-                  // Draw 3px Neon Bounding Box
-                  ctx.lineWidth = 3
-                  ctx.strokeStyle = color
-                  ctx.strokeRect(x, y, w, h)
+                    const isMatched = det.status === 'PRESENT'
+                    const color = isMatched ? '#00ff66' : '#ff3366'
+                    const label = isMatched ? `${det.name} (${det.confidence.toFixed(1)}%)` : 'Người Lạ (Unregistered)'
 
-                  // Draw Label Text Banner Background
-                  ctx.font = 'bold 14px system-ui, sans-serif'
-                  const textWidth = ctx.measureText(label).width
-                  ctx.fillStyle = color
-                  ctx.fillRect(x, Math.max(0, y - 28), textWidth + 16, 26)
+                    // Draw 3px Neon Bounding Box
+                    ctx.lineWidth = 3
+                    ctx.strokeStyle = color
+                    ctx.strokeRect(x, y, w, h)
 
-                  // Draw Label Text (Perfect Unicode Vietnamese!)
-                  ctx.fillStyle = isMatched ? '#000000' : '#ffffff'
-                  ctx.fillText(label, x + 8, Math.max(18, y - 9))
+                    // Draw Label Text Banner Background
+                    ctx.font = 'bold 14px system-ui, sans-serif'
+                    const textWidth = ctx.measureText(label).width
+                    ctx.fillStyle = color
+                    ctx.fillRect(x, Math.max(0, y - 28), textWidth + 16, 26)
 
-                  // Accumulate recognized record
-                  if (det.student_id) {
-                    setLiveAccumulatedRecords(prev => ({
-                      ...prev,
-                      [det.student_id]: {
-                        student_id: det.student_id,
-                        student_name: det.name,
-                        status: 'PRESENT',
-                        confidence_score: det.confidence
-                      }
-                    }))
-                  }
-                })
+                    // Draw Label Text (Perfect Unicode Vietnamese!)
+                    ctx.fillStyle = isMatched ? '#000000' : '#ffffff'
+                    ctx.fillText(label, x + 8, Math.max(18, y - 9))
+
+                    // Accumulate recognized record
+                    if (det.student_id) {
+                      setLiveAccumulatedRecords(prev => ({
+                        ...prev,
+                        [det.student_id]: {
+                          student_id: det.student_id,
+                          student_name: det.name,
+                          status: 'PRESENT',
+                          confidence_score: det.confidence
+                        }
+                      }))
+                    }
+                  })
+                }
               }
             }
           } catch (e) {
@@ -295,6 +303,21 @@ export default function AttendanceCenter({ token }) {
           </p>
 
           <input type="text" placeholder="Tiêu đề Phiên (VD: Điểm danh Trực tiếp Tiết 1-2)" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', maxWidth: '500px', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '16px', boxSizing: 'border-box' }} />
+
+          {/* REAL-TIME LIVE STATS HUD BANNER MATCHING APP_DEMO.PY */}
+          {isLiveStreaming && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
+              <div style={{ background: 'rgba(0, 240, 255, 0.15)', border: '1px solid #00f0ff', padding: '8px 16px', borderRadius: '20px', color: '#00f0ff', fontSize: '13px', fontWeight: 700 }}>
+                👥 Đang Trong Khung Hình: <span style={{ fontSize: '16px' }}>{currentFrameFaceCount}</span>
+              </div>
+              <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', padding: '8px 16px', borderRadius: '20px', color: '#00ff66', fontSize: '13px', fontWeight 700 }}>
+                ✅ Đã Điểm Danh Có Mặt: <span style={{ fontSize: '16px' }}>{Object.keys(liveAccumulatedRecords).length}</span> SV
+              </div>
+              <div style={{ background: 'rgba(255, 51, 102, 0.15)', border: '1px solid #ff3366', padding: '8px 16px', borderRadius: '20px', color: '#ff3366', fontSize: '13px', fontWeight 700 }}>
+                ❓ Người Lạ Hiện Tại: <span style={{ fontSize: '16px' }}>{currentFrameStrangerCount}</span>
+              </div>
+            </div>
+          )}
 
           <div style={{ position: 'relative', margin: '0 auto 20px auto', width: '100%', maxWidth: '640px', height: '420px', borderRadius: '16px', overflow: 'hidden', border: isLiveStreaming ? '3px solid #00ff66' : '2px solid rgba(255,255,255,0.2)', boxShadow: isLiveStreaming ? '0 0 30px rgba(0, 255, 102, 0.4)' : 'none' }}>
             {/* 60 FPS NATIVE WEBCAM VIDEO STREAM */}
