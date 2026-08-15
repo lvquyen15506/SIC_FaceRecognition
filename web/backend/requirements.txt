@@ -4,8 +4,6 @@ Flask-JWT-Extended==4.7.4
 Flask-CORS==6.0.5
 psycopg2-binary==2.9.12
 gunicorn==23.0.0
-torch==2.5.1
-torchvision==0.20.1
 onnxruntime==1.20.1
 opencv-python-headless==4.10.0.84
 Pillow==11.0.0

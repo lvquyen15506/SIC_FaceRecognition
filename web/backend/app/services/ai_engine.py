@@ -3,16 +3,14 @@ import sys
 import json
 import numpy as np
 import cv2
-import torch
 from PIL import Image
-import torchvision.transforms as transforms
 import onnxruntime as ort
 
 from app.models import User, ClassroomStudent, AttendanceSession, AttendanceRecord, db
 
 
 class FaceViTAIEngineService:
-    """Singleton AI Engine Service running YuNet Face Detector & ArcFace v2 ONNX Model"""
+    """Singleton AI Engine Service running YuNet Face Detector & ArcFace v2 ONNX Model (Pure NumPy & ONNXRuntime)"""
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -45,36 +43,45 @@ class FaceViTAIEngineService:
         if not os.path.exists(model_onnx_path):
             model_onnx_path = os.path.join("weights", f"{self.experiment_name}.onnx")
 
-        print(f"[AI Engine Service] Loading ONNX model from: {model_onnx_path}")
+        print(f"[AI Engine Service] Loading lightweight ONNX model from: {model_onnx_path}")
         self.onnx_session = ort.InferenceSession(model_onnx_path, providers=["CPUExecutionProvider"])
         self.input_name = self.onnx_session.get_inputs()[0].name
 
-        # 3. Transform (224x224)
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3),
-        ])
-
         self._initialized = True
 
+    def preprocess_face(self, face_pil_or_bgr):
+        """Preprocess face image into (1, 3, 224, 224) normalized [-1, 1] float32 tensor via NumPy & OpenCV"""
+        if isinstance(face_pil_or_bgr, Image.Image):
+            img_rgb = np.array(face_pil_or_bgr)
+        else:
+            img_rgb = cv2.cvtColor(face_pil_or_bgr, cv2.COLOR_BGR2RGB)
+
+        img_resized = cv2.resize(img_rgb, (224, 224))
+        # Normalize [0, 255] -> [-1.0, 1.0] (mean=0.5, std=0.5)
+        img_norm = (img_resized.astype(np.float32) / 127.5) - 1.0
+        # HWC -> CHW (1, 3, 224, 224)
+        img_chw = np.transpose(img_norm, (2, 0, 1))[np.newaxis, ...]
+        return img_chw
+
     def extract_embedding(self, face_pil):
-        """Extract 128-d L2 normalized face embedding tensor from PIL Image"""
-        tensor_img = self.transform(face_pil).unsqueeze(0).numpy().astype(np.float32)
-        outputs = self.onnx_session.run(None, {self.input_name: tensor_img})
-        embedding = torch.from_numpy(outputs[0]).squeeze(0)
-        norm_emb = embedding / torch.linalg.vector_norm(embedding, ord=2)
-        return norm_emb.numpy()
+        """Extract 128-d L2 normalized face embedding numpy array from image"""
+        inp_tensor = self.preprocess_face(face_pil)
+        outputs = self.onnx_session.run(None, {self.input_name: inp_tensor})
+        embedding = outputs[0].squeeze(0).astype(np.float32)
+
+        # L2 norm
+        norm = np.linalg.norm(embedding)
+        if norm > 0:
+            embedding = embedding / norm
+        return embedding
 
     def match_against_classroom_students(self, query_emb_np, classroom_id):
-        """Match face embedding against registered students in a specific classroom"""
+        """Match face embedding against registered students in classroom via L2 distance"""
         class_students = ClassroomStudent.query.filter_by(classroom_id=classroom_id).all()
         
         best_name = "Nguoi_la_Unregistered"
         best_student_id = None
         min_dist = 999.0
-
-        query_tensor = torch.from_numpy(query_emb_np)
 
         for cs in class_students:
             student = cs.student
@@ -83,10 +90,12 @@ class FaceViTAIEngineService:
 
             try:
                 raw_vector_list = json.loads(student.face_embeddings_json)
-                target_vector = torch.tensor(raw_vector_list, dtype=torch.float32)
-                target_vector = target_vector / torch.linalg.vector_norm(target_vector, ord=2)
+                target_emb = np.array(raw_vector_list, dtype=np.float32)
+                norm = np.linalg.norm(target_emb)
+                if norm > 0:
+                    target_emb = target_emb / norm
 
-                dist = torch.dist(query_tensor, target_vector, p=2).item()
+                dist = float(np.linalg.norm(query_emb_np - target_emb))
                 if dist < min_dist:
                     min_dist = dist
                     best_name = student.full_name
