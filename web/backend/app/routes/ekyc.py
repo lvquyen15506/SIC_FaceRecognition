@@ -149,6 +149,21 @@ def process_ekyc_frame():
         if face_crop.size == 0:
             return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
 
+        # Check face distance ratio
+        face_ratio = w / float(w_img)
+        if face_ratio < 0.18:
+            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: KHUON MAT XA QUAI Vui long tien lai gan camera."}), 200
+        elif face_ratio > 0.70:
+            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: KHUON MAT GAN QUAI Vui long lui ra xa."}), 200
+
+        # Check lighting brightness
+        gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+        mean_brightness = float(np.mean(gray_crop))
+        if mean_brightness < 35:
+            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: THIEU SANG! Vui long bat den hoac di chuyen ra noi sang hon."}), 200
+        elif mean_brightness > 225:
+            return jsonify({"detected": True, "pose_matched": False, "message": "⚠️ CANH BAO: NGUOC SANG! Vui long tranh anh sang choi truc tiep."}), 200
+
         # Check pose match
         pose_matched = (detected_pose == target_action) or (target_action == "NHIN THANG" and detected_pose == "NHIN THANG")
 
