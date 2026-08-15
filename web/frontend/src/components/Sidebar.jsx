@@ -7,8 +7,7 @@ export default function Sidebar({ activeTab, setActiveTab, currentUser }) {
   const navItems = [
     { id: 'ADMIN', label: '👑 Admin Quản Lý Tài Khoản', show: isAdmin, color: '#00f0ff' },
     { id: 'CLASSES', label: '🏫 Quản Lý Lớp & Sinh Viên', show: isTeacherOrAdmin, color: '#00ff66' },
-    { id: 'ATTENDANCE_PHOTO', label: '📸 Điểm Danh Ảnh Tập Thể', show: isTeacherOrAdmin, color: '#00ff66' },
-    { id: 'ATTENDANCE_VIDEO', label: '🎥 Điểm Danh Video Camera', show: isTeacherOrAdmin, color: '#ffaa00' },
+    { id: 'ATTENDANCE', label: '📸 Điểm Danh AI (Ảnh & Video)', show: isTeacherOrAdmin, color: '#00ff66' },
     { id: 'REPORTS', label: '📜 Báo Cáo Sessions & Export CSV', show: true, color: '#00f0ff' },
     { id: 'EKYC', label: '👤 Hồ Sơ Sinh Trắc Học eKYC', show: true, color: '#ff3366' },
   ]

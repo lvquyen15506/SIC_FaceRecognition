@@ -72,12 +72,8 @@ export default function App() {
             <AdminUsers token={token} />
           )}
 
-          {(activeTab === 'CLASSES' || activeTab === 'ATTENDANCE_PHOTO') && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
+          {(activeTab === 'CLASSES' || activeTab === 'ATTENDANCE') && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
             <TeacherClasses token={token} />
-          )}
-
-          {activeTab === 'ATTENDANCE_VIDEO' && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
-            <VideoAttendance token={token} />
           )}
 
           {activeTab === 'REPORTS' && (
