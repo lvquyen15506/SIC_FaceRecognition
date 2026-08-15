@@ -221,29 +221,54 @@ export default function TeacherClasses({ token }) {
               </div>
             </div>
 
-            {/* ATTENDANCE UPLOAD SECTION */}
+            {/* UNIFIED ATTENDANCE UPLOAD SECTION (PHOTO & VIDEO) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(0, 240, 255, 0.3)', marginBottom: '24px' }}>
-              <h3 style={{ color: '#00f0ff', marginTop: 0 }}>📸 UPLOAD ẢNH TẬP THỂ ĐỂ AI ĐIỂM DANH</h3>
+              <h3 style={{ color: '#00f0ff', marginTop: 0 }}>📸 THUẬT TOÁN AI ĐIỂM DANH (HỖ TRỢ CẢ ẢNH & VIDEO MP4)</h3>
               <form onSubmit={handleProcessAttendance}>
                 <input type="text" placeholder="Tiêu đề phiên (VD: Điểm danh Buổi 5 - Nhận diện khuôn mặt)" value={attendanceTitle} onChange={e => setAttendanceTitle(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '12px', boxSizing: 'border-box' }} />
                 
-                <input type="file" accept="image/*" onChange={e => setSelectedFile(e.target.files[0])} required style={{ marginBottom: '16px', display: 'block', color: '#cbd5e1' }} />
+                <label style={{ display: 'block', fontSize: '13px', color: '#cbd5e1', marginBottom: '6px' }}>
+                  Tải lên tệp Ảnh (.jpg/.png) HOẶC Video (.mp4/.avi):
+                </label>
+                <input type="file" accept="image/*,video/*" onChange={e => setSelectedFile(e.target.files[0])} required style={{ marginBottom: '16px', display: 'block', color: '#cbd5e1' }} />
                 
                 <button type="submit" disabled={uploading} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(90deg, #00f0ff 0%, #7000ff 100%)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {uploading ? '⚡ AI Đang Phân Tích Khuôn Mặt...' : '🚀 XỬ LÝ ĐIỂM DANH & XUẤT CSV'}
+                  {uploading ? '⚡ AI Đang Xử Lý & Phân Tích Khuôn Mặt...' : '🚀 BẮT ĐẦU QUÉT AI & XUẤT BÁO CÁO CSV'}
                 </button>
               </form>
             </div>
 
-            {/* ATTENDANCE RESULTS TABLE & MANUAL TOGGLE */}
+            {/* ANNOTATED PROOF OUTPUT DISPLAY & ATTENDANCE RESULTS TABLE */}
             {attendanceResult && (
               <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid #00ff66' }}>
-                <h3 style={{ color: '#00ff66', marginTop: 0 }}>🎉 Kết Quả Điểm Danh: {attendanceResult.csv_filename}</h3>
-                <p style={{ color: '#cbd5e1', fontSize: '13px' }}>
-                  Bạn có thể click vào nút trạng thái bên dưới để **Tích sửa Có mặt / Vắng mặt bằng tay** nếu cần!
-                </p>
+                <h3 style={{ color: '#00ff66', marginTop: 0 }}>🎉 BÁO CÁO PHIÊN ĐIỂM DANH THÀNH CÔNG</h3>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', marginTop: '16px' }}>
+                {/* PROOF MEDIA OUTPUT */}
+                {attendanceResult.session?.media_proof_path && (
+                  <div style={{ marginBottom: '20px', textAlign: 'center', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px' }}>
+                    <h4 style={{ color: '#00f0ff', margin: '0 0 10px 0' }}>🖼️ ẢNH / VIDEO MINH CHỨNG ĐÃ KHOANH TÊN AI VIỀN XANH / ĐỎ</h4>
+                    <img
+                      src={`/api/attendance/proof/${attendanceResult.session.media_proof_path.split('/').pop()}`}
+                      alt="Minh chứng AI"
+                      style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px', border: '1px solid rgba(0, 240, 255, 0.4)' }}
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ color: '#cbd5e1', fontSize: '13px' }}>
+                    Tệp CSV xuất ra: <code style={{ color: '#00ff66' }}>{attendanceResult.csv_filename}</code>
+                  </span>
+                  <button
+                    onClick={() => window.alert(`File CSV '${attendanceResult.csv_filename}' đã được lưu an toàn tại thư mục server outputs/!`)}
+                    style={{ background: '#00ff66', color: '#000', padding: '6px 14px', borderRadius: '6px', border: 'none', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    📥 TẢI VỀ FILE CSV BÁO CÁO
+                  </button>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', marginTop: '12px' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#00f0ff' }}>
                       <th style={{ padding: '8px' }}>Tên Sinh Viên</th>

@@ -201,8 +201,11 @@ def get_session_details(session_id):
     if not session:
         return jsonify({"error": "Phiên điểm danh không tồn tại"}), 404
 
-    records = AttendanceRecord.query.filter_by(session_id=session_id).all()
-    return jsonify({
-        "session": session.to_dict(),
-        "records": [r.to_dict() for r in records]
-    }), 200
+@attendance_bp.route("/proof/<filename>", methods=["GET"])
+def serve_proof_media(filename):
+    """Serve output annotated proof image or video to frontend"""
+    output_dir = os.path.join(os.getcwd(), "outputs", "attendance_sessions")
+    file_path = os.path.join(output_dir, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path)
+    return jsonify({"error": "Tệp minh chứng không tồn tại"}), 404
