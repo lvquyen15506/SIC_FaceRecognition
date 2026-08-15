@@ -1,0 +1,17 @@
+.venv/
+venv/
+env/
+.git/
+__pycache__/
+*.pyc
+src/dataset/
+dataset/
+checkpoints/
+src/checkpoints/
+outputs/
+src/outputs/
+node_modules/
+.vscode/
+.idea/
+*.log
+*.zip
