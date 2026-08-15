@@ -130,16 +130,76 @@ export default function AttendanceCenter({ token }) {
     }
   }, [isLiveStreaming, selectedClassId])
 
+  // Helper: Compress heavy image files client-side before sending over HTTP
+  const compressImageFile = (file) => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) {
+        resolve(file)
+        return
+      }
+      const img = new Image()
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          const MAX_WIDTH = 1920
+          const MAX_HEIGHT = 1080
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width
+              width = MAX_WIDTH
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height
+              height = MAX_HEIGHT
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                })
+                resolve(compressedFile)
+              } else {
+                resolve(file)
+              }
+            },
+            'image/jpeg',
+            0.85
+          )
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   // Handle File Upload Attendance Processing (Supports Single or Multiple File Batch Selection)
   const handleProcessUpload = async (e) => {
     e.preventDefault()
     if (!selectedClassId || selectedFiles.length === 0) return
-    setUploading(true); setMsg(''); setErr('')
+    setUploading(true); setMsg('⚡ Đang nén ảnh & phân tích điểm danh AI...'); setErr('')
 
     const formData = new FormData()
-    selectedFiles.forEach(file => {
-      formData.append('files', file)
-    })
+    for (const file of selectedFiles) {
+      const compressed = await compressImageFile(file)
+      formData.append('files', compressed)
+    }
     formData.append('classroom_id', selectedClassId)
     formData.append('title', title || `Điểm danh Buổi ${new Date().toLocaleDateString()}`)
 

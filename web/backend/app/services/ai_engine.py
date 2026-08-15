@@ -122,8 +122,8 @@ class FaceViTAIEngineService:
             except Exception as e:
                 continue
 
-        # Strict ArcFace v2 L2 distance threshold (0.40) to prevent false positives
-        match_threshold = 0.40
+        # Strict ArcFace v2 L2 distance threshold (0.36) to prevent false positives in crowded photos
+        match_threshold = 0.36
 
         if min_dist <= match_threshold:
             # Cosine similarity formula for L2 unit vectors: CosSim = 1 - (dist^2 / 2)
