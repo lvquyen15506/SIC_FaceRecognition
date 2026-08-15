@@ -101,25 +101,41 @@ def update_user_role(user_id):
 @admin_required()
 def reset_user_ekyc(user_id):
     """Admin hoặc Giảng viên xóa/reset dữ liệu eKYC sinh trắc học của cá nhân bất kỳ"""
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({"error": "Không tìm thấy tài khoản"}), 404
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "Không tìm thấy tài khoản"}), 404
 
-    user.ekyc_completed = False
-    user.face_embeddings_json = None
-    db.session.commit()
+        user.ekyc_completed = False
+        user.face_embeddings_json = None
+        db.session.commit()
 
-    return jsonify({"message": f"🎉 Đã xóa dữ liệu eKYC của '{user.full_name}' thành công! Sinh viên có thể tự chụp làm lại.", "user": user.to_dict()}), 200
+        return jsonify({"message": f"🎉 Đã xóa sạch dữ liệu sinh trắc học eKYC của '{user.full_name}' thành công! Trạng thái đưa về Chưa eKYC."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Lỗi reset eKYC: {str(e)}"}), 500
 
 
 @admin_bp.route("/users/<user_id>", methods=["DELETE"])
 @admin_required()
 def delete_user(user_id):
-    """Admin xóa tài khoản khỏi hệ thống"""
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({"error": "Không tìm thấy tài khoản"}), 404
+    """Admin xóa tài khoản khỏi hệ thống và dọn dẹp các bản ghi liên quan"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "Không tìm thấy tài khoản"}), 404
 
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({"message": f"Đã xóa tài khoản '{user.username}' thành công"}), 200
+        if user.username == "admin":
+            return jsonify({"error": "Không thể xóa tài khoản Super Admin mặc định hệ thống"}), 400
+
+        # Delete associated records in join tables to prevent foreign key errors
+        ClassroomStudent.query.filter_by(student_id=user.id).delete()
+        ClassroomTeacher.query.filter_by(teacher_id=user.id).delete()
+        AttendanceRecord.query.filter_by(student_id=user.id).delete()
+
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": f"🎉 Đã xóa hoàn tất tài khoản '{user.username}' ({user.full_name}) khỏi hệ thống!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Lỗi khi xóa tài khoản: {str(e)}"}), 500

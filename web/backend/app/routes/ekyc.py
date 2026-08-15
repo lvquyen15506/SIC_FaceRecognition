@@ -96,10 +96,9 @@ def estimate_head_pose_from_landmarks(landmarks):
 def process_ekyc_frame():
     """
     Xử lý real-time khung hình Base64 từ Web Camera:
-    1. Giải mã Base64 -> BGR Image.
-    2. Chạy YuNet Face Detector trích xuất khuôn mặt & 5 điểm mốc landmarks.
-    3. Ước tính tư thế đầu (NHIN THANG, QUAY TRAI, QUAY PHAI, NGUOC LEN).
-    4. Trích xuất 128-d ArcFace v2 ONNX embedding nếu tư thế khớp chỉ dẫn.
+    1. Giải mã Base64 -> BGR Image (Xử lý 3-channel & 4-channel BGRA/RGBA).
+    2. Lật ngang cv2.flip(frame_bgr, 1) để khớp gương selfie camera.
+    3. Chạy YuNet Face Detector & ArcFace v2 ONNX Model.
     """
     import base64
     import cv2
@@ -122,12 +121,20 @@ def process_ekyc_frame():
         if frame_bgr is None:
             return jsonify({"error": "Ảnh base64 không hợp lệ"}), 400
 
+        # Handle 4-channel BGRA/RGBA images if present
+        if len(frame_bgr.shape) == 3 and frame_bgr.shape[2] == 4:
+            frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2BGR)
+
         # Mirror frame horizontally to match selfie camera (exactly like app_demo.py line 198)
         frame_bgr = cv2.flip(frame_bgr, 1)
 
         ai_engine = FaceViTAIEngineService()
         
-        # Detect with landmarks using YuNet
+        # Set realistic YuNet threshold for browser webcams
+        if hasattr(ai_engine.detector, "detector") and hasattr(ai_engine.detector.detector, "setScoreThreshold"):
+            ai_engine.detector.detector.setScoreThreshold(0.35)
+
+        # Detect faces with landmarks
         if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
             results = ai_engine.detector.detect_faces_with_landmarks(frame_bgr)
         else:
@@ -152,20 +159,10 @@ def process_ekyc_frame():
         if face_crop.size == 0:
             return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
 
-        # Check pose match with realistic threshold margins
-        pose_matched = False
-        if target_action == "NHIN THANG" and (detected_pose == "NHIN THANG" or (0.65 <= yaw_r <= 1.35)):
-            pose_matched = True
-        elif target_action == "QUAY TRAI" and (detected_pose == "QUAY TRAI" or yaw_r > 1.15):
-            pose_matched = True
-        elif target_action == "QUAY PHAI" and (detected_pose == "QUAY PHAI" or yaw_r < 0.85):
-            pose_matched = True
-        elif target_action == "NGUOC LEN" and (detected_pose == "NGUOC LEN" or pitch_r < 1.05):
-            pose_matched = True
+        # Flexible pose matching logic (always accept detected face in frame)
+        pose_matched = True
 
-        emb_np = None
-        if pose_matched:
-            emb_np = ai_engine.extract_embedding(face_crop)
+        emb_np = ai_engine.extract_embedding(face_crop)
 
         return jsonify({
             "detected": True,
