@@ -42,9 +42,29 @@ class GalleryManager:
         self.gallery_names.append(name)
         print(f"[Gallery] Da dang ky thanh cong nhan dang: '{name}' (Tong cong: {len(self.gallery_names)} anh trong gallery)")
 
+    def _resolve_db_path(self, target_path):
+        if target_path and os.path.exists(target_path):
+            return target_path
+        candidates = [
+            target_path,
+            os.path.join("data_gallery", "gallery_db.pt"),
+            os.path.join("src", "data_gallery", "gallery_db.pt"),
+            "gallery_db.pt",
+        ]
+        for c in candidates:
+            if c and os.path.exists(c):
+                return c
+        return target_path if target_path else os.path.join("data_gallery", "gallery_db.pt")
+
     def save_db(self, custom_path=None):
         """Luu danh sach vector dang ky ra file .pt"""
-        save_path = custom_path if custom_path else self.db_path
+        raw_path = custom_path if custom_path else self.db_path
+        save_path = self._resolve_db_path(raw_path)
+        
+        parent_dir = os.path.dirname(save_path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+
         if len(self.gallery_embeddings) == 0:
             print("[Gallery] Gallery rông, khong co du lieu de luu.")
             return
@@ -60,7 +80,8 @@ class GalleryManager:
 
     def clear_db(self, custom_path=None):
         """Xoa sach du lieu gallery hien tai"""
-        save_path = custom_path if custom_path else self.db_path
+        raw_path = custom_path if custom_path else self.db_path
+        save_path = self._resolve_db_path(raw_path)
         self.gallery_embeddings = []
         self.gallery_names = []
         if os.path.exists(save_path):
@@ -71,7 +92,8 @@ class GalleryManager:
 
     def load_db(self, custom_path=None):
         """Nap database gallery tu file .pt"""
-        load_path = custom_path if custom_path else self.db_path
+        raw_path = custom_path if custom_path else self.db_path
+        load_path = self._resolve_db_path(raw_path)
         if not os.path.exists(load_path):
             print(f"[Gallery] Chua co database cu tại {load_path}. Khoi tao gallery rông.")
             return False
