@@ -77,20 +77,26 @@ class FaceViTAIEngineService:
         return embedding
 
     def match_against_classroom_students(self, query_emb_np, classroom_id):
-        """Match face embedding against registered students in classroom via L2 distance"""
+        """Match face embedding against all registered users with eKYC in database via L2 distance"""
+        from app.models import User, ClassroomStudent
+        
+        # Get classroom student IDs for reference
         class_students = ClassroomStudent.query.filter_by(classroom_id=classroom_id).all()
+        class_student_ids = {cs.student_id for cs in class_students}
+
+        # Query all users who have completed eKYC
+        ekyc_users = User.query.filter(User.ekyc_completed == True).all()
         
         best_name = "Nguoi_la_Unregistered"
         best_student_id = None
         min_dist = 999.0
 
-        for cs in class_students:
-            student = cs.student
-            if not student or not student.face_embeddings_json:
+        for user in ekyc_users:
+            if not user.face_embeddings_json:
                 continue
 
             try:
-                raw_vector_list = json.loads(student.face_embeddings_json)
+                raw_vector_list = json.loads(user.face_embeddings_json)
                 target_emb = np.array(raw_vector_list, dtype=np.float32)
                 norm = np.linalg.norm(target_emb)
                 if norm > 0:
@@ -99,19 +105,23 @@ class FaceViTAIEngineService:
                 dist = float(np.linalg.norm(query_emb_np - target_emb))
                 if dist < min_dist:
                     min_dist = dist
-                    best_name = student.full_name
-                    best_student_id = student.id
+                    best_name = user.full_name
+                    best_student_id = user.id
             except Exception as e:
                 continue
 
-        if min_dist <= self.threshold:
-            confidence = max(0.0, min(100.0, (1.0 - (min_dist / self.threshold)) * 100.0))
+        # Matching threshold for ArcFace v2 L2 distance
+        match_threshold = 0.52
+
+        if min_dist <= match_threshold:
+            confidence = max(0.0, min(100.0, (1.0 - (min_dist / match_threshold)) * 100.0))
             return {
                 "matched": True,
                 "student_id": best_student_id,
                 "name": best_name,
                 "distance": float(min_dist),
                 "confidence": float(confidence),
+                "in_classroom": best_student_id in class_student_ids if best_student_id else False
             }
         else:
             return {
@@ -120,4 +130,5 @@ class FaceViTAIEngineService:
                 "name": "Nguoi_la_Unregistered",
                 "distance": float(min_dist),
                 "confidence": 0.0,
+                "in_classroom": False
             }

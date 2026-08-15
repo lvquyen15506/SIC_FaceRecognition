@@ -23,11 +23,64 @@ def process_photo_attendance():
     -> AI Engine phát hiện & đối sánh -> Lưu Session, Báo cáo & File CSV: DiemDanh_[TenLop]_[TieuDe]_[NgayGio].csv
     """
     user_id = get_jwt_identity()
+    
+    if request.is_json:
+        data = request.get_json() or {}
+        classroom_id = data.get("classroom_id")
+        title = data.get("title", f"Điểm danh Buổi {datetime.now().strftime('%Y-%m-%d %H:%M')}").strip()
+        live_records = data.get("live_records", [])
+
+        if not classroom_id:
+            return jsonify({"error": "Vui lòng chọn 1 Lớp học"}), 400
+
+        has_access, _ = check_teacher_class_access(user_id, classroom_id)
+        if not has_access:
+            return jsonify({"error": "Bạn không có quyền điểm danh cho Lớp học này"}), 403
+
+        classroom = Classroom.query.get(classroom_id)
+        session_id = str(uuid.uuid4())
+        
+        session = AttendanceSession(
+            id=session_id,
+            classroom_id=classroom_id,
+            created_by_user_id=user_id,
+            title=title,
+            session_type="LIVE_CAMERA"
+        )
+        db.session.add(session)
+
+        # Create Records for live recognized students
+        records_to_return = []
+        for rec_data in live_records:
+            s_id = rec_data.get("student_id")
+            s_name = rec_data.get("student_name", "Sinh viên")
+            conf = rec_data.get("confidence_score", 100.0)
+
+            rec = AttendanceRecord(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                student_id=s_id,
+                student_name=s_name,
+                status="PRESENT",
+                confidence_score=conf
+            )
+            db.session.add(rec)
+            records_to_return.append(rec.to_dict())
+
+        db.session.commit()
+
+        return jsonify({
+            "message": f"🎉 Đã lưu phiên điểm danh trực tiếp thành công cho Lớp [{classroom.class_code}]!",
+            "session": session.to_dict(),
+            "csv_filename": f"DiemDanh_{classroom.class_code}_{session_id[:8]}.csv",
+            "records": records_to_return
+        }), 200
+
     classroom_id = request.form.get("classroom_id", "").strip()
     title = request.form.get("title", f"Điểm danh Buổi {datetime.now().strftime('%Y-%m-%d %H:%M')}").strip()
 
     if not classroom_id:
-        return jsonify({"error": "Vui lòng truyền classroom_id"}), 400
+        return jsonify({"error": "Vui lòng chọn 1 Lớp học"}), 400
 
     has_access, _ = check_teacher_class_access(user_id, classroom_id)
     if not has_access:

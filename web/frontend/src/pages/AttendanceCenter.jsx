@@ -268,6 +268,9 @@ export default function AttendanceCenter({ token }) {
               audio={false}
               ref={webcamRef}
               screenshotFormat="image/jpeg"
+              screenshotQuality={0.5}
+              width={360}
+              height={270}
               mirrored={true}
               style={{ display: annotatedFrameSrc ? 'none' : 'block', width: '100%', height: '100%', objectFit: 'cover' }}
             />
