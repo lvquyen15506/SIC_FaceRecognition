@@ -301,11 +301,12 @@ def process_live_attendance_frame():
 
         # Mirror frame to match selfie view
         frame_bgr = cv2.flip(frame_bgr, 1)
-        annotated_frame = frame_bgr.copy()
 
         ai_engine = FaceViTAIEngineService()
         if hasattr(ai_engine.detector, "detector") and hasattr(ai_engine.detector.detector, "setScoreThreshold"):
             ai_engine.detector.detector.setScoreThreshold(0.35)
+
+        h_img, w_img, _ = frame_bgr.shape
 
         # Detect faces
         if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
@@ -319,7 +320,6 @@ def process_live_attendance_frame():
         if boxes:
             for box in boxes:
                 x, y, w, h = map(int, box)
-                h_img, w_img, _ = frame_bgr.shape
                 x1, y1 = max(0, x), max(0, y)
                 x2, y2 = min(w_img, x + w), min(h_img, y + h)
 
@@ -331,35 +331,22 @@ def process_live_attendance_frame():
                 match_res = ai_engine.match_against_classroom_students(emb, classroom_id)
 
                 if match_res["matched"]:
-                    color = (0, 255, 0) # Green box
-                    label = f"{match_res['name']} ({match_res['confidence']:.1f}%)"
                     status = "PRESENT"
+                    display_name = match_res['name']
                 else:
-                    color = (0, 0, 255) # Red box
-                    label = "Nguoi_la_Unregistered"
                     status = "UNREGISTERED"
-
-                # Draw bounding box and label banner (matching app_demo.py)
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 3)
-                
-                # Label text background banner
-                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-                cv2.rectangle(annotated_frame, (x1, max(0, y1 - 25)), (x1 + tw + 10, max(25, y1)), color, -1)
-                cv2.putText(annotated_frame, label, (x1 + 5, max(18, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    display_name = "Nguoi_la_Unregistered"
 
                 detections.append({
+                    "bbox": [x1, y1, x2 - x1, y2 - y1],
                     "student_id": match_res.get("student_id"),
-                    "name": match_res.get("name"),
+                    "name": display_name,
                     "status": status,
                     "confidence": match_res.get("confidence", 0.0)
                 })
 
-        # Encode annotated BGR frame back to base64 jpeg
-        _, buffer = cv2.imencode('.jpg', annotated_frame)
-        annotated_base64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
-
         return jsonify({
-            "annotated_base64": annotated_base64,
+            "frame_size": [w_img, h_img],
             "detections": detections
         }), 200
 

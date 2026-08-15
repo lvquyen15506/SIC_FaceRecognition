@@ -4,6 +4,7 @@ import axios from 'axios'
 
 export default function AttendanceCenter({ token }) {
   const webcamRef = useRef(null)
+  const canvasRef = useRef(null)
   const [classes, setClasses] = useState([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [attendanceMode, setAttendanceMode] = useState('UPLOAD') // 'UPLOAD' or 'LIVE_CAM'
@@ -20,7 +21,6 @@ export default function AttendanceCenter({ token }) {
 
   // Live Camera Mode States
   const [isLiveStreaming, setIsLiveStreaming] = useState(false)
-  const [annotatedFrameSrc, setAnnotatedFrameSrc] = useState(null)
   const [liveAccumulatedRecords, setLiveAccumulatedRecords] = useState({}) // student_id -> record
 
   const config = {
@@ -39,7 +39,7 @@ export default function AttendanceCenter({ token }) {
       .catch(err => console.error(err))
   }, [])
 
-  // Real-time Frame Capture Loop for Live Camera Mode
+  // Real-time Lightweight Frame Analysis Loop (60 FPS Native Video Stream with HTML5 Canvas Box Overlay)
   useEffect(() => {
     let interval = null
     if (isLiveStreaming && webcamRef.current) {
@@ -53,33 +53,67 @@ export default function AttendanceCenter({ token }) {
               classroom_id: selectedClassId
             }, config)
 
-            if (res.data.annotated_base64) {
-              setAnnotatedFrameSrc(res.data.annotated_base64)
-            }
+            const canvas = canvasRef.current
+            if (canvas) {
+              const ctx = canvas.getContext('2d')
+              ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-            if (res.data.detections) {
-              setLiveAccumulatedRecords(prev => {
-                const updated = { ...prev }
+              if (res.data.detections && res.data.detections.length > 0) {
+                const [fw, fh] = res.data.frame_size || [480, 360]
+                const scaleX = canvas.width / fw
+                const scaleY = canvas.height / fh
+
                 res.data.detections.forEach(det => {
+                  const [bx, by, bw, bh] = det.bbox
+                  const x = bx * scaleX
+                  const y = by * scaleY
+                  const w = bw * scaleX
+                  const h = bh * scaleY
+
+                  const isMatched = det.status === 'PRESENT'
+                  const color = isMatched ? '#00ff66' : '#ff3366'
+                  const label = isMatched ? `${det.name} (${det.confidence.toFixed(1)}%)` : 'Người Lạ (Unregistered)'
+
+                  // Draw 3px Neon Bounding Box
+                  ctx.lineWidth = 3
+                  ctx.strokeStyle = color
+                  ctx.strokeRect(x, y, w, h)
+
+                  // Draw Label Text Banner Background
+                  ctx.font = 'bold 14px system-ui, sans-serif'
+                  const textWidth = ctx.measureText(label).width
+                  ctx.fillStyle = color
+                  ctx.fillRect(x, Math.max(0, y - 28), textWidth + 16, 26)
+
+                  // Draw Label Text (Perfect Unicode Vietnamese!)
+                  ctx.fillStyle = isMatched ? '#000000' : '#ffffff'
+                  ctx.fillText(label, x + 8, Math.max(18, y - 9))
+
+                  // Accumulate recognized record
                   if (det.student_id) {
-                    updated[det.student_id] = {
-                      student_id: det.student_id,
-                      student_name: det.name,
-                      status: 'PRESENT',
-                      confidence_score: det.confidence
-                    }
+                    setLiveAccumulatedRecords(prev => ({
+                      ...prev,
+                      [det.student_id]: {
+                        student_id: det.student_id,
+                        student_name: det.name,
+                        status: 'PRESENT',
+                        confidence_score: det.confidence
+                      }
+                    }))
                   }
                 })
-                return updated
-              })
+              }
             }
           } catch (e) {
             console.error('Live frame error:', e)
           }
         }
-      }, 250) // Send frame every 250ms for real-time bounding box stream
+      }, 200)
     } else {
-      setAnnotatedFrameSrc(null)
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d')
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      }
     }
 
     return () => {
@@ -252,7 +286,7 @@ export default function AttendanceCenter({ token }) {
         </div>
       )}
 
-      {/* MODE B: LIVE CAMERA STREAMING FORM WITH REAL-TIME GREEN/RED BOXES */}
+      {/* MODE B: LIVE CAMERA STREAMING WITH 60 FPS WEBCAM & HTML5 CANVAS BOX OVERLAY */}
       {attendanceMode === 'LIVE_CAM' && (
         <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 170, 0, 0.3)', marginBottom: '24px', textAlign: 'center' }}>
           <h3 style={{ color: '#ffaa00', marginTop: 0 }}>🎥 PHƯƠNG THỨC 2: QUAY ĐIỂM DANH TRỰC TIẾP BẰNG CAMERA</h3>
@@ -263,26 +297,25 @@ export default function AttendanceCenter({ token }) {
           <input type="text" placeholder="Tiêu đề Phiên (VD: Điểm danh Trực tiếp Tiết 1-2)" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', maxWidth: '500px', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '16px', boxSizing: 'border-box' }} />
 
           <div style={{ position: 'relative', margin: '0 auto 20px auto', width: '100%', maxWidth: '640px', height: '420px', borderRadius: '16px', overflow: 'hidden', border: isLiveStreaming ? '3px solid #00ff66' : '2px solid rgba(255,255,255,0.2)', boxShadow: isLiveStreaming ? '0 0 30px rgba(0, 255, 102, 0.4)' : 'none' }}>
-            {/* RAW WEBCAM CAPTURE (HIDDEN WHEN ANNOTATED STREAM IS AVAILABLE) */}
+            {/* 60 FPS NATIVE WEBCAM VIDEO STREAM */}
             <Webcam
               audio={false}
               ref={webcamRef}
               screenshotFormat="image/jpeg"
               screenshotQuality={0.5}
-              width={360}
-              height={270}
+              width={480}
+              height={360}
               mirrored={true}
-              style={{ display: annotatedFrameSrc ? 'none' : 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
             />
 
-            {/* REAL-TIME ANNOTATED AI VIDEO STREAM WITH GREEN/RED BOXES & STUDENT NAMES */}
-            {annotatedFrameSrc && (
-              <img
-                src={annotatedFrameSrc}
-                alt="Live AI Frame"
-                style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            )}
+            {/* REAL-TIME HTML5 OVERLAY CANVAS FOR GREEN/RED BOXES & PERFECT UNICODE VIETNAMESE NAMES */}
+            <canvas
+              ref={canvasRef}
+              width={640}
+              height={420}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            />
           </div>
 
           {!isLiveStreaming ? (
