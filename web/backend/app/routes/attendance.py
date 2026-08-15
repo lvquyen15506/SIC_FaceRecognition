@@ -58,11 +58,13 @@ def process_photo_attendance():
             s_name = rec_data.get("student_name", "Sinh viên")
             conf = rec_data.get("confidence_score", 100.0)
 
+            valid_user = User.query.get(s_id) if s_id else None
+
             rec = AttendanceRecord(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
-                student_id=s_id,
-                student_name=s_name,
+                student_id=valid_user.id if valid_user else None,
+                student_name=valid_user.full_name if valid_user else s_name,
                 status="PRESENT",
                 confidence_score=conf
             )
@@ -266,6 +268,32 @@ def toggle_manual_attendance(record_id):
         "message": f"Đã cập nhật trạng thái điểm danh của '{rec.student_name}' thành '{new_status}'!",
         "record": rec.to_dict()
     }), 200
+
+
+@attendance_bp.route("/sessions", methods=["GET"])
+@jwt_required()
+def get_all_attendance_sessions():
+    """Lấy toàn bộ danh sách các Phiên điểm danh sắp xếp theo Tiêu đề và Thời gian"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "Tài khoản không tồn tại"}), 404
+
+    if user.system_role == "ADMIN":
+        sessions = AttendanceSession.query.order_by(AttendanceSession.created_at.desc()).all()
+    else:
+        class_ids = [c.id for c in user.primary_classrooms] + [ct.classroom_id for ct in user.co_teacher_classrooms]
+        sessions = AttendanceSession.query.filter(AttendanceSession.classroom_id.in_(class_ids)).order_by(AttendanceSession.created_at.desc()).all()
+
+    result = []
+    for s in sessions:
+        s_dict = s.to_dict()
+        recs = AttendanceRecord.query.filter_by(session_id=s.id).all()
+        s_dict["records"] = [r.to_dict() for r in recs]
+        s_dict["classroom"] = s.classroom.to_dict() if s.classroom else None
+        result.append(s_dict)
+
+    return jsonify({"sessions": result}), 200
 
 
 @attendance_bp.route("/sessions/<session_id>", methods=["GET"])
