@@ -72,6 +72,17 @@ export default function AdminUsers({ token }) {
     }
   }
 
+  const handleResetEkyc = async (userId, name) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa dữ liệu sinh trắc học eKYC của '${name}'?`)) return
+    try {
+      const res = await axios.put(`/api/admin/users/${userId}/reset-ekyc`, {}, config)
+      setMsg(res.data.message)
+      fetchUsers()
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Lỗi xóa eKYC')
+    }
+  }
+
   const handleDeleteUser = async (userId, name) => {
     if (!window.confirm(`Bạn có chắc muốn xóa tài khoản '${name}'?`)) return
     try {
@@ -173,14 +184,33 @@ export default function AdminUsers({ token }) {
                     </select>
                   </td>
                   <td style={{ padding: '10px 8px' }}>
-                    {u.ekyc_completed ? <span style={{ color: '#00ff66' }}>✅ Đã làm</span> : <span style={{ color: '#ff3366' }}>⚠️ Chưa</span>}
+                    {u.ekyc_completed ? (
+                      <span style={{ color: '#00ff66', fontWeight: 600 }}>✅ Đã làm</span>
+                    ) : (
+                      <span style={{ color: '#ff3366' }}>⚠️ Chưa</span>
+                    )}
                   </td>
                   <td style={{ padding: '10px 8px' }}>
-                    {u.username !== 'admin' && (
-                      <button onClick={() => handleDeleteUser(u.id, u.full_name)} style={{ background: 'rgba(255,51,102,0.2)', border: '1px solid #ff3366', color: '#ff6688', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>
-                        🗑️ Xóa
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {u.ekyc_completed && (
+                        <button
+                          onClick={() => handleResetEkyc(u.id, u.full_name)}
+                          title="Xóa dữ liệu sinh trắc học eKYC để chụp lại"
+                          style={{ background: 'rgba(255, 170, 0, 0.2)', border: '1px solid #ffaa00', color: '#ffaa00', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                        >
+                          🗑️ Xóa eKYC
+                        </button>
+                      )}
+
+                      {u.username !== 'admin' && (
+                        <button
+                          onClick={() => handleDeleteUser(u.id, u.full_name)}
+                          style={{ background: 'rgba(255,51,102,0.2)', border: '1px solid #ff3366', color: '#ff6688', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                        >
+                          ❌ Xóa TK
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -97,6 +97,21 @@ def update_user_role(user_id):
     return jsonify({"message": f"Cập nhật vai trò tài khoản '{user.username}' thành '{new_role}' thành công!", "user": user.to_dict()}), 200
 
 
+@admin_bp.route("/users/<user_id>/reset-ekyc", methods=["PUT"])
+@admin_required()
+def reset_user_ekyc(user_id):
+    """Admin hoặc Giảng viên xóa/reset dữ liệu eKYC sinh trắc học của cá nhân bất kỳ"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "Không tìm thấy tài khoản"}), 404
+
+    user.ekyc_completed = False
+    user.face_embeddings_json = None
+    db.session.commit()
+
+    return jsonify({"message": f"🎉 Đã xóa dữ liệu eKYC của '{user.full_name}' thành công! Sinh viên có thể tự chụp làm lại.", "user": user.to_dict()}), 200
+
+
 @admin_bp.route("/users/<user_id>", methods=["DELETE"])
 @admin_required()
 def delete_user(user_id):
