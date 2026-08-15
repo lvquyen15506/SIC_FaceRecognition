@@ -323,28 +323,47 @@ def process_live_attendance_frame():
 
         ai_engine = FaceViTAIEngineService()
         if hasattr(ai_engine.detector, "detector") and hasattr(ai_engine.detector.detector, "setScoreThreshold"):
-            ai_engine.detector.detector.setScoreThreshold(0.50)
+            ai_engine.detector.detector.setScoreThreshold(0.65)
 
         h_img, w_img, _ = frame_bgr.shape
 
-        # Detect faces
+        # Detect faces with landmarks
         if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
             results = ai_engine.detector.detect_faces_with_landmarks(frame_bgr)
-            boxes = [f["box"] for f in results]
         else:
             boxes = ai_engine.detector.detect_faces(frame_bgr)
+            results = [{"box": b, "landmarks": []} for b in (boxes if boxes else [])]
 
         detections = []
 
-        if boxes:
-            for box in boxes:
+        if results:
+            for item in results:
+                box = item["box"]
+                landmarks = item.get("landmarks", [])
+
                 x, y, w, h = map(int, box)
                 x1, y1 = max(0, x), max(0, y)
                 x2, y2 = min(w_img, x + w), min(h_img, y + h)
 
                 face_crop = frame_bgr[y1:y2, x1:x2]
-                if face_crop.size == 0:
+                if face_crop.size == 0 or w < 30 or h < 30:
                     continue
+
+                # Filter out ceiling light glare / flat background artifacts via texture variance
+                gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+                mean_val = float(np.mean(gray_crop))
+                std_dev = float(np.std(gray_crop))
+
+                # Real human faces have skin/eyes/mouth texture variance std_dev > 22.0
+                if mean_val > 230 or mean_val < 25 or std_dev < 22.0:
+                    continue
+
+                # Validate facial landmarks if present
+                if len(landmarks) >= 5:
+                    re, le, nt = landmarks[0], landmarks[1], landmarks[2]
+                    eye_dist = float(np.linalg.norm(np.array(re) - np.array(le)))
+                    if eye_dist < 8.0:
+                        continue
 
                 emb = ai_engine.extract_embedding(face_crop)
                 match_res = ai_engine.match_against_classroom_students(emb, classroom_id)

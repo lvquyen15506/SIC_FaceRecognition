@@ -110,8 +110,8 @@ class FaceViTAIEngineService:
             except Exception as e:
                 continue
 
-        # Exact ArcFace v2 L2 distance threshold matching app_demo.py (0.42)
-        match_threshold = 0.42
+        # Strict ArcFace v2 L2 distance threshold (0.40) to prevent false positives
+        match_threshold = 0.40
 
         if min_dist <= match_threshold:
             confidence = max(0.0, min(100.0, (1.0 - (min_dist / match_threshold)) * 100.0))
