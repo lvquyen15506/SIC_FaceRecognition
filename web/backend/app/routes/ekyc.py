@@ -58,3 +58,60 @@ def save_ekyc_embedding():
         "message": f"🎉 Đã lưu vĩnh viễn hồ sơ eKYC sinh trắc học cho Sinh viên '{user.full_name}' vào CSDL!",
         "user": user.to_dict()
     }), 200
+
+
+@ekyc_bp.route("/process-frame", methods=["POST"])
+@jwt_required()
+def process_ekyc_frame():
+    """
+    Xử lý real-time khung hình Base64 từ Web Camera:
+    1. Giải mã Base64 -> BGR Image.
+    2. Chạy YuNet Face Detector trích xuất khuôn mặt.
+    3. Chạy ONNX ArcFace v2 trích xuất 128-d embedding thực sự.
+    """
+    import base64
+    import cv2
+
+    data = request.get_json() or {}
+    image_base64 = data.get("image_base64", "")
+
+    if not image_base64:
+        return jsonify({"error": "Thiếu dữ liệu ảnh base64"}), 400
+
+    try:
+        if "," in image_base64:
+            image_base64 = image_base64.split(",")[1]
+
+        img_bytes = base64.b64decode(image_base64)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if frame_bgr is None:
+            return jsonify({"error": "Ảnh base64 không hợp lệ"}), 400
+
+        ai_engine = FaceViTAIEngineService()
+        faces = ai_engine.detector.detect(frame_bgr)
+
+        if faces is None or len(faces) == 0:
+            return jsonify({"detected": False, "message": "Không tìm thấy khuôn mặt"}), 200
+
+        largest_face = max(faces, key=lambda f: f[2] * f[3])
+        x, y, w, h = map(int, largest_face[:4])
+
+        h_img, w_img, _ = frame_bgr.shape
+        x1, y1 = max(0, x), max(0, y)
+        x2, y2 = min(w_img, x + w), min(h_img, y + h)
+
+        face_crop = frame_bgr[y1:y2, x1:x2]
+        if face_crop.size == 0:
+            return jsonify({"detected": False, "message": "Crop khuôn mặt thất bại"}), 200
+
+        emb_np = ai_engine.extract_embedding(face_crop)
+
+        return jsonify({
+            "detected": True,
+            "bbox": [x1, y1, x2 - x1, y2 - y1],
+            "embedding": emb_np.tolist()
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Lỗi xử lý frame: {str(e)}"}), 500
