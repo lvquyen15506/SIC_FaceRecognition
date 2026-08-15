@@ -90,7 +90,7 @@ def process_photo_attendance():
             df = pd.DataFrame(csv_data)
             df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
-        session.csv_export_path = csv_path
+        session.csv_report_path = csv_path
         db.session.commit()
 
         return jsonify({
