@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import Login from './pages/Login'
+import AdminUsers from './pages/AdminUsers'
+import TeacherClasses from './pages/TeacherClasses'
+import StudentEkyc from './pages/StudentEkyc'
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [token, setToken] = useState('')
+  const [activeTab, setActiveTab] = useState('CLASSES')  // 'ADMIN', 'CLASSES', 'EKYC'
 
   useEffect(() => {
     const savedToken = localStorage.getItem('access_token')
@@ -11,7 +15,15 @@ export default function App() {
     if (savedToken && savedUser) {
       try {
         setToken(savedToken)
-        setCurrentUser(JSON.parse(savedUser))
+        const parsedUser = JSON.parse(savedUser)
+        setCurrentUser(parsedUser)
+        if (parsedUser.system_role === 'ADMIN') {
+          setActiveTab('ADMIN')
+        } else if (parsedUser.system_role === 'TEACHER') {
+          setActiveTab('CLASSES')
+        } else {
+          setActiveTab('EKYC')
+        }
       } catch (e) {
         localStorage.clear()
       }
@@ -21,6 +33,13 @@ export default function App() {
   const handleLoginSuccess = (user, accessToken) => {
     setCurrentUser(user)
     setToken(accessToken)
+    if (user.system_role === 'ADMIN') {
+      setActiveTab('ADMIN')
+    } else if (user.system_role === 'TEACHER') {
+      setActiveTab('CLASSES')
+    } else {
+      setActiveTab('EKYC')
+    }
   }
 
   const handleLogout = () => {
@@ -34,10 +53,11 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '30px 20px', maxWidth: '1280px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+      {/* HEADER BAR */}
       <header style={{
         background: 'rgba(255, 255, 255, 0.05)',
-        padding: '24px',
+        padding: '20px 28px',
         borderRadius: '16px',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.37)',
@@ -68,52 +88,87 @@ export default function App() {
         </button>
       </header>
 
-      <main style={{ marginTop: '32px' }}>
+      {/* FEATURE CARDS NAV TABS */}
+      <nav style={{ marginTop: '24px' }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px'
+          gap: '16px'
         }}>
           {currentUser.system_role === 'ADMIN' && (
-            <div style={{
-              background: 'rgba(0, 240, 255, 0.05)',
-              padding: '24px',
-              borderRadius: '16px',
-              border: '1px solid rgba(0, 240, 255, 0.3)'
-            }}>
+            <div
+              onClick={() => setActiveTab('ADMIN')}
+              style={{
+                background: activeTab === 'ADMIN' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                padding: '20px',
+                borderRadius: '14px',
+                border: activeTab === 'ADMIN' ? '2px solid #00f0ff' : '1px solid rgba(0, 240, 255, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
               <h3 style={{ color: '#00f0ff', marginTop: 0 }}>👑 Quản Trị Viên Tối Cao (System Admin)</h3>
-              <p style={{ color: '#cbd5e1', fontSize: '14px' }}>
-                Bạn có toàn quyền tạo tài khoản mới cho Giảng viên/Sinh viên, gán vai trò hệ thống và giám sát toàn trường.
+              <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0 }}>
+                Tạo tài khoản mới, gán vai trò hệ thống (ADMIN/TEACHER/STUDENT) và xem thống kê.
               </p>
             </div>
           )}
 
           {(currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
-            <div style={{
-              background: 'rgba(0, 255, 102, 0.05)',
-              padding: '24px',
-              borderRadius: '16px',
-              border: '1px solid rgba(0, 255, 102, 0.3)'
-            }}>
+            <div
+              onClick={() => setActiveTab('CLASSES')}
+              style={{
+                background: activeTab === 'CLASSES' ? 'rgba(0, 255, 102, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                padding: '20px',
+                borderRadius: '14px',
+                border: activeTab === 'CLASSES' ? '2px solid #00ff66' : '1px solid rgba(0, 255, 102, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
               <h3 style={{ color: '#00ff66', marginTop: 0 }}>👨‍🏫 Quản Lý Lớp Học & Điểm Danh</h3>
-              <p style={{ color: '#cbd5e1', fontSize: '14px' }}>
-                Quản lý Lớp học do bạn làm Chủ nhiệm hoặc Co-Teacher, thêm Lớp trưởng, Upload Ảnh/Video điểm danh & Xuất CSV.
+              <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0 }}>
+                Tạo lớp học, thêm Co-Teacher, gán Lớp trưởng, Upload Ảnh điểm danh AI & Xuất CSV.
               </p>
             </div>
           )}
 
-          <div style={{
-            background: 'rgba(255, 51, 102, 0.05)',
-            padding: '24px',
-            borderRadius: '16px',
-            border: '1px solid rgba(255, 51, 102, 0.3)'
-          }}>
+          <div
+            onClick={() => setActiveTab('EKYC')}
+            style={{
+              background: activeTab === 'EKYC' ? 'rgba(255, 51, 102, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+              padding: '20px',
+              borderRadius: '14px',
+              border: activeTab === 'EKYC' ? '2px solid #ff3366' : '1px solid rgba(255, 51, 102, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
             <h3 style={{ color: '#ff3366', marginTop: 0 }}>👨‍🎓 Hồ Sơ Sinh Trắc Học eKYC</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '14px' }}>
-              Trạng thái eKYC 120 mẫu: {currentUser.ekyc_completed ? <span style={{ color: '#00ff66', fontWeight: 700 }}>✅ Đã hoàn thành</span> : <span style={{ color: '#ff3366', fontWeight: 700 }}>⚠️ Chưa hoàn thành (Yêu cầu bật Camera làm eKYC)</span>}
+            <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0 }}>
+              Bật Web Camera chụp 120 mẫu vector sinh trắc học 4 tư thế gắn với tài khoản.
             </p>
           </div>
         </div>
+      </nav>
+
+      {/* ACTIVE SUB-PAGE RENDER */}
+      <main>
+        {activeTab === 'ADMIN' && currentUser.system_role === 'ADMIN' && (
+          <AdminUsers token={token} />
+        )}
+
+        {activeTab === 'CLASSES' && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
+          <TeacherClasses token={token} />
+        )}
+
+        {activeTab === 'EKYC' && (
+          <StudentEkyc currentUser={currentUser} token={token} onEkycDone={() => {
+            const updated = { ...currentUser, ekyc_completed: true }
+            setCurrentUser(updated)
+            localStorage.setItem('user', JSON.stringify(updated))
+          }} />
+        )}
       </main>
     </div>
   )
