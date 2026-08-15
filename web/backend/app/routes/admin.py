@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
-from app.models import db, User, Classroom, AttendanceSession
+from app.models import db, User, Classroom, ClassroomStudent, ClassroomTeacher, AttendanceSession, AttendanceRecord
 from app.middleware.auth_middleware import admin_required
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
