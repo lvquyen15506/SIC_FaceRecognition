@@ -209,3 +209,106 @@ def serve_proof_media(filename):
     if os.path.exists(file_path):
         return send_file(file_path)
     return jsonify({"error": "Tệp minh chứng không tồn tại"}), 404
+
+
+@attendance_bp.route("/process-live-frame", methods=["POST"])
+@jwt_required()
+def process_live_attendance_frame():
+    """
+    Nhận frame base64 từ Web Camera, chạy YuNet Face Detector + ArcFace v2 ONNX:
+    1. Khoanh box XANH LÁ (0, 255, 0) + Tên Sinh Viên nếu trùng khớp.
+    2. Khoanh box ĐỎ (0, 0, 255) + Label [Nguoi_la] nếu không có trong CSDL.
+    3. Trả về ảnh base64 đã vẽ box xanh/đỏ rực rỡ để hiển thị trên Web.
+    """
+    import base64
+    import cv2
+    import numpy as np
+
+    data = request.get_json() or {}
+    image_base64 = data.get("image_base64", "")
+    classroom_id = data.get("classroom_id")
+
+    if not image_base64 or not classroom_id:
+        return jsonify({"error": "Thiếu thông tin image_base64 hoặc classroom_id"}), 400
+
+    try:
+        if "," in image_base64:
+            image_base64 = image_base64.split(",")[1]
+
+        img_bytes = base64.b64decode(image_base64)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if frame_bgr is None:
+            return jsonify({"error": "Ảnh base64 không hợp lệ"}), 400
+
+        # Handle 4-channel BGRA/RGBA images
+        if len(frame_bgr.shape) == 3 and frame_bgr.shape[2] == 4:
+            frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2BGR)
+
+        # Mirror frame to match selfie view
+        frame_bgr = cv2.flip(frame_bgr, 1)
+        annotated_frame = frame_bgr.copy()
+
+        ai_engine = FaceViTAIEngineService()
+        if hasattr(ai_engine.detector, "detector") and hasattr(ai_engine.detector.detector, "setScoreThreshold"):
+            ai_engine.detector.detector.setScoreThreshold(0.35)
+
+        # Detect faces
+        if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
+            results = ai_engine.detector.detect_faces_with_landmarks(frame_bgr)
+            boxes = [f["box"] for f in results]
+        else:
+            boxes = ai_engine.detector.detect_faces(frame_bgr)
+
+        detections = []
+
+        if boxes:
+            for box in boxes:
+                x, y, w, h = map(int, box)
+                h_img, w_img, _ = frame_bgr.shape
+                x1, y1 = max(0, x), max(0, y)
+                x2, y2 = min(w_img, x + w), min(h_img, y + h)
+
+                face_crop = frame_bgr[y1:y2, x1:x2]
+                if face_crop.size == 0:
+                    continue
+
+                emb = ai_engine.extract_embedding(face_crop)
+                match_res = ai_engine.match_against_classroom_students(emb, classroom_id)
+
+                if match_res["matched"]:
+                    color = (0, 255, 0) # Green box
+                    label = f"{match_res['name']} ({match_res['confidence']:.1f}%)"
+                    status = "PRESENT"
+                else:
+                    color = (0, 0, 255) # Red box
+                    label = "Nguoi_la_Unregistered"
+                    status = "UNREGISTERED"
+
+                # Draw bounding box and label banner (matching app_demo.py)
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 3)
+                
+                # Label text background banner
+                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                cv2.rectangle(annotated_frame, (x1, max(0, y1 - 25)), (x1 + tw + 10, max(25, y1)), color, -1)
+                cv2.putText(annotated_frame, label, (x1 + 5, max(18, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+                detections.append({
+                    "student_id": match_res.get("student_id"),
+                    "name": match_res.get("name"),
+                    "status": status,
+                    "confidence": match_res.get("confidence", 0.0)
+                })
+
+        # Encode annotated BGR frame back to base64 jpeg
+        _, buffer = cv2.imencode('.jpg', annotated_frame)
+        annotated_base64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
+
+        return jsonify({
+            "annotated_base64": annotated_base64,
+            "detections": detections
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Lỗi live stream: {str(e)}"}), 500

@@ -20,7 +20,7 @@ export default function AttendanceCenter({ token }) {
 
   // Live Camera Mode States
   const [isLiveStreaming, setIsLiveStreaming] = useState(false)
-  const [liveDetections, setLiveDetections] = useState([])
+  const [annotatedFrameSrc, setAnnotatedFrameSrc] = useState(null)
   const [liveAccumulatedRecords, setLiveAccumulatedRecords] = useState({}) // student_id -> record
 
   const config = {
@@ -38,6 +38,54 @@ export default function AttendanceCenter({ token }) {
       })
       .catch(err => console.error(err))
   }, [])
+
+  // Real-time Frame Capture Loop for Live Camera Mode
+  useEffect(() => {
+    let interval = null
+    if (isLiveStreaming && webcamRef.current) {
+      interval = setInterval(async () => {
+        if (!webcamRef.current) return
+        const imageSrc = webcamRef.current.getScreenshot()
+        if (imageSrc && selectedClassId) {
+          try {
+            const res = await axios.post('/api/attendance/process-live-frame', {
+              image_base64: imageSrc,
+              classroom_id: selectedClassId
+            }, config)
+
+            if (res.data.annotated_base64) {
+              setAnnotatedFrameSrc(res.data.annotated_base64)
+            }
+
+            if (res.data.detections) {
+              setLiveAccumulatedRecords(prev => {
+                const updated = { ...prev }
+                res.data.detections.forEach(det => {
+                  if (det.student_id) {
+                    updated[det.student_id] = {
+                      student_id: det.student_id,
+                      student_name: det.name,
+                      status: 'PRESENT',
+                      confidence_score: det.confidence
+                    }
+                  }
+                })
+                return updated
+              })
+            }
+          } catch (e) {
+            console.error('Live frame error:', e)
+          }
+        }
+      }, 250) // Send frame every 250ms for real-time bounding box stream
+    } else {
+      setAnnotatedFrameSrc(null)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isLiveStreaming, selectedClassId])
 
   // Handle File Upload Attendance Processing
   const handleProcessUpload = async (e) => {
@@ -74,21 +122,18 @@ export default function AttendanceCenter({ token }) {
       return
     }
     setIsLiveStreaming(true)
-    setMsg('🎥 Đang quay trực tiếp điểm danh AI... Bấm nút "DỪNG QUÉT" khi hoàn tất.')
+    setMsg('🎥 Đang quay trực tiếp điểm danh AI với Box Xanh/Đỏ... Bấm "DỪNG QUÉT" khi hoàn tất.')
     setErr('')
     setLiveAccumulatedRecords({})
-    setLiveDetections([])
   }
 
   const handleStopLiveStream = async () => {
     setIsLiveStreaming(false)
     setMsg('⚡ Đang tổng hợp dữ liệu và xuất file CSV báo cáo...')
 
-    // Extract records list from live accumulated state
     const recordsList = Object.values(liveAccumulatedRecords)
 
     try {
-      // Create session and save records
       const res = await axios.post('/api/attendance/process-photo', {
         classroom_id: selectedClassId,
         title: title || `Điểm danh Trực Tiếp - ${new Date().toLocaleTimeString()}`,
@@ -119,8 +164,6 @@ export default function AttendanceCenter({ token }) {
       setErr(e.response?.data?.error || 'Lỗi cập nhật trạng thái')
     }
   }
-
-  const selectedClassObj = classes.find(c => String(c.id) === String(selectedClassId))
 
   return (
     <div style={{ marginTop: '12px' }}>
@@ -209,24 +252,34 @@ export default function AttendanceCenter({ token }) {
         </div>
       )}
 
-      {/* MODE B: LIVE CAMERA STREAMING FORM */}
+      {/* MODE B: LIVE CAMERA STREAMING FORM WITH REAL-TIME GREEN/RED BOXES */}
       {attendanceMode === 'LIVE_CAM' && (
         <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 170, 0, 0.3)', marginBottom: '24px', textAlign: 'center' }}>
           <h3 style={{ color: '#ffaa00', marginTop: 0 }}>🎥 PHƯƠNG THỨC 2: QUAY ĐIỂM DANH TRỰC TIẾP BẰNG CAMERA</h3>
           <p style={{ color: '#cbd5e1', fontSize: '14px', maxWidth: '600px', margin: '0 auto 16px auto' }}>
-            Hệ thống AI sẽ quét nhận diện khuôn mặt sinh viên trong lớp học liên tục theo thời gian thực. Bấm <strong>"DỪNG QUÉT & XUẤT CSV"</strong> khi kết thúc tiết học!
+            Hệ thống AI đang quét nhận diện sinh viên theo thời gian thực: <span style={{ color: '#00ff66', fontWeight: 700 }}>🔲 BOX XANH = CÓ MẶT</span>, <span style={{ color: '#ff3366', fontWeight: 700 }}>🔲 BOX ĐỎ = NGƯỜI LẠ</span>!
           </p>
 
           <input type="text" placeholder="Tiêu đề Phiên (VD: Điểm danh Trực tiếp Tiết 1-2)" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', maxWidth: '500px', padding: '10px', borderRadius: '6px', border: '1px solid #475569', background: '#0f172a', color: '#fff', marginBottom: '16px', boxSizing: 'border-box' }} />
 
-          <div style={{ margin: '0 auto 20px auto', width: '100%', maxWidth: '640px', borderRadius: '16px', overflow: 'hidden', border: isLiveStreaming ? '3px solid #ffaa00' : '2px solid rgba(255,255,255,0.2)', boxShadow: isLiveStreaming ? '0 0 30px rgba(255, 170, 0, 0.5)' : 'none' }}>
+          <div style={{ position: 'relative', margin: '0 auto 20px auto', width: '100%', maxWidth: '640px', height: '420px', borderRadius: '16px', overflow: 'hidden', border: isLiveStreaming ? '3px solid #00ff66' : '2px solid rgba(255,255,255,0.2)', boxShadow: isLiveStreaming ? '0 0 30px rgba(0, 255, 102, 0.4)' : 'none' }}>
+            {/* RAW WEBCAM CAPTURE (HIDDEN WHEN ANNOTATED STREAM IS AVAILABLE) */}
             <Webcam
               audio={false}
               ref={webcamRef}
               screenshotFormat="image/jpeg"
               mirrored={true}
-              style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '420px', objectFit: 'cover' }}
+              style={{ display: annotatedFrameSrc ? 'none' : 'block', width: '100%', height: '100%', objectFit: 'cover' }}
             />
+
+            {/* REAL-TIME ANNOTATED AI VIDEO STREAM WITH GREEN/RED BOXES & STUDENT NAMES */}
+            {annotatedFrameSrc && (
+              <img
+                src={annotatedFrameSrc}
+                alt="Live AI Frame"
+                style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            )}
           </div>
 
           {!isLiveStreaming ? (
