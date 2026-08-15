@@ -119,7 +119,7 @@ def reset_user_ekyc(user_id):
 @admin_bp.route("/users/<user_id>", methods=["DELETE"])
 @admin_required()
 def delete_user(user_id):
-    """Admin xóa tài khoản khỏi hệ thống và dọn dẹp các bản ghi liên quan"""
+    """Admin xóa tài khoản khỏi hệ thống và dọn dẹp toàn bộ dữ liệu liên quan"""
     try:
         user = User.query.get(user_id)
         if not user:
@@ -128,14 +128,32 @@ def delete_user(user_id):
         if user.username == "admin":
             return jsonify({"error": "Không thể xóa tài khoản Super Admin mặc định hệ thống"}), 400
 
-        # Delete associated records in join tables to prevent foreign key errors
+        # 1. Clean up student attendance records & classroom memberships
+        AttendanceRecord.query.filter_by(student_id=user.id).delete()
         ClassroomStudent.query.filter_by(student_id=user.id).delete()
         ClassroomTeacher.query.filter_by(teacher_id=user.id).delete()
-        AttendanceRecord.query.filter_by(student_id=user.id).delete()
 
+        # 2. Clean up sessions created by this user
+        user_sessions = AttendanceSession.query.filter_by(created_by_user_id=user.id).all()
+        for s in user_sessions:
+            AttendanceRecord.query.filter_by(session_id=s.id).delete()
+            db.session.delete(s)
+
+        # 3. Clean up classrooms created by this user as primary teacher
+        user_classrooms = Classroom.query.filter_by(primary_teacher_id=user.id).all()
+        for c in user_classrooms:
+            ClassroomStudent.query.filter_by(classroom_id=c.id).delete()
+            ClassroomTeacher.query.filter_by(teacher_id=c.id).delete()
+            c_sessions = AttendanceSession.query.filter_by(classroom_id=c.id).all()
+            for s in c_sessions:
+                AttendanceRecord.query.filter_by(session_id=s.id).delete()
+                db.session.delete(s)
+            db.session.delete(c)
+
+        # 4. Delete the user
         db.session.delete(user)
         db.session.commit()
-        return jsonify({"message": f"🎉 Đã xóa hoàn tất tài khoản '{user.username}' ({user.full_name}) khỏi hệ thống!"}), 200
+        return jsonify({"message": f"🎉 Đã xóa thành công tài khoản '{user.username}' ({user.full_name}) và toàn bộ dữ liệu liên quan!"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Lỗi khi xóa tài khoản: {str(e)}"}), 500
