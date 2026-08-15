@@ -310,10 +310,10 @@ export default function AttendanceCenter({ token }) {
               <div style={{ background: 'rgba(0, 240, 255, 0.15)', border: '1px solid #00f0ff', padding: '8px 16px', borderRadius: '20px', color: '#00f0ff', fontSize: '13px', fontWeight: 700 }}>
                 👥 Đang Trong Khung Hình: <span style={{ fontSize: '16px' }}>{currentFrameFaceCount}</span>
               </div>
-              <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', padding: '8px 16px', borderRadius: '20px', color: '#00ff66', fontSize: '13px', fontWeight 700 }}>
+              <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', padding: '8px 16px', borderRadius: '20px', color: '#00ff66', fontSize: '13px', fontWeight: 700 }}>
                 ✅ Đã Điểm Danh Có Mặt: <span style={{ fontSize: '16px' }}>{Object.keys(liveAccumulatedRecords).length}</span> SV
               </div>
-              <div style={{ background: 'rgba(255, 51, 102, 0.15)', border: '1px solid #ff3366', padding: '8px 16px', borderRadius: '20px', color: '#ff3366', fontSize: '13px', fontWeight 700 }}>
+              <div style={{ background: 'rgba(255, 51, 102, 0.15)', border: '1px solid #ff3366', padding: '8px 16px', borderRadius: '20px', color: '#ff3366', fontSize: '13px', fontWeight: 700 }}>
                 ❓ Người Lạ Hiện Tại: <span style={{ fontSize: '16px' }}>{currentFrameStrangerCount}</span>
               </div>
             </div>
