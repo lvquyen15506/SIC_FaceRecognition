@@ -34,6 +34,20 @@ export default function App() {
     }
   }, [])
 
+  // Auto handle expired or stale token by logging out cleanly
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && (error.response.status === 401 || (error.response.status === 403 && error.response.data?.error?.includes('ADMIN')))) {
+          handleLogout()
+        }
+        return Promise.reject(error)
+      }
+    )
+    return () => axios.interceptors.response.eject(interceptor)
+  }, [])
+
   const handleLoginSuccess = (user, accessToken) => {
     setCurrentUser(user)
     setToken(accessToken)
