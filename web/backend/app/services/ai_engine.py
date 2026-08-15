@@ -114,7 +114,9 @@ class FaceViTAIEngineService:
         match_threshold = 0.40
 
         if min_dist <= match_threshold:
-            confidence = max(0.0, min(100.0, (1.0 - (min_dist / match_threshold)) * 100.0))
+            # Cosine similarity formula for L2 unit vectors: CosSim = 1 - (dist^2 / 2)
+            cosine_sim = 1.0 - ((min_dist ** 2) / 2.0)
+            confidence = max(82.0, min(99.5, cosine_sim * 100.0))
             return {
                 "matched": True,
                 "student_id": best_student_id,
