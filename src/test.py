@@ -115,7 +115,27 @@ def main():
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model_cfg = argparse.Namespace(**checkpoint["config"])
-    model_cfg.dataset_root = cli_cfg.dataset_root
+    
+    # Dynamic dataset_root resolution with relative src/ fallback
+    raw_root = getattr(cli_cfg, "dataset_root", "dataset/vggface2")
+    if os.path.exists(raw_root):
+        dataset_root = raw_root
+    elif os.path.exists(os.path.join("src", raw_root)):
+        dataset_root = os.path.join("src", raw_root)
+    else:
+        for candidate in [
+            os.path.join("src", "dataset", "vggface2"),
+            os.path.join("dataset", "vggface2"),
+            os.path.join("src", "dataset", "pins_face"),
+            os.path.join("dataset", "pins_face"),
+        ]:
+            if os.path.exists(candidate):
+                dataset_root = candidate
+                break
+        else:
+            dataset_root = raw_root
+
+    model_cfg.dataset_root = dataset_root
     model_cfg.batch_size = cli_cfg.batch_size
     model_cfg.num_workers = cli_cfg.num_workers
 
