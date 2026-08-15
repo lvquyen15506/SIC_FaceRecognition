@@ -97,12 +97,24 @@ class FaceViTAIEngineService:
 
             try:
                 raw_vector_list = json.loads(user.face_embeddings_json)
-                target_emb = np.array(raw_vector_list, dtype=np.float32)
-                norm = np.linalg.norm(target_emb)
-                if norm > 0:
-                    target_emb = target_emb / norm
+                target_mat = np.array(raw_vector_list, dtype=np.float32)
 
-                dist = float(np.linalg.norm(query_emb_np - target_emb))
+                if target_mat.ndim == 2:
+                    # 2D matrix of shape (N, 128) from eKYC sample collection
+                    norms = np.linalg.norm(target_mat, axis=1, keepdims=True)
+                    norms[norms == 0] = 1.0
+                    norm_mat = target_mat / norms
+
+                    dists = np.linalg.norm(norm_mat - query_emb_np, axis=1)
+                    dist = float(np.min(dists))
+                elif target_mat.ndim == 1:
+                    norm = np.linalg.norm(target_mat)
+                    if norm > 0:
+                        target_mat = target_mat / norm
+                    dist = float(np.linalg.norm(query_emb_np - target_mat))
+                else:
+                    continue
+
                 if dist < min_dist:
                     min_dist = dist
                     best_name = user.full_name
