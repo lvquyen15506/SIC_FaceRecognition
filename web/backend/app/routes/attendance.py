@@ -349,6 +349,9 @@ def process_live_attendance_frame():
         if len(frame_bgr.shape) == 3 and frame_bgr.shape[2] == 4:
             frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2BGR)
 
+        # Mirror frame horizontally to match eKYC embedding orientation exactly (ekyc.py line 129)
+        frame_bgr = cv2.flip(frame_bgr, 1)
+
         ai_engine = FaceViTAIEngineService()
         if hasattr(ai_engine.detector, "detector") and hasattr(ai_engine.detector.detector, "setScoreThreshold"):
             ai_engine.detector.detector.setScoreThreshold(0.65)
