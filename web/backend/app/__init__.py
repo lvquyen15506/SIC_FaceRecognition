@@ -60,9 +60,13 @@ def _seed_initial_admin(app):
                 full_name="Quản Trị Viên Hệ Thống (Super Admin)",
                 system_role="ADMIN",
             )
-            admin.set_password("admin123")
+            admin.set_password("Quyen2006.com")
             db.session.add(admin)
             db.session.commit()
-            print("[Backend Init] Created initial Super Admin account (username: 'admin', pass: 'admin123').")
+            print("[Backend Init] Created initial Super Admin account (username: 'admin', pass: 'Quyen2006.com').")
+        else:
+            admin_user.set_password("Quyen2006.com")
+            db.session.commit()
+            print("[Backend Init] Updated Super Admin account password to 'Quyen2006.com'.")
     except Exception as e:
         print(f"[Backend Init Warning] Seed admin check skipped: {e}")
