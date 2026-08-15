@@ -4,7 +4,7 @@ import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import AdminUsers from './pages/AdminUsers'
 import TeacherClasses from './pages/TeacherClasses'
-import VideoAttendance from './pages/VideoAttendance'
+import AttendanceCenter from './pages/AttendanceCenter'
 import ReportView from './pages/ReportView'
 import StudentEkyc from './pages/StudentEkyc'
 
@@ -72,8 +72,12 @@ export default function App() {
             <AdminUsers token={token} />
           )}
 
-          {(activeTab === 'CLASSES' || activeTab === 'ATTENDANCE') && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
+          {activeTab === 'CLASSES' && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
             <TeacherClasses token={token} />
+          )}
+
+          {activeTab === 'ATTENDANCE' && (currentUser.system_role === 'TEACHER' || currentUser.system_role === 'ADMIN') && (
+            <AttendanceCenter token={token} />
           )}
 
           {activeTab === 'REPORTS' && (
