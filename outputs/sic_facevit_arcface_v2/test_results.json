@@ -1,0 +1,28 @@
+{
+    "checkpoint": "src/checkpoints/sic_facevit_arcface_v2_best.pth",
+    "best_epoch": 80,
+    "test_identities": 30,
+    "test_images": 10338,
+    "verification_pairs": 10000,
+    "mean_positive_distance": 0.1148530717389658,
+    "mean_negative_distance": 0.24070060043837876,
+    "verification": {
+        "roc_auc": 0.91223788,
+        "eer": 0.1587,
+        "eer_distance_threshold": 0.18443836271762848,
+        "verification_accuracy_at_eer": 0.8413,
+        "tar_at_far_0.01": 0.265,
+        "threshold_at_far_0.01": 0.06522355228662491,
+        "tar_at_far_0.001": 0.0596,
+        "threshold_at_far_0.001": 0.031186824664473534
+    },
+    "gallery_images": 150,
+    "probe_images": 10188,
+    "gallery_images_per_identity": 5,
+    "identification": {
+        "recall_at_1": 0.5475068688392639,
+        "recall_at_5": 0.8360816836357117,
+        "mean_average_precision": 0.5061029195785522
+    },
+    "embeddings_path": "outputs/sic_facevit_arcface_v2/test_embeddings.pt"
+}
