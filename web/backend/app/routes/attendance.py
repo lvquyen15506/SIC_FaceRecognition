@@ -120,140 +120,153 @@ def process_photo_attendance():
     if not uploaded_files or len(uploaded_files) == 0 or uploaded_files[0].filename == "":
         return jsonify({"error": "Vui lòng chọn tệp ảnh/video để upload"}), 400
 
-    output_dir = os.path.join(os.getcwd(), "outputs", "attendance_sessions")
-    os.makedirs(output_dir, exist_ok=True)
+    try:
+        output_dir = os.path.join(os.getcwd(), "outputs", "attendance_sessions")
+        os.makedirs(output_dir, exist_ok=True)
 
-    session_id = str(uuid.uuid4())
-    session = AttendanceSession(
-        id=session_id,
-        classroom_id=classroom_id,
-        created_by_user_id=user_id,
-        title=title,
-        session_type="PHOTO",
-    )
-    db.session.add(session)
-
-    # Fetch classroom students map
-    class_students = ClassroomStudent.query.filter_by(classroom_id=classroom_id).all()
-    student_dict = {cs.student_id: cs.student for cs in class_students if cs.student}
-    present_student_map = {} # student_id -> best_record
-    unregistered_count = 0
-
-    ai_engine = FaceViTAIEngineService()
-    last_proof_path = None
-
-    for f_idx, file_obj in enumerate(uploaded_files, 1):
-        if file_obj.filename == "":
-            continue
-        save_filename = f"batch_{session_id[:8]}_{f_idx}_{file_obj.filename}"
-        img_path = os.path.join(output_dir, save_filename)
-        file_obj.save(img_path)
-
-        img_bgr = cv2.imread(img_path)
-        if img_bgr is None:
-            continue
-
-        if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
-            results = ai_engine.detector.detect_faces_with_landmarks(img_bgr)
-            boxes = [res["box"] for res in results]
-        else:
-            boxes = ai_engine.detector.detect_faces(img_bgr)
-
-        display_img = img_bgr.copy()
-
-        if boxes:
-            for box in boxes:
-                x, y, bw, bh = map(int, box)
-                x1, y1 = max(0, x), max(0, y)
-                x2, y2 = min(img_bgr.shape[1], x + bw), min(img_bgr.shape[0], y + bh)
-
-                face_crop = img_bgr[y1:y2, x1:x2]
-                if face_crop.size == 0:
-                    continue
-
-                emb = ai_engine.extract_embedding(face_crop)
-                match_res = ai_engine.match_against_classroom_students(emb, classroom_id)
-
-                if match_res["matched"] and match_res["student_id"]:
-                    st_id = match_res["student_id"]
-                    conf = match_res["confidence"]
-                    if st_id not in present_student_map or conf > present_student_map[st_id]["confidence"]:
-                        present_student_map[st_id] = {
-                            "student_id": st_id,
-                            "name": match_res["name"],
-                            "confidence": conf
-                        }
-                    cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(display_img, f"{match_res['name']} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                else:
-                    unregistered_count += 1
-                    cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                    cv2.putText(display_img, "Nguoi_la_Unregistered", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
-        proof_path = os.path.join(output_dir, f"proof_{session_id[:8]}_{f_idx}.jpg")
-        cv2.imwrite(proof_path, display_img)
-        last_proof_path = proof_path
-
-    session.media_proof_path = last_proof_path
-
-    records_to_add = []
-    # Add Present Records
-    for st_id, data_rec in present_student_map.items():
-        rec = AttendanceRecord(
-            session_id=session_id,
-            student_id=st_id,
-            student_name=data_rec["name"],
-            status="PRESENT",
-            confidence_score=data_rec["confidence"]
+        session_id = str(uuid.uuid4())
+        session = AttendanceSession(
+            id=session_id,
+            classroom_id=classroom_id,
+            created_by_user_id=user_id,
+            title=title,
+            session_type="PHOTO",
         )
-        records_to_add.append(rec)
+        db.session.add(session)
 
-    # Add Absent Records for students not detected in any photo
-    for st_id, student_obj in student_dict.items():
-        if st_id not in present_student_map:
+        # Fetch classroom students map
+        class_students = ClassroomStudent.query.filter_by(classroom_id=classroom_id).all()
+        student_dict = {cs.student_id: cs.student for cs in class_students if cs.student}
+        present_student_map = {} # student_id -> best_record
+        unregistered_count = 0
+
+        ai_engine = FaceViTAIEngineService()
+        last_proof_path = None
+
+        for f_idx, file_obj in enumerate(uploaded_files, 1):
+            if not file_obj or file_obj.filename == "":
+                continue
+            save_filename = f"batch_{session_id[:8]}_{f_idx}_{file_obj.filename}"
+            img_path = os.path.join(output_dir, save_filename)
+            file_obj.save(img_path)
+
+            img_bgr = cv2.imread(img_path)
+            if img_bgr is None:
+                # Attempt to extract first frame if uploaded file is a video (.mp4/.avi/.mov)
+                cap = cv2.VideoCapture(img_path)
+                ret, frame = cap.read()
+                cap.release()
+                if ret and frame is not None:
+                    img_bgr = frame
+
+            if img_bgr is None:
+                continue
+
+            display_img = img_bgr.copy()
+
+            if hasattr(ai_engine.detector, "detect_faces_with_landmarks"):
+                results = ai_engine.detector.detect_faces_with_landmarks(img_bgr)
+                boxes = [res["box"] for res in results]
+            else:
+                boxes = ai_engine.detector.detect_faces(img_bgr)
+
+            if boxes:
+                for box in boxes:
+                    x, y, bw, bh = map(int, box)
+                    x1, y1 = max(0, x), max(0, y)
+                    x2, y2 = min(img_bgr.shape[1], x + bw), min(img_bgr.shape[0], y + bh)
+
+                    face_crop = img_bgr[y1:y2, x1:x2]
+                    if face_crop.size == 0:
+                        continue
+
+                    emb = ai_engine.extract_embedding(face_crop)
+                    match_res = ai_engine.match_against_classroom_students(emb, classroom_id)
+
+                    if match_res["matched"] and match_res["student_id"]:
+                        st_id = match_res["student_id"]
+                        conf = match_res["confidence"]
+                        if st_id not in present_student_map or conf > present_student_map[st_id]["confidence"]:
+                            present_student_map[st_id] = {
+                                "student_id": st_id,
+                                "name": match_res["name"],
+                                "confidence": conf
+                            }
+                        cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(display_img, f"{match_res['name']} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    else:
+                        unregistered_count += 1
+                        cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        cv2.putText(display_img, "Nguoi_la_Unregistered", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+            proof_path = os.path.join(output_dir, f"proof_{session_id[:8]}_{f_idx}.jpg")
+            cv2.imwrite(proof_path, display_img)
+            last_proof_path = proof_path
+
+        session.media_proof_path = last_proof_path
+
+        records_to_add = []
+        # Add Present Records
+        for st_id, data_rec in present_student_map.items():
             rec = AttendanceRecord(
                 session_id=session_id,
                 student_id=st_id,
-                student_name=student_obj.full_name,
-                status="ABSENT",
-                confidence_score=0.0
+                student_name=data_rec["name"],
+                status="PRESENT",
+                confidence_score=data_rec["confidence"]
             )
             records_to_add.append(rec)
 
-    db.session.add_all(records_to_add)
+        # Add Absent Records for students not detected in any photo
+        for st_id, student_obj in student_dict.items():
+            if st_id not in present_student_map:
+                rec = AttendanceRecord(
+                    session_id=session_id,
+                    student_id=st_id,
+                    student_name=student_obj.full_name,
+                    status="ABSENT",
+                    confidence_score=0.0
+                )
+                records_to_add.append(rec)
 
-    # Save physical CSV report file
-    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    clean_title = title.replace(" ", "_")
-    clean_class = classroom.class_code.replace(" ", "_")
-    csv_filename = f"DiemDanh_{clean_class}_{clean_title}_{now_str}.csv"
-    csv_path = os.path.join(output_dir, csv_filename)
+        db.session.add_all(records_to_add)
 
-    df_data = []
-    for idx, r in enumerate(records_to_add, 1):
-        df_data.append({
-            "STT": idx,
-            "Mã Lớp": classroom.class_code,
-            "Tên Lớp": classroom.class_name,
-            "Tiêu Đề Phiên": title,
-            "Tên Sinh Viên": r.student_name,
-            "Trạng Thái": "Có mặt" if r.status == "PRESENT" else "Vắng mặt",
-            "Độ Tin Cậy (%)": f"{r.confidence_score:.1f}%",
-            "Thời Gian Thực Hiện": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        # Save physical CSV report file
+        now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        clean_title = title.replace(" ", "_")
+        clean_class = classroom.class_code.replace(" ", "_")
+        csv_filename = f"DiemDanh_{clean_class}_{clean_title}_{now_str}.csv"
+        csv_path = os.path.join(output_dir, csv_filename)
 
-    df = pd.DataFrame(df_data)
-    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-    session.csv_report_path = csv_path
+        df_data = []
+        for idx, r in enumerate(records_to_add, 1):
+            df_data.append({
+                "STT": idx,
+                "Mã Lớp": classroom.class_code,
+                "Tên Lớp": classroom.class_name,
+                "Tiêu Đề Phiên": title,
+                "Tên Sinh Viên": r.student_name,
+                "Trạng Thái": "Có mặt" if r.status == "PRESENT" else "Vắng mặt",
+                "Độ Tin Cậy (%)": f"{r.confidence_score:.1f}%",
+                "Thời Gian Thực Hiện": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
 
-    db.session.commit()
+        df = pd.DataFrame(df_data)
+        df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+        session.csv_report_path = csv_path
 
-    return jsonify({
-        "message": f"🎉 Đã quét {len(uploaded_files)} tệp ảnh/video và lưu phiên điểm danh thành công cho Lớp [{classroom.class_code}]!",
-        "session": session.to_dict(),
-        "records": [r.to_dict() for r in records_to_add],
-        "csv_filename": csv_filename,
-    }), 201
+        db.session.commit()
+
+        return jsonify({
+            "message": f"🎉 Đã quét {len(uploaded_files)} tệp ảnh/video và lưu phiên điểm danh thành công cho Lớp [{classroom.class_code}]!",
+            "session": session.to_dict(),
+            "records": [r.to_dict() for r in records_to_add],
+            "csv_filename": csv_filename,
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Lỗi xử lý điểm danh: {str(e)}"}), 500
 
 
 @attendance_bp.route("/records/<int:record_id>/toggle", methods=["PUT"])
