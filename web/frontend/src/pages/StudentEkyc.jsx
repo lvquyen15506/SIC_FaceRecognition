@@ -43,7 +43,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
     setStepProgress(0)
 
     let framesCapturedInStep = 0
-    const targetFrames = 10
+    const targetFrames = 30
     const currentChallenge = challenges[stepIndex]
 
     const interval = setInterval(async () => {
@@ -66,7 +66,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
             if (isMatched && res.data.embedding) {
               accumEmbeddings.push(res.data.embedding)
               framesCapturedInStep += 1
-              setFaceDetectedStatus(`✅ ĐÃ KHỚP TƯ THẾ '${detectedPose}': ${framesCapturedInStep}/${targetFrames} mẫu`)
+              setFaceDetectedStatus(`✅ ĐÃ KHỚP TƯ THẾ — ĐANG THU THẬP SINH TRÁC HỌC AI...`)
               setStepProgress(Math.min(100, Math.round((framesCapturedInStep / targetFrames) * 100)))
 
               if (framesCapturedInStep >= targetFrames) {

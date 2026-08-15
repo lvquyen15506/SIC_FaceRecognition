@@ -81,7 +81,7 @@ def estimate_head_pose_from_landmarks(landmarks):
         pose = "QUAY TRAI"
     elif yaw_ratio < 0.75:
         pose = "QUAY PHAI"
-    elif pitch_ratio < 0.95:
+    elif pitch_ratio < 1.08:
         pose = "NGUOC LEN"
     elif pitch_ratio > 1.45:
         pose = "CUI XUONG"
