@@ -170,6 +170,8 @@ def process_photo_attendance():
             else:
                 boxes = ai_engine.detector.detect_faces(img_bgr)
 
+            image_face_candidates = []
+
             if boxes:
                 for box in boxes:
                     x, y, bw, bh = map(int, box)
@@ -177,34 +179,55 @@ def process_photo_attendance():
                     x2, y2 = min(img_bgr.shape[1], x + bw), min(img_bgr.shape[0], y + bh)
 
                     face_crop = img_bgr[y1:y2, x1:x2]
-                    if face_crop.size == 0:
+                    if face_crop.size == 0 or bw < 30 or bh < 30:
                         continue
 
                     emb = ai_engine.extract_embedding(face_crop)
                     match_res = ai_engine.match_against_classroom_students(emb, classroom_id)
 
-                    if match_res["matched"] and match_res["student_id"]:
-                        st_id = match_res["student_id"]
-                        conf = match_res["confidence"]
-                        if st_id not in present_student_map or conf > present_student_map[st_id]["confidence"]:
-                            present_student_map[st_id] = {
-                                "student_id": st_id,
-                                "name": match_res["name"],
-                                "confidence": conf
-                            }
-                        cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        
-                        # Convert Unicode Vietnamese name to ASCII for safe OpenCV putText rendering
-                        import unicodedata
-                        raw_name = match_res['name']
-                        ascii_name = unicodedata.normalize('NFD', raw_name)
-                        ascii_name = ''.join(c for c in ascii_name if unicodedata.category(c) != 'Mn').replace('Đ', 'D').replace('đ', 'd')
-                        
-                        cv2.putText(display_img, f"{ascii_name} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    else:
-                        unregistered_count += 1
-                        cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                        cv2.putText(display_img, "Nguoi_la_Unregistered", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    image_face_candidates.append({
+                        "box": (x1, y1, x2, y2),
+                        "matched": match_res["matched"],
+                        "student_id": match_res.get("student_id"),
+                        "name": match_res.get("name"),
+                        "confidence": match_res.get("confidence", 0.0),
+                        "distance": match_res.get("distance", 999.0)
+                    })
+
+            # Enforce strict 1-to-1 mapping per photo: 1 student_id can ONLY be assigned to AT MOST 1 face in the image
+            claimed_students = set()
+            # Sort candidates by L2 distance (ascending: best face match first)
+            image_face_candidates.sort(key=lambda c: c["distance"])
+
+            for cand in image_face_candidates:
+                x1, y1, x2, y2 = cand["box"]
+                st_id = cand["student_id"]
+
+                if cand["matched"] and st_id and st_id not in claimed_students:
+                    # Assign GREEN box to the single BEST face match for this student_id
+                    claimed_students.add(st_id)
+                    conf = cand["confidence"]
+
+                    if st_id not in present_student_map or conf > present_student_map[st_id]["confidence"]:
+                        present_student_map[st_id] = {
+                            "student_id": st_id,
+                            "name": cand["name"],
+                            "confidence": conf
+                        }
+
+                    cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                    import unicodedata
+                    raw_name = cand['name']
+                    ascii_name = unicodedata.normalize('NFD', raw_name)
+                    ascii_name = ''.join(c for c in ascii_name if unicodedata.category(c) != 'Mn').replace('Đ', 'D').replace('đ', 'd')
+
+                    cv2.putText(display_img, f"{ascii_name} ({conf:.0f}%)", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                else:
+                    # Every other face in the photo is assigned a RED box (Người Lạ / Unregistered)
+                    unregistered_count += 1
+                    cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                    cv2.putText(display_img, "Nguoi_la_Unregistered", (x1, max(25, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
             proof_path = os.path.join(output_dir, f"proof_{session_id[:8]}_{f_idx}.jpg")
             cv2.imwrite(proof_path, display_img)
