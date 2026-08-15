@@ -13,6 +13,12 @@ export default function App() {
   const [token, setToken] = useState('')
   const [activeTab, setActiveTab] = useState('CLASSES')
 
+  const handleLogout = () => {
+    localStorage.clear()
+    setCurrentUser(null)
+    setToken('')
+  }
+
   useEffect(() => {
     const savedToken = localStorage.getItem('access_token')
     const savedUser = localStorage.getItem('user')
@@ -58,12 +64,6 @@ export default function App() {
     } else {
       setActiveTab('EKYC')
     }
-  }
-
-  const handleLogout = () => {
-    localStorage.clear()
-    setCurrentUser(null)
-    setToken('')
   }
 
   if (!currentUser) {
