@@ -72,10 +72,11 @@ export default function AttendanceCenter({ token }) {
 
                   res.data.detections.forEach(det => {
                     const [bx, by, bw, bh] = det.bbox
-                    const x = bx * scaleX
-                    const y = by * scaleY
                     const w = bw * scaleX
                     const h = bh * scaleY
+                    // Mirror horizontal coordinate to perfectly match mirrored webcam stream
+                    const x = canvas.width - (bx * scaleX) - w
+                    const y = by * scaleY
 
                     const isMatched = det.status === 'PRESENT'
                     const color = isMatched ? '#00ff66' : '#ff3366'
