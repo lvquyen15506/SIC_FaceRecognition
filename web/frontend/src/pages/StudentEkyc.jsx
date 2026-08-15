@@ -5,18 +5,18 @@ import axios from 'axios'
 export default function StudentEkyc({ currentUser, token, onEkycDone }) {
   const webcamRef = useRef(null)
   const [capturing, setCapturing] = useState(false)
-  const [currentStep, setCurrentStep] = useState(0) // 0: Straight, 1: Turn Left, 2: Turn Right, 3: Tilt Up
+  const [currentStep, setCurrentStep] = useState(0) // 0: NHIN THANG, 1: QUAY TRAI, 2: QUAY PHAI, 3: NGUOC LEN
   const [stepProgress, setStepProgress] = useState(0)
-  const [collectedEmbeddings, setCollectedEmbeddings] = useState([])
-  const [faceDetectedStatus, setFaceDetectedStatus] = useState('Đang đợi khuôn mặt...')
+  const [faceDetectedStatus, setFaceDetectedStatus] = useState('Đang đợi khuôn mặt vào vị trí...')
+  const [poseMatchedStatus, setPoseMatchedStatus] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
   const challenges = [
-    { id: 1, action: 'STRAIGHT', instruction: '📍 Bước 1/4: VUI LÒNG NHÌN THẲNG VÀO CAMERA', color: '#00f0ff' },
-    { id: 2, action: 'LEFT', instruction: '👈 Bước 2/4: VUI LÒNG QUAY ĐẦU SANG TRÁI', color: '#00ff66' },
-    { id: 3, action: 'RIGHT', instruction: '👉 Bước 3/4: VUI LÒNG QUAY ĐẦU SANG PHẢI', color: '#ffaa00' },
-    { id: 4, action: 'UP', instruction: '👆 Bước 4/4: VUI LÒNG NGƯỚC CẰM LÊN TRÊN', color: '#ff3366' },
+    { id: 1, action: 'NHIN THANG', instruction: '📍 Bước 1/4: VUI LÒNG NHÌN THẲNG VÀO CAMERA', color: '#00f0ff' },
+    { id: 2, action: 'QUAY TRAI', instruction: '👈 Bước 2/4: VUI LÒNG QUAY ĐẦU SANG TRÁI', color: '#00ff66' },
+    { id: 3, action: 'QUAY PHAI', instruction: '👉 Bước 3/4: VUI LÒNG QUAY ĐẦU SANG PHẢI', color: '#ffaa00' },
+    { id: 4, action: 'NGUOC LEN', instruction: '👆 Bước 4/4: VUI LÒNG NGƯỚC CẰM LÊN TRÊN', color: '#ff3366' },
   ]
 
   const config = {
@@ -29,7 +29,6 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
     setErr('')
     setCurrentStep(0)
     setStepProgress(0)
-    setCollectedEmbeddings([])
 
     runStep(0, [])
   }
@@ -45,6 +44,7 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
 
     let framesCapturedInStep = 0
     const targetFrames = 10
+    const currentChallenge = challenges[stepIndex]
 
     const interval = setInterval(async () => {
       if (!webcamRef.current) return
@@ -52,21 +52,35 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
       const imageSrc = webcamRef.current.getScreenshot()
       if (imageSrc) {
         try {
-          const res = await axios.post('/api/ekyc/process-frame', { image_base64: imageSrc }, config)
-          if (res.data.detected && res.data.embedding) {
-            accumEmbeddings.push(res.data.embedding)
-            framesCapturedInStep += 1
-            setFaceDetectedStatus(`✅ Đã trích xuất AI khuôn mặt: ${framesCapturedInStep}/${targetFrames} mẫu`)
-            setStepProgress(Math.min(100, Math.round((framesCapturedInStep / targetFrames) * 100)))
+          const res = await axios.post('/api/ekyc/process-frame', {
+            image_base64: imageSrc,
+            target_action: currentChallenge.action
+          }, config)
 
-            if (framesCapturedInStep >= targetFrames) {
-              clearInterval(interval)
-              setTimeout(() => {
-                runStep(stepIndex + 1, accumEmbeddings)
-              }, 400)
+          if (res.data.detected) {
+            const detectedPose = res.data.detected_pose || 'Khuôn mặt'
+            const isMatched = res.data.pose_matched
+
+            setPoseMatchedStatus(isMatched)
+
+            if (isMatched && res.data.embedding) {
+              accumEmbeddings.push(res.data.embedding)
+              framesCapturedInStep += 1
+              setFaceDetectedStatus(`✅ ĐÃ KHỚP TƯ THẾ '${detectedPose}': ${framesCapturedInStep}/${targetFrames} mẫu`)
+              setStepProgress(Math.min(100, Math.round((framesCapturedInStep / targetFrames) * 100)))
+
+              if (framesCapturedInStep >= targetFrames) {
+                clearInterval(interval)
+                setTimeout(() => {
+                  runStep(stepIndex + 1, accumEmbeddings)
+                }, 400)
+              }
+            } else {
+              setFaceDetectedStatus(`⚠️ Nhận diện tư thế hiện tại: '${detectedPose}'. Vui lòng làm đúng chỉ dẫn: ${currentChallenge.action}`)
             }
           } else {
-            setFaceDetectedStatus('⚠️ Vui lòng điều chỉnh góc mặt đúng chỉ dẫn...')
+            setPoseMatchedStatus(false)
+            setFaceDetectedStatus('⚠️ Vui lòng đưa khuôn mặt vào giữa khung hình tròn...')
           }
         } catch (e) {
           console.error(e)
@@ -94,7 +108,6 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
       }
     }
 
-    // L2 normalization
     const count = accumEmbeddings.length
     for (let i = 0; i < vecLen; i++) {
       meanVector[i] /= count
@@ -123,9 +136,9 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
 
   return (
     <div style={{ marginTop: '24px', background: 'rgba(255, 255, 255, 0.04)', padding: '28px', borderRadius: '20px', border: '1px solid rgba(255, 51, 102, 0.3)', textAlign: 'center' }}>
-      <h2 style={{ color: '#ff3366', marginTop: 0 }}>🛡️ XÁC THỰC eKYC SINH TRÁC HỌC THẬT (YUNET + ARCFACE V2)</h2>
-      <p style={{ color: '#cbd5e1', fontSize: '14px', maxWidth: '650px', margin: '0 auto 20px auto' }}>
-        Sinh viên <strong>{currentUser?.full_name}</strong> bật Web camera, di chuyển đầu theo 4 tư thế để AI quét khuôn mặt trực tiếp (Real-time AI Face Detection & Embedding Extraction như Ngân hàng)!
+      <h2 style={{ color: '#ff3366', marginTop: 0 }}>🛡️ XÁC THỰC eKYC BANK-GRADE (YUNET 5 LANDMARKS + ARCFACE V2)</h2>
+      <p style={{ color: '#cbd5e1', fontSize: '14px', maxWidth: '680px', margin: '0 auto 20px auto' }}>
+        Sinh viên <strong>{currentUser?.full_name}</strong> vui lòng đưa mặt vào **Khung Khuôn Mặt Tròn Oval** và di chuyển đầu theo đúng 4 tư thế AI chỉ dẫn!
       </p>
 
       {msg && <div style={{ background: 'rgba(0, 255, 102, 0.15)', border: '1px solid #00ff66', color: '#00ff66', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '15px', fontWeight: 600 }}>✅ {msg}</div>}
@@ -135,15 +148,15 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
       {capturing && (
         <div style={{
           background: 'rgba(15, 23, 42, 0.95)',
-          border: `2px solid ${currentChallenge.color}`,
+          border: `2px solid ${poseMatchedStatus ? '#00ff66' : currentChallenge.color}`,
           padding: '16px 20px',
           borderRadius: '14px',
           margin: '0 auto 20px auto',
-          maxWidth: '560px',
-          boxShadow: `0 0 20px ${currentChallenge.color}40`,
+          maxWidth: '580px',
+          boxShadow: `0 0 24px ${poseMatchedStatus ? '#00ff6680' : currentChallenge.color + '40'}`,
           transition: 'all 0.3s ease'
         }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: currentChallenge.color, marginBottom: '6px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: poseMatchedStatus ? '#00ff66' : currentChallenge.color, marginBottom: '6px' }}>
             {currentChallenge.instruction}
           </div>
 
@@ -156,23 +169,57 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
             <div style={{
               width: `${stepProgress}%`,
               height: '100%',
-              background: currentChallenge.color,
+              background: poseMatchedStatus ? '#00ff66' : currentChallenge.color,
               transition: 'width 0.15s linear'
             }}></div>
           </div>
         </div>
       )}
 
-      {/* WEBCAM FEED */}
-      <div style={{ margin: '0 auto 24px auto', maxWidth: '520px', borderRadius: '16px', overflow: 'hidden', border: capturing ? `3px solid ${currentChallenge.color}` : '2px solid rgba(255, 255, 255, 0.2)', transition: 'all 0.3s ease', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+      {/* WEBCAM CONTAINER WITH BANKING EKYC FACE OVAL OVERLAY */}
+      <div style={{
+        position: 'relative',
+        margin: '0 auto 24px auto',
+        width: '480px',
+        height: '360px',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        border: capturing ? `3px solid ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}` : '2px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: capturing ? `0 0 30px ${poseMatchedStatus ? 'rgba(0, 255, 102, 0.5)' : 'rgba(0, 240, 255, 0.3)'}` : '0 8px 32px rgba(0,0,0,0.5)',
+        transition: 'all 0.3s ease'
+      }}>
         <Webcam
           audio={false}
           ref={webcamRef}
           screenshotFormat="image/jpeg"
-          width={520}
-          height={390}
-          style={{ display: 'block', width: '100%' }}
+          width={480}
+          height={360}
+          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
         />
+
+        {/* BANKING eKYC OVAL FACE TARGET FRAME OVERLAY */}
+        {capturing && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '240px',
+            height: '300px',
+            borderRadius: '50%',
+            border: `4px dashed ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}`,
+            boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.45), 0 0 20px ${poseMatchedStatus ? '#00ff66' : '#00f0ff'}`,
+            pointerEvents: 'none',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <span style={{ color: poseMatchedStatus ? '#00ff66' : '#00f0ff', fontSize: '12px', fontWeight: 700, background: 'rgba(0,0,0,0.7)', padding: '4px 10px', borderRadius: '12px' }}>
+              {poseMatchedStatus ? '✅ KHUÔN MẶT HỢP LỆ' : '🎯 ĐẶT MẶT VÀO ĐÂY'}
+            </span>
+          </div>
+        )}
       </div>
 
       {!capturing && (
@@ -181,12 +228,12 @@ export default function StudentEkyc({ currentUser, token, onEkycDone }) {
           style={{
             padding: '14px 32px', borderRadius: '12px', border: 'none',
             background: 'linear-gradient(90deg, #ff3366 0%, #7000ff 100%)',
-            color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+            color: '#fff', fontSize: '16px', fontWeight 700, cursor: 'pointer',
             boxShadow: '0 6px 24px rgba(255, 51, 102, 0.5)',
             transition: 'all 0.3s ease'
           }}
         >
-          📸 BẮT ĐẦU XÁC THỰC eKYC THẬT
+          📸 BẮT ĐẦU XÁC THỰC eKYC NGÂN HÀNG
         </button>
       )}
     </div>
