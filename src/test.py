@@ -124,10 +124,10 @@ def main():
         dataset_root = os.path.join("src", raw_root)
     else:
         for candidate in [
+            os.path.join("src", "dataset", "pins"),
+            os.path.join("dataset", "pins"),
             os.path.join("src", "dataset", "vggface2"),
             os.path.join("dataset", "vggface2"),
-            os.path.join("src", "dataset", "pins_face"),
-            os.path.join("dataset", "pins_face"),
         ]:
             if os.path.exists(candidate):
                 dataset_root = candidate

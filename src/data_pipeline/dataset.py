@@ -14,8 +14,54 @@ def read_data(root_path, validation_identity_ratio=0.5, seed=42):
     train_root = os.path.join(root_path, "train")
     holdout_root = os.path.join(root_path, "val")
 
-    if not os.path.isdir(train_root) or not os.path.isdir(holdout_root):
-        raise ValueError("VGGFace2 phai co hai thu muc train va val.")
+    # Ho tro ca thu muc phan loai train/val va thu muc phang (nhu Pins Face)
+    if not (os.path.isdir(train_root) and os.path.isdir(holdout_root)):
+        all_class_names = sorted(
+            name
+            for name in os.listdir(root_path)
+            if os.path.isdir(os.path.join(root_path, name))
+        )
+        if len(all_class_names) < 4:
+            raise ValueError(f"Thu muc {root_path} khong du danh tinh (identity).")
+
+        rng = random.Random(seed)
+        shuffled = all_class_names.copy()
+        rng.shuffle(shuffled)
+
+        n_total = len(shuffled)
+        n_train = max(1, int(n_total * 0.7))
+        n_val = max(1, int(n_total * 0.15))
+
+        split_class_names = {
+            "train": sorted(shuffled[:n_train]),
+            "val": sorted(shuffled[n_train:n_train + n_val]),
+            "test": sorted(shuffled[n_train + n_val:]),
+        }
+        class_names = sorted(all_class_names)
+        class_to_label = {cn: idx for idx, cn in enumerate(class_names)}
+
+        def collect_images_flat(selected_class_names):
+            image_paths = []
+            labels = []
+            for class_name in selected_class_names:
+                class_path = os.path.join(root_path, class_name)
+                class_imgs = [
+                    os.path.join(class_path, img)
+                    for img in sorted(os.listdir(class_path))
+                    if os.path.splitext(img)[1].lower() in IMAGE_EXTENSIONS
+                ]
+                if len(class_imgs) >= 2:
+                    label = class_to_label[class_name]
+                    image_paths.extend(class_imgs)
+                    labels.extend([label] * len(class_imgs))
+            return image_paths, labels
+
+        splits = {
+            "train": collect_images_flat(split_class_names["train"]),
+            "val": collect_images_flat(split_class_names["val"]),
+            "test": collect_images_flat(split_class_names["test"]),
+        }
+        return splits, class_names, split_class_names
 
     train_class_names = sorted(
         name
