@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy app code
+# Copy app code and core AI
 COPY --chown=appuser:appuser web_app/backend/app /app/app
 COPY --chown=appuser:appuser web_app/backend/main.py /app/main.py
 COPY --chown=appuser:appuser src /app/src

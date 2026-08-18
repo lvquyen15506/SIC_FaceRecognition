@@ -4,10 +4,9 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: web_app/backend/Dockerfile
     container_name: sic_facerecognition_backend
     user: "1000:1000"
-    read_only: false
     security_opt:
       - no-new-privileges:true
     ports:
@@ -21,8 +20,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./web_app/frontend
+      dockerfile: Dockerfile
     container_name: sic_facerecognition_frontend
     security_opt:
       - no-new-privileges:true
