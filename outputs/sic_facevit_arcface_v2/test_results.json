@@ -1,28 +1,28 @@
 {
     "checkpoint": "src/checkpoints/sic_facevit_arcface_v2_best.pth",
     "best_epoch": 80,
-    "test_identities": 30,
-    "test_images": 10338,
+    "test_identities": 17,
+    "test_images": 2783,
     "verification_pairs": 10000,
-    "mean_positive_distance": 0.1148530717389658,
-    "mean_negative_distance": 0.24070060043837876,
+    "mean_positive_distance": 0.1322244284017943,
+    "mean_negative_distance": 0.22773825446944684,
     "verification": {
-        "roc_auc": 0.91223788,
-        "eer": 0.1587,
-        "eer_distance_threshold": 0.18443836271762848,
-        "verification_accuracy_at_eer": 0.8413,
-        "tar_at_far_0.01": 0.265,
-        "threshold_at_far_0.01": 0.06522355228662491,
-        "tar_at_far_0.001": 0.0596,
-        "threshold_at_far_0.001": 0.031186824664473534
+        "roc_auc": 0.8278890799999999,
+        "eer": 0.24880000000000002,
+        "eer_distance_threshold": 0.1801796704530716,
+        "verification_accuracy_at_eer": 0.7512,
+        "tar_at_far_0.01": 0.0622,
+        "threshold_at_far_0.01": 0.03956044465303421,
+        "tar_at_far_0.001": 0.0104,
+        "threshold_at_far_0.001": 0.02022147737443447
     },
-    "gallery_images": 150,
-    "probe_images": 10188,
+    "gallery_images": 85,
+    "probe_images": 2698,
     "gallery_images_per_identity": 5,
     "identification": {
-        "recall_at_1": 0.5475068688392639,
-        "recall_at_5": 0.8360816836357117,
-        "mean_average_precision": 0.5061029195785522
+        "recall_at_1": 0.3017049729824066,
+        "recall_at_5": 0.6827279329299927,
+        "mean_average_precision": 0.339806467294693
     },
     "embeddings_path": "outputs/sic_facevit_arcface_v2/test_embeddings.pt"
 }
