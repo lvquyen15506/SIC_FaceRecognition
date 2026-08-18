@@ -1,8 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+const KYC_ANGLES = [
+  { key: 'FRONT', label: '1. Nhìn Thẳng Chính Diện', guide: 'Hãy giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
+  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Hãy quay nhẹ mặt sang bên trái khoảng 20-30 độ', icon: '👈' },
+  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Hãy quay nhẹ mặt sang bên phải khoảng 20-30 độ', icon: '👉' },
+  { key: 'TILT', label: '4. Ngửa Nhẹ Đầu Lên', guide: 'Hãy ngửa nhẹ cằm lên phía trên khoảng 15 độ', icon: '👆' }
+];
+
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [capturedAngles, setCapturedAngles] = useState({});
   const [cameraActive, setCameraActive] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -11,38 +19,59 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
+  const currentAngle = KYC_ANGLES[currentStepIndex];
+
   useEffect(() => {
-    startCamera();
-    return () => stopCamera();
+    let active = true;
+
+    async function startCameraStream() {
+      setErrorMsg('');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: 'user' }
+        });
+
+        if (active) {
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(() => {});
+          }
+          setCameraActive(true);
+        }
+      } catch (err) {
+        if (active) {
+          setCameraActive(false);
+          setErrorMsg('Không thể kết nối Camera. Vui lòng cho phép quyền truy cập Camera trong Cài đặt Trình duyệt và thử lại.');
+        }
+      }
+    }
+
+    startCameraStream();
+
+    return () => {
+      active = false;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
   }, []);
 
-  const startCamera = async () => {
-    setErrorMsg('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraActive(true);
-    } catch (err) {
-      setCameraActive(false);
-      setErrorMsg('Không thể mở Camera. Vui lòng cho phép quyền truy cập Camera hoặc chọn tải tệp ảnh khuôn mặt.');
+  // Ensure video plays when element mounts or updates
+  const handleVideoCanPlay = () => {
+    if (videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
-  const handleCapture = () => {
+  const captureAndSaveAngle = async () => {
     if (!videoRef.current || !canvasRef.current) return;
+
+    setIsProcessing(true);
+    setErrorMsg('');
+    setStatusMsg(`AI đang phân tích & trích xuất vector góc mặt ${currentAngle.label}...`);
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -50,32 +79,12 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     canvas.height = video.videoHeight || 480;
 
     const ctx = canvas.getContext('2d');
-    // Mirror horizontally for natural view
+    // Mirror horizontally for natural camera feed
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const base64 = canvas.toDataURL('image/jpeg', 0.9);
-    setCapturedImage(base64);
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCapturedImage(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRegisterFace = async () => {
-    if (!capturedImage) return;
-
-    setIsProcessing(true);
-    setStatusMsg('AI đang phân tích khuôn mặt & trích xuất Đặc trưng Vector 512-d...');
-    setErrorMsg('');
+    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
     try {
       const res = await fetch('/api/v1/enrollment/save-face', {
@@ -85,19 +94,31 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          angle_label: 'FRONT',
-          image_base64: capturedImage
+          angle_label: currentAngle.key,
+          image_base64: base64Image
         })
       });
 
       const data = await res.json();
       if (res.ok) {
-        setStatusMsg('✓ ĐĂNG KÝ KHUÔN MẶT THÀNH CÔNG! Đang mở khóa hệ thống...');
-        setTimeout(() => {
-          onKycSuccess();
-        }, 1200);
+        const newCaptured = { ...capturedAngles, [currentAngle.key]: base64Image };
+        setCapturedAngles(newCaptured);
+        setStatusMsg(`✓ Đã ghi nhận góc mặt: ${currentAngle.label}`);
+
+        if (currentStepIndex < KYC_ANGLES.length - 1) {
+          setTimeout(() => {
+            setCurrentStepIndex(prev => prev + 1);
+            setStatusMsg('');
+          }, 800);
+        } else {
+          // Completed all 4 KYC angles!
+          setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
+          setTimeout(() => {
+            onKycSuccess();
+          }, 1500);
+        }
       } else {
-        setErrorMsg(data.detail || 'Khuôn mặt chưa đạt tiêu chuẩn. Vui lòng nhìn thẳng và đảm bảo đủ ánh sáng.');
+        setErrorMsg(data.detail || 'Khuôn mặt chưa khớp với yêu cầu góc quét. Vui lòng làm theo đúng hướng dẫn!');
       }
     } catch (err) {
       setErrorMsg('Lỗi kết nối khi gửi dữ liệu khuôn mặt.');
@@ -109,26 +130,44 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   return (
     <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="glass-card rounded-3xl p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-6 my-auto">
-        {/* Header Alert */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
-                🛡️ Yêu Cầu Xác Thực Bắt Buộc (Face KYC)
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold text-white mt-2">Đăng Ký Dữ Liệu Khuôn Mặt Để Vào Hệ Thống</h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Tài khoản <span className="text-indigo-400 font-semibold">{user.full_name} ({user.code})</span> chưa có dữ liệu điểm danh. Bạn cần đăng ký ảnh mặt chính diện để mở khóa tính năng hệ thống.
-            </p>
+        {/* Header Alert & Progress */}
+        <div className="space-y-3 border-b border-slate-800 pb-4">
+          <div className="flex items-center justify-between">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
+              🛡️ Quy Trình Xác Thực Live KYC 4 Góc Mặt
+            </span>
+            <button
+              onClick={onLogout}
+              className="text-xs text-slate-400 hover:text-red-400 font-semibold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 transition"
+            >
+              Đăng Xuất
+            </button>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="text-xs text-slate-400 hover:text-red-400 font-semibold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 transition"
-          >
-            Đăng Xuất
-          </button>
+          <h2 className="text-2xl font-bold text-white">
+            Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
+          </h2>
+
+          {/* 4 Steps Progress Bar */}
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            {KYC_ANGLES.map((ang, idx) => (
+              <div
+                key={ang.key}
+                className={`p-2 rounded-xl border text-center transition ${
+                  idx === currentStepIndex
+                    ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/30'
+                    : capturedAngles[ang.key]
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+              >
+                <div className="text-xs font-bold">{ang.icon} {ang.key}</div>
+                <div className="text-[10px] mt-0.5 font-semibold">
+                  {capturedAngles[ang.key] ? '✓ Đã quét' : idx === currentStepIndex ? 'Đang thực hiện' : 'Chờ'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Status & Error Alerts */}
@@ -144,89 +183,63 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         )}
 
-        {/* Main Camera / Captured Image Preview Area */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 aspect-video flex items-center justify-center">
+        {/* Guidance Banner for Active Angle */}
+        <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
+          <span className="text-3xl">{currentAngle.icon}</span>
+          <div>
+            <div className="text-sm font-bold text-white">Bước {currentStepIndex + 1}/4: {currentAngle.label}</div>
+            <div className="text-xs text-indigo-300 mt-0.5">{currentAngle.guide}</div>
+          </div>
+        </div>
+
+        {/* Live Camera Video Feed Box */}
+        <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-video flex items-center justify-center shadow-inner">
           <canvas ref={canvasRef} className="hidden" />
 
-          {capturedImage ? (
-            <img
-              src={capturedImage}
-              alt="Captured face"
-              className="w-full h-full object-cover rounded-2xl"
-            />
-          ) : cameraActive ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover camera-mirror-preview rounded-2xl"
-            />
-          ) : (
-            <div className="text-center p-6 text-slate-500 text-xs">
-              <span>Camera chưa sẵn sàng. Bạn có thể chọn file ảnh bên dưới.</span>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            onCanPlay={handleVideoCanPlay}
+            className="w-full h-full object-cover camera-mirror-preview rounded-2xl"
+          />
+
+          {!cameraActive && (
+            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center space-y-3 z-10">
+              <span className="text-3xl">🎥</span>
+              <p className="text-xs text-slate-300 font-semibold max-w-sm">
+                Vui lòng kiểm tra biểu tượng Camera trên thanh địa chỉ trình duyệt và bấm "Cho phép" (Allow) để kích hoạt Live Camera KYC.
+              </p>
             </div>
           )}
 
-          {/* Camera Frame Overlay */}
-          <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-2xl pointer-events-none flex items-center justify-center">
-            <div className="w-56 h-64 border-2 border-dashed border-indigo-400/50 rounded-full flex items-center justify-center">
-              <span className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider bg-slate-900/80 px-2 py-1 rounded">
-                Đặt Khuôn Mặt Vào Khung
+          {/* Dynamic Oval Target Guideline */}
+          <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-2xl pointer-events-none flex items-center justify-center">
+            <div className="w-56 h-64 border-2 border-dashed border-indigo-400/60 rounded-full flex flex-col items-center justify-center bg-indigo-950/10 backdrop-blur-[1px]">
+              <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider bg-slate-900/90 px-3 py-1.5 rounded-full border border-indigo-500/30 shadow-lg">
+                {currentAngle.icon} {currentAngle.key}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {!capturedImage ? (
-              <button
-                type="button"
-                onClick={handleCapture}
-                disabled={!cameraActive}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg transition flex items-center gap-2 disabled:opacity-50"
-              >
-                📷 Chụp Ảnh Trực Tiếp Từ Camera
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCapturedImage(null)}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition"
-              >
-                🔄 Chụp Lại / Chọn Ảnh Khác
-              </button>
-            )}
-
-            <label className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl border border-slate-800 cursor-pointer transition flex items-center gap-1.5">
-              📁 Tải Ảnh Từ Máy Tính
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleRegisterFace}
-            disabled={!capturedImage || isProcessing}
-            className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isProcessing ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span>AI Đang Kiểm Tra Chất Lượng &amp; Lưu Vector 512-d...</span>
-              </>
-            ) : (
-              '🚀 Xác Thực & Đăng Ký Khuôn Mặt Để Vào Hệ Thống'
-            )}
-          </button>
-        </div>
+        {/* Main Action Button */}
+        <button
+          type="button"
+          onClick={captureAndSaveAngle}
+          disabled={!cameraActive || isProcessing}
+          className="w-full py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isProcessing ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>AI Đang Kiểm Tra &amp; Trích Xuất Vector...</span>
+            </>
+          ) : (
+            `📷 Quét &amp; Đăng Ký Góc Mặt: ${currentAngle.label}`
+          )}
+        </button>
       </div>
     </div>
   );
