@@ -10,7 +10,7 @@ const KYC_ANGLES = [
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedAngles, setCapturedAngles] = useState({});
-  const [cameraActive, setCameraActive] = useState(false);
+  const [hasCameraStream, setHasCameraStream] = useState(false);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [statusMsg, setStatusMsg] = useState('');
@@ -18,48 +18,67 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const streamRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   const currentAngle = KYC_ANGLES[currentStepIndex];
 
   useEffect(() => {
-    startCamera();
-    return () => stopCamera();
+    initCameraStream();
+    return () => {
+      stopCameraStream();
+    };
   }, []);
 
-  const startCamera = async () => {
+  const initCameraStream = async () => {
     setErrorMsg('');
     try {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
       });
-      streamRef.current = stream;
+
+      mediaStreamRef.current = stream;
+      setHasCameraStream(true);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
       }
-      setCameraActive(true);
     } catch (err) {
-      setCameraActive(false);
-      setErrorMsg('Không thể mở Camera. Vui lòng kiểm tra và cho phép quyền truy cập Camera trong trình duyệt.');
+      setHasCameraStream(false);
+      setErrorMsg('Không thể truy cập Camera. Vui lòng nhấn nút "Cho Phép" (Allow) trên trình duyệt hoặc bấm nút Kích Hoạt Camera bên dưới.');
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+  const stopCameraStream = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
     }
-    setCameraActive(false);
+    setHasCameraStream(false);
   };
+
+  // Keep video element attached to stream whenever element updates
+  useEffect(() => {
+    if (videoRef.current && mediaStreamRef.current) {
+      videoRef.current.srcObject = mediaStreamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  });
 
   // Single Start Button triggers Automatic 4-Angle Scanner Sequence
   const startAutoScanSequence = async () => {
+    if (!hasCameraStream) {
+      await initCameraStream();
+    }
+
     setIsAutoScanning(true);
     setErrorMsg('');
     setStatusMsg('🚀 Bắt đầu quy trình tự động quét 4 góc mặt KYC...');
-    
-    // Execute sequence from step 0 to step 3
+
     let localCaptured = { ...capturedAngles };
 
     for (let i = 0; i < KYC_ANGLES.length; i++) {
@@ -74,19 +93,19 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       }
 
       setCountdown(null);
-      setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] AI đang phân tích & trích xuất vector...`);
+      setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] AI đang trích xuất & kiểm tra chất lượng vector...`);
 
       const success = await captureAndSaveSingleAngle(angleConfig.key);
 
       if (success) {
         localCaptured[angleConfig.key] = true;
         setCapturedAngles({ ...localCaptured });
-        setStatusMsg(`✓ Đã lưu góc mặt ${i + 1}/4: ${angleConfig.label}`);
+        setStatusMsg(`✓ Đã lưu thành công góc mặt ${i + 1}/4: ${angleConfig.label}`);
         await new Promise(r => setTimeout(r, 800));
       } else {
         // Retry current step
-        setStatusMsg(`⚠️ Thử lại góc ${angleConfig.label}...`);
-        i--; // Repeat loop index
+        setStatusMsg(`⚠️ Góc ${angleConfig.label} chưa đạt. Đang thử lại...`);
+        i--; // Repeat current angle
         await new Promise(r => setTimeout(r, 1500));
       }
     }
@@ -127,14 +146,9 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       });
 
       const data = await res.json();
-      if (res.ok) {
-        return true;
-      } else {
-        setErrorMsg(data.detail || 'Khuôn mặt chưa đạt tiêu chuẩn. Đang thử lại...');
-        return false;
-      }
+      return res.ok;
     } catch (err) {
-      setErrorMsg('Lỗi kết nối khi gửi dữ liệu khuôn mặt.');
+      setErrorMsg('Lỗi gửi dữ liệu khuôn mặt.');
       return false;
     }
   };
@@ -171,7 +185,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
                   key={ang.key}
                   className={`p-3 rounded-2xl border text-center transition-all ${
                     isDone
-                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-600/10 ring-1 ring-emerald-500/30'
+                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-600/10 ring-1 ring-emerald-500/30'
                       : isCurrent
                       ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/40 animate-pulse'
                       : 'bg-slate-900 border-slate-800 text-slate-500'
@@ -189,8 +203,15 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
         {/* Status & Error Alerts */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2">
-            ⚠️ {errorMsg}
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-between gap-2">
+            <span>⚠️ {errorMsg}</span>
+            <button
+              type="button"
+              onClick={initCameraStream}
+              className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold"
+            >
+              Thử Mở Lại Cam
+            </button>
           </div>
         )}
 
@@ -209,36 +230,30 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         </div>
 
-        {/* Live Camera Feed Container */}
+        {/* Live Camera Feed Box */}
         <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-video flex items-center justify-center shadow-inner">
           <canvas ref={canvasRef} className="hidden" />
 
           <video
-            ref={(el) => {
-              videoRef.current = el;
-              if (el && streamRef.current && el.srcObject !== streamRef.current) {
-                el.srcObject = streamRef.current;
-                el.play().catch(() => {});
-              }
-            }}
+            ref={videoRef}
             autoPlay
             playsInline
             muted
             className="w-full h-full object-cover camera-mirror-preview rounded-2xl"
           />
 
-          {!cameraActive && (
-            <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center space-y-3 z-10">
-              <span className="text-3xl">🎥</span>
+          {!hasCameraStream && (
+            <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
+              <span className="text-4xl animate-bounce">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
-                Vui lòng kiểm tra biểu tượng Camera trên thanh địa chỉ trình duyệt và bấm "Cho phép" (Allow) để kích hoạt Live Camera KYC.
+                Nhấn nút bên dưới để cho phép trình duyệt kích hoạt Camera Laptop trực tiếp.
               </p>
               <button
                 type="button"
-                onClick={startCamera}
-                className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl"
+                onClick={initCameraStream}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
               >
-                Mở Lại Camera
+                🎥 Bật / Kích Hoạt Camera Laptop
               </button>
             </div>
           )}
@@ -266,7 +281,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <button
           type="button"
           onClick={startAutoScanSequence}
-          disabled={!cameraActive || isAutoScanning}
+          disabled={isAutoScanning}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isAutoScanning ? (
