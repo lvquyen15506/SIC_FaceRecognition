@@ -5,6 +5,8 @@ import os
 import io
 import json
 import datetime
+import cv2
+import numpy as np
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -74,7 +76,7 @@ def get_class_attendance_sessions(
 @router.post("/{class_id}/batch-process")
 async def process_batch_attendance(
     class_id: int,
-    session_title: str = Form("Buổi điểm danh"),
+    session_title: str = Form("Buổi điểm danh lớp học"),
     session_date: str = Form(None),
     files: List[UploadFile] = File(...),
     current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
@@ -126,7 +128,7 @@ async def process_batch_attendance(
         with open(raw_save_path, "wb") as f:
             f.write(contents)
 
-        is_video = upload.content_type.startswith("video") or filename.lower().endswith(('.mp4', '.avi', '.mov'))
+        is_video = upload.content_type.startswith("video") or filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
 
         if not is_video:
             # Process Image
@@ -146,20 +148,39 @@ async def process_batch_attendance(
                 status="COMPLETED"
             )
         else:
-            # Process Video
-            processed_bytes, results = process_classroom_image(contents[:1024*100], student_gallery)
-            with open(processed_save_path, "wb") as f:
-                f.write(processed_bytes)
+            # Process Video with OpenCV VideoCapture
+            cap = cv2.VideoCapture(raw_save_path)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if cap.isOpened() else 0
+            best_processed_bytes = None
+            
+            if frame_count > 0:
+                sample_indices = np.linspace(0, max(0, frame_count - 1), num=min(5, max(1, frame_count)), dtype=int)
+                for f_idx in sample_indices:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, f_idx)
+                    ret, frame = cap.read()
+                    if ret and frame is not None:
+                        frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+                        p_bytes, results = process_classroom_image(frame_bytes, student_gallery)
+                        if best_processed_bytes is None or len(results) > 0:
+                            best_processed_bytes = p_bytes
+                        for res in results:
+                            if res["code"] != "UNKNOWN":
+                                detected_user_codes.add(res["code"])
+            cap.release()
 
-            for res in results:
-                if res["code"] != "UNKNOWN":
-                    detected_user_codes.add(res["code"])
+            if best_processed_bytes is None:
+                best_processed_bytes, _ = process_classroom_image(contents, student_gallery)
+
+            # Save the processed keyframe image with .jpg extension for display preview
+            processed_img_path = processed_save_path + ".jpg"
+            with open(processed_img_path, "wb") as f:
+                f.write(best_processed_bytes)
 
             media_rec = SessionMediaFile(
                 session_id=session.id,
                 media_type="VIDEO",
                 raw_file_path=raw_save_path,
-                processed_file_path=processed_save_path,
+                processed_file_path=processed_img_path,
                 status="COMPLETED"
             )
 
@@ -202,6 +223,7 @@ async def process_batch_attendance(
     return {
         "session_id": session.id,
         "session_date": session.session_date,
+        "title": session.title,
         "total_files_processed": len(files),
         "total_students": len(all_students),
         "present_count": len(detected_user_codes),
@@ -215,7 +237,9 @@ def get_processed_media(media_id: int, db: Session = Depends(get_db)):
     media = db.query(SessionMediaFile).filter(SessionMediaFile.id == media_id).first()
     if not media or not os.path.exists(media.processed_file_path):
         raise HTTPException(status_code=404, detail="Media file not found")
-    return FileResponse(media.processed_file_path)
+    
+    media_type = "image/jpeg" if media.processed_file_path.endswith(".jpg") or media.media_type == "IMAGE" else "video/mp4"
+    return FileResponse(media.processed_file_path, media_type=media_type)
 
 @router.get("/export-excel/{session_id}")
 def export_attendance_excel(session_id: int, db: Session = Depends(get_db)):
