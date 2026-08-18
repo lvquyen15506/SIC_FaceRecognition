@@ -14,7 +14,11 @@ COPY --chown=appuser:appuser data_gallery /app/data_gallery
 COPY --chown=appuser:appuser reports /app/reports
 COPY --chown=appuser:appuser web_app/backend/data /app/web_app/backend/data
 
-# Pre-compiled wheels (opencv-python-headless & psycopg2-binary do not require apt system libs)
+# Ensure data directories exist and belong to appuser
+RUN mkdir -p /app/data_gallery /app/reports /app/web_app/backend/data/uploads && \
+    chown -R appuser:appuser /app
+
+# Ultra-lightweight ONNX Runtime inference engine (only ~15MB instead of 800MB PyTorch)
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
@@ -26,7 +30,7 @@ RUN pip install --no-cache-dir \
     openpyxl \
     opencv-python-headless \
     pillow \
-    torch \
+    onnxruntime \
     numpy
 
 # Switch to non-root user

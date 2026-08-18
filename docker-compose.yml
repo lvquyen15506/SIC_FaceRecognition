@@ -12,6 +12,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sic_user -d sic_facerecognition"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
     networks:
       - sic_network
     restart: unless-stopped
@@ -32,8 +37,11 @@ services:
     environment:
       - SECRET_KEY=sic_face_recognition_super_secret_jwt_key_2026
       - DATABASE_URL=postgresql://sic_user:sic_password_2026@db:5432/sic_facerecognition
+      - GALLERY_PATH=/app/data_gallery
+      - REPORTS_PATH=/app/reports
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - sic_network
     restart: unless-stopped
