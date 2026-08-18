@@ -21,6 +21,42 @@ def generate_class_code() -> str:
     chars = string.ascii_uppercase + string.digits
     return "SIC-" + "".join(random.choices(chars, k=6))
 
+@router.get("/search-students")
+def search_students(query: str = "", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = db.query(User).filter(User.role == "STUDENT")
+    if query.strip():
+        term = f"%{query.strip()}%"
+        q = q.filter(
+            (User.full_name.ilike(term)) |
+            (User.code.ilike(term)) |
+            (User.email.ilike(term))
+        )
+    students = q.limit(20).all()
+    return [{
+        "id": s.id,
+        "code": s.code,
+        "full_name": s.full_name,
+        "email": s.email
+    } for s in students]
+
+@router.get("/search-teachers")
+def search_teachers(query: str = "", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = db.query(User).filter(User.role.in_(["TEACHER", "ADMIN"]))
+    if query.strip():
+        term = f"%{query.strip()}%"
+        q = q.filter(
+            (User.full_name.ilike(term)) |
+            (User.code.ilike(term)) |
+            (User.email.ilike(term))
+        )
+    teachers = q.limit(20).all()
+    return [{
+        "id": t.id,
+        "code": t.code,
+        "full_name": t.full_name,
+        "email": t.email
+    } for t in teachers]
+
 @router.post("/create", response_model=ClassResponse)
 def create_class(
     class_data: ClassCreate,

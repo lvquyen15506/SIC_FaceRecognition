@@ -14,13 +14,15 @@ export default function TeacherDashboard({ user, token }) {
   const [teacherList, setTeacherList] = useState([]);
   const [studentList, setStudentList] = useState([]);
 
-  // Modals for adding Student / Co-Teacher
+  // Modals for adding Student / Co-Teacher with Autocomplete Suggestions
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [studentQuery, setStudentQuery] = useState('');
+  const [studentSuggestions, setStudentSuggestions] = useState([]);
   const [isAddingStudent, setIsAddingStudent] = useState(false);
 
   const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
   const [teacherQuery, setTeacherQuery] = useState('');
+  const [teacherSuggestions, setTeacherSuggestions] = useState([]);
   const [isAddingTeacher, setIsAddingTeacher] = useState(false);
 
   // Attendance Studio & History State
@@ -45,6 +47,26 @@ export default function TeacherDashboard({ user, token }) {
     }
   }, [selectedClass]);
 
+  // Real-time Autocomplete Search for Students
+  useEffect(() => {
+    if (showAddStudentModal) {
+      const timer = setTimeout(() => {
+        searchStudents(studentQuery);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [studentQuery, showAddStudentModal]);
+
+  // Real-time Autocomplete Search for Teachers
+  useEffect(() => {
+    if (showAddTeacherModal) {
+      const timer = setTimeout(() => {
+        searchTeachers(teacherQuery);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [teacherQuery, showAddTeacherModal]);
+
   const fetchMyClasses = async () => {
     try {
       const res = await fetch('/api/v1/classes/my-classes', {
@@ -56,6 +78,30 @@ export default function TeacherDashboard({ user, token }) {
         if (data.length > 0 && !selectedClass) {
           setSelectedClass(data[0]);
         }
+      }
+    } catch (err) {}
+  };
+
+  const searchStudents = async (q) => {
+    try {
+      const res = await fetch(`/api/v1/classes/search-students?query=${encodeURIComponent(q)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStudentSuggestions(data);
+      }
+    } catch (err) {}
+  };
+
+  const searchTeachers = async (q) => {
+    try {
+      const res = await fetch(`/api/v1/classes/search-teachers?query=${encodeURIComponent(q)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTeacherSuggestions(data);
       }
     } catch (err) {}
   };
@@ -282,30 +328,57 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Add Co-Teacher Modal */}
+      {/* Add Co-Teacher Modal with Autocomplete Dropdown */}
       {showAddTeacherModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4">
+          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4 relative">
             <h3 className="text-xl font-bold text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
-            <p className="text-xs text-slate-400">Nhập Mã Giảng viên (GVxxx) hoặc Email để thêm đồng quản lý lớp</p>
+            <p className="text-xs text-slate-400">Gõ tên, mã GV hoặc email để chọn giảng viên từ danh sách gợi ý</p>
 
             <form onSubmit={handleAddTeacher} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Mã GV / Email Giảng Viên</label>
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Mã GV / Tên / Email Giảng Viên</label>
                 <input
                   type="text"
                   required
                   value={teacherQuery}
                   onChange={(e) => setTeacherQuery(e.target.value)}
-                  placeholder="VD: GV002 hoặc teacher2@sic.edu.vn"
+                  placeholder="Gõ để tìm kiếm: VD: GV002 hoặc Giảng viên..."
                   className="w-full px-4 py-3 rounded-xl glass-input text-sm"
                 />
+
+                {/* Autocomplete Dropdown */}
+                {teacherSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20 divide-y divide-slate-800">
+                    {teacherSuggestions.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          setTeacherQuery(t.code);
+                          setTeacherSuggestions([]);
+                        }}
+                        className="p-3 hover:bg-indigo-600/20 cursor-pointer transition flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-white">{t.full_name}</span>
+                          <span className="text-slate-400 ml-2 font-mono-grotesk">({t.email})</span>
+                        </div>
+                        <span className="font-mono-grotesk font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                          {t.code}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddTeacherModal(false)}
+                  onClick={() => {
+                    setShowAddTeacherModal(false);
+                    setTeacherSuggestions([]);
+                  }}
                   className="flex-1 py-3 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl"
                 >
                   Hủy Bỏ
@@ -323,30 +396,57 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Add Student Modal */}
+      {/* Add Student Modal with Autocomplete Dropdown */}
       {showAddStudentModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4">
+          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4 relative">
             <h3 className="text-xl font-bold text-white">Thêm Sinh Viên Vào Lớp</h3>
-            <p className="text-xs text-slate-400">Nhập Mã Sinh Viên (MSSV) hoặc Email sinh viên để thêm vào danh sách</p>
+            <p className="text-xs text-slate-400">Gõ MSSV, Tên hoặc Email sinh viên để chọn từ danh sách gợi ý</p>
 
             <form onSubmit={handleAddStudent} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">MSSV / Email Sinh Viên</label>
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">MSSV / Tên / Email Sinh Viên</label>
                 <input
                   type="text"
                   required
                   value={studentQuery}
                   onChange={(e) => setStudentQuery(e.target.value)}
-                  placeholder="VD: SV001 hoặc student@sic.edu.vn"
+                  placeholder="Gõ để tìm kiếm: VD: SV001 hoặc Nguyễn..."
                   className="w-full px-4 py-3 rounded-xl glass-input text-sm"
                 />
+
+                {/* Autocomplete Dropdown */}
+                {studentSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20 divide-y divide-slate-800">
+                    {studentSuggestions.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => {
+                          setStudentQuery(st.code);
+                          setStudentSuggestions([]);
+                        }}
+                        className="p-3 hover:bg-emerald-600/20 cursor-pointer transition flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-white">{st.full_name}</span>
+                          <span className="text-slate-400 ml-2 font-mono-grotesk">({st.email})</span>
+                        </div>
+                        <span className="font-mono-grotesk font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          {st.code}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddStudentModal(false)}
+                  onClick={() => {
+                    setShowAddStudentModal(false);
+                    setStudentSuggestions([]);
+                  }}
                   className="flex-1 py-3 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl"
                 >
                   Hủy Bỏ
