@@ -2,8 +2,8 @@
 
 > **Dự án**: `SIC_FaceRecognition`  
 > **Cấp độ**: Master Enterprise & UI/UX Specification  
-> **Phiên bản**: v4.3 Master  
-> **Trạng thái**: 🟡 Hoàn thiện 100% (Bổ sung Bộ tiêu chuẩn Kiểm tra Chất lượng Ảnh chi tiết: Chói/Tối, Quá Xa/Quá Gần, Mờ/Nét khi đăng ký mặt) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
+> **Phiên bản**: v4.4 Master  
+> **Trạng thái**: 🟡 Hoàn thiện 100% (Bổ sung Xử lý Lật Gương Camera Preview & Tự động Chuyển hướng Dashboard theo Role khi Đăng nhập) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
 
 ---
 
@@ -34,57 +34,54 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
                                              │
       ┌──────────────────────────────────────┼──────────────────────────────────────┐
       ▼                                      ▼                                      ▼
-[ PHÂN HỆ SINH VIÊN ]               [ PHÂN HỆ GIẢNG VIÊN ]               [ PHÂN HỆ SUPER ADMIN ]
-├── Auth & Login                    ├── Auth & Login                    ├── Admin Control Center
-├── Đăng ký Mặt Đa góc (Chất lượng)├── Dashboard Lớp giảng dạy         ├── Quản lý User (SV/GV/Admin)
-└── Portal Cá nhân & Join Lớp       ├── Quản lý Lớp (Tên Lớp + Chủ đề)   ├── Quản lý Lớp toàn trường
-                                    ├── Đồng Quản lý (Co-Teaching)       ├── Giám sát CSDL Sinh trắc
-                                    ├── Studio Upload Hàng Loạt Đa Tệp   └── Audit Logs & Config AI
-                                    └── Mục Báo cáo & Xuất Excel
+[ MÀN HÌNH ĐẮNG NHẬP THÔNG MINH ]    [ ĐĂNG KÝ MẶT CÓ LẬT GƯƠNG ]         [ TỰ ĐỘNG CHUYỂN HƯỚNG DASHBOARD ]
+(Không cần chọn Tab Role)             (Mirror View CSS scaleX(-1))           (Role: STUDENT / TEACHER / ADMIN)
 ```
 
 ---
 
-### 🖥️ MÀN HÌNH 1: GIAO DIỆN ĐĂNG NHẬP & XÁC THỰC (AUTH & LOGIN)
+### 🖥️ MÀN HÌNH 1: ĐĂNG NHẬP THÔNG MINH & TỰ ĐỘNG CHUYỂN HƯỚNG theo ROLE
+- **Đơn giản hóa Đăng nhập**: Không cần chọn Tab vai trò thủ công.
 - **Layout**: Card Glassmorphic căn giữa trên nền Midnight có hiệu ứng mờ nhòe ánh sáng xanh (Ambient Blue Glow).
 - **Thành phần**:
-  - Tab chuyển đổi vai trò nhanh: **Sinh viên** | **Giảng viên** | **Quản trị viên (Admin)**.
-  - Ô nhập Email / Mã số (MSSV/MGV) + Mật khẩu.
-  - Nút bấm chính "Đăng Nhập" (Màu Electric Blue `#2563EB`).
+  - Ô nhập Tên đăng nhập / Email / Mã số (MSSV/MGV/Admin ID).
+  - Ô nhập Mật khẩu.
+  - Nút bấm "Đăng Nhập" (Màu Electric Blue `#2563EB`).
+- **Cơ chế Auto-Role Redirection**:
+  - Khi đăng nhập thành công, Hệ thống tự đọc trường `role` trong JWT Token và tự động chuyển hướng:
+    - `role == "STUDENT"` ➔ Tự động vào **Portal Sinh viên (Màn hình 3)**.
+    - `role == "TEACHER"` ➔ Tự động vào **Workspace Giảng viên (Màn hình 4)**.
+    - `role == "ADMIN"` ➔ Tự động vào **Admin Control Center (Màn hình 6)**.
 
 ---
 
-### 🖥️ MÀN HÌNH 2: GIAO DIỆN ĐĂNG KÝ KHUÔN MẶT ĐA GÓC ĐỘ & ĐÁNH GIÁ CHẤT LƯỢNG MÔI TRƯỜNG
+### 🖥️ MÀN HÌNH 2: GIAO DIỆN ĐĂNG KÝ KHUÔN MẶT ĐA GÓC ĐỘ (XỬ LÝ LẬT GƯƠNG CAMERA)
 
-Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration) được thiết kế chi tiết với **Bộ tiêu chuẩn đánh giá chất lượng ảnh tự động**:
+Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration) được tích hợp **Xử lý Lật Gương (Camera Mirroring)** và **Đánh giá chất lượng môi trường**:
 
 - **Layout**: Màn hình toàn cảnh camera tập trung với khung hướng dẫn Oval HUD.
-- **Thành phần**:
-  - **Khung Camera Viewport**: Tỷ lệ 4:3 với **Oval Guide Ring** (Vòng elip quét mặt ở chính giữa).
+- **Xử lý Lật Gương Camera Preview (Natural Mirror View)**:
+  - Áp dụng CSS `transform: scaleX(-1)` cho khung hiển thị `<video>` preview để người dùng di chuyển sang trái/phải một cách tự nhiên như soi gương (không bị ngược chiều).
+  - Khung ảnh gửi sang AI `src/` để trích xuất vector vẫn giữ nguyên chiều thực tế để đảm bảo độ chính xác.
 
-#### 🎯 BỘ TIÊU CHUẨN ĐÁNH GIÁ CHẤT LƯỢNG ẢNH TỰ ĐỘNG (IMAGE QUALITY CHECKS):
+#### 🎯 BỘ TIÊU CHUẨN ĐÁNH GIÁ CHẤT LƯỢNG ẢNH TỰ ĐỘNG:
 
 1. **Kiểm tra Điều kiện Ánh sáng (Illumination Check)**:
-   - 🌑 **Ánh sáng quá tối (Too Dark)**: Cường độ sáng $\text{Brightness} < 70/255$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ánh sáng quá tối, vui lòng bật thêm đèn hoặc di chuyển ra vùng sáng"*.
-   - ☀️ **Ánh sáng quá chói / Ngược sáng (Overexposed / Backlit)**: Cường độ sáng $\text{Brightness} > 210/255$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ánh sáng quá chói hoặc ngược sáng, vui lòng tránh nguồn sáng mạnh chiếu trực tiếp vào camera"*.
-   - ✅ **Ánh sáng đạt chuẩn (Optimal Illumination)**: $70 \le \text{Brightness} \le 210$.
+   - 🌑 **Ánh sáng quá tối**: Cường độ sáng $< 70/255$ ➔ Đèn Vàng + Cảnh báo: *"Ánh sáng quá tối, vui lòng bật thêm đèn hoặc di chuyển ra vùng sáng"*.
+   - ☀️ **Ánh sáng quá chói / Ngược sáng**: Cường độ sáng $> 210/255$ ➔ Đèn Vàng + Cảnh báo: *"Ánh sáng quá chói hoặc ngược sáng, vui lòng tránh nguồn sáng mạnh chiếu trực tiếp vào camera"*.
+   - ✅ **Ánh sáng đạt chuẩn**: $70 \le \text{Brightness} \le 210$.
 
 2. **Kiểm tra Khoảng cách tới Camera (Distance Check)**:
-   - 🔍 **Mặt ở quá xa Camera (Too Far)**: Diện tích khuôn mặt chiếm $< 20\%$ diện tích khung Oval ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Vui lòng di chuyển mặt LẠI GẦN camera hơn"*.
-   - 🔬 **Mặt ở quá gần Camera (Too Close)**: Diện tích khuôn mặt chiếm $> 65\%$ diện tích khung Oval ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Vui lòng lùi mặt RA XA camera một chút"*.
-   - ✅ **Khoảng cách đạt chuẩn (Optimal Distance)**: Diện tích khuôn mặt chiếm $25\% \text{ đến } 55\%$ khung Oval.
+   - 🔍 **Mặt ở quá xa Camera**: Diện tích mặt $< 20\%$ khung Oval ➔ Đèn Vàng + Cảnh báo: *"Vui lòng di chuyển mặt LẠI GẦN camera hơn"*.
+   - 🔬 **Mặt ở quá gần Camera**: Diện tích mặt $> 65\%$ khung Oval ➔ Đèn Vàng + Cảnh báo: *"Vui lòng lùi mặt RA XA camera một chút"*.
+   - ✅ **Khoảng cách đạt chuẩn**: Diện tích mặt chiếm $25\% \text{ đến } 55\%$ khung Oval.
 
-3. **Kiểm tra Độ nét & Mờ (Blur & Sharpness Check)**:
-   - 💨 **Mặt bị mờ (Blurry)**: Giá trị Laplacian Variance $< 100$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ảnh bị mờ, xin hãy giữ yên đầu trong giây lát"*.
-   - ✅ **Độ nét đạt chuẩn (Sharp & Clear)**: Giá trị Laplacian Variance $\ge 100$.
+3. **Kiểm tra Độ nét & Mờ (Blur Check)**:
+   - 💨 **Mặt bị mờ**: Laplacian Variance $< 100$ ➔ Cảnh báo: *"Ảnh bị mờ, xin hãy giữ yên đầu trong giây lát"*.
+   - ✅ **Độ nét đạt chuẩn**: Laplacian Variance $\ge 100$.
 
-4. **Kiểm tra Góc quay Đa góc (Multi-Angle Pose Collection)**:
-   - Khi Ánh sáng, Khoảng cách và Độ nét **TẤT CẢ ĐỀU ĐẠT (PASS)** ➔ Vòng Ring chuyển sang **MÀU XANH LÁ** và tự động chụp/trích xuất Vector 512-d cho 4 góc mặt:
-     - **Góc 1**: Trực diện (Looking Straight).
-     - **Góc 2**: Nghiêng trái $30^\circ$ (Turn Left).
-     - **Góc 3**: Nghiêng phải $30^\circ$ (Turn Right).
-     - **Góc 4**: Cúi/Ngẩng mặt nhẹ (Tilt Up/Down).
-   - Sau khi hoàn thành 4/4 góc, Vector 512-d được lưu đồng bộ trực tiếp vào `src/app_modules/gallery.py` (`data_gallery/`).
+4. **Thu thập 4 Góc mặt**:
+   - Đạt chuẩn ➔ Vòng Oval hiện **MÀU XANH LÁ** và tự động lưu 4 góc mặt (Trực diện ➔ Nghiêng trái $30^\circ$ ➔ Nghiêng phải $30^\circ$ ➔ Cúi/Ngẩng) vào CSDL `data_gallery/` (`src/app_modules/gallery.py`).
 
 ---
 
@@ -100,34 +97,18 @@ Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration
 
 ### 🖥️ MÀN HÌNH 4: WORKSPACE GIẢNG VIÊN (TEACHER DASHBOARD & MULTI-MEDIA STUDIO)
 
-Đây là **màn hình trung tâm** dành cho Giảng viên:
-
-#### 📊 4.1. Dashboard Danh sách Lớp giảng dạy & Modal Tạo Lớp:
-- Nút nổi bật **"+ Tạo Lớp Học Mới"**: Mở Modal nhập đúng 2 thông tin: **Tên Lớp** & **Chủ đề học**.
-- Hệ thống tự động sinh **Mã Lớp (Class Code)** ngẫu nhiên dạng badge (ví dụ: `SIC2026-A1`).
-
-#### 👥 4.2. Quản lý Thành viên Lớp học (Class Roster & Co-Teaching):
-- **Tab "Duyệt Sinh Viên"**: Danh sách sinh viên xin vào ➔ Giảng viên bấm Duyệt/Từ chối.
-- **Tab "Thêm Thủ Công"**: Ô nhập MSSV để kéo sinh viên vào lớp.
-- **Nút "Thêm Giảng Viên Đồng Quản Lý"**: Cấp quyền cho GV khác cùng quản lý lớp.
-
-#### 📸 4.3. Studio Upload Hàng Loạt & Phân Luồng Xử Lý (Batch Multi-Media Attendance Studio):
-- **Khu vực Drag & Drop Hàng Loạt (Multi-file Drag & Drop Zone)**: Giảng viên có thể kéo-thả **tùy ý bao nhiêu tệp Ảnh và Video cùng lúc** vào một lượt điểm danh (Ví dụ: 5 ảnh `.jpg` + 2 video `.mp4`).
-- **Cơ chế Phân luồng Xử lý Tự động (Automated Pipeline Splitting)**:
-  - **Xử lý Ảnh**: Chạy qua luồng xử lý ảnh song song siêu tốc.
-  - **Xử lý Video**: Đưa vào Celery/Redis background để tách khung hình & xử lý.
-- **Khung Trình Chiếu Ảnh/Video Đã Xử Lý (Interactive Canvas Viewer)**:
-  - Hiển thị ảnh/video đã bóc tách khuôn mặt (Khoanh Bounding Box Xanh lá: SV có mặt + MSSV, Xanh dương: GV, Đỏ: Người lạ).
-- **Bảng Kết quả Điểm danh Tổng hợp (Consolidated Summary Table)**:
-  - Gộp chung toàn bộ kết quả nhận diện từ tất cả ảnh & video trong lượt đó.
-  - Thống kê: **Tổng sĩ số** | **Có mặt (Xanh)** | **Vắng mặt (Đỏ)**.
-  - Nút **"Tải File Báo Cáo Excel (.xlsx)"**.
+- **Modal Tạo Lớp**: Nhập Tên Lớp & Chủ đề học ➔ Tự động sinh **Mã Lớp (Class Code)**.
+- **Đồng Quản Lý**: Thêm các GV khác cùng quản lý lớp.
+- **Studio Upload Hàng Loạt & Phân Luồng Xử Lý (Batch Multi-Media Studio)**:
+  - Giảng viên kéo-thả **tùy ý bao nhiêu tệp Ảnh và Video cùng lúc** vào 1 lượt điểm danh.
+  - Phân luồng: Ảnh xử lý song song siêu tốc / Video đưa vào Celery background.
+  - Interactive Canvas Viewer: Hiển thị ảnh/video đã bóc tách khoanh Bounding Box (Xanh lá: SV có mặt + MSSV, Xanh dương: GV, Đỏ: Người lạ).
+  - Bảng Kết quả Tổng hợp + Nút xuất file Excel (`.xlsx`).
 
 ---
 
 ### 🖥️ MÀN HÌNH 5: MỤC BÁO CÁO & LƯU TRỮ LỊCH SỬ (REPORT & ARCHIVE CENTER)
-- **Danh sách Buổi học theo Ngày**: Xem lại danh sách tất cả các tệp ảnh và video đã xử lý trong ngày đó.
-- **Xuất Báo cáo Excel**: Tải về file `.xlsx` điểm danh tổng hợp.
+- Xem lại danh sách ảnh/video bằng chứng đã khoanh Bounding Box theo ngày và xuất file Excel đối soát.
 
 ---
 
@@ -150,12 +131,10 @@ Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration
 
 ---
 
-## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.3
+## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.4
 
-Bản **Master Specification v4.3** đã được cập nhật **chi tiết bộ tiêu chuẩn đánh giá chất lượng môi trường khi đăng ký mặt**:
-- ✅ Kiểm tra Ánh sáng: Cảnh báo Ánh sáng quá tối / Ánh sáng quá chói hoặc ngược sáng.
-- ✅ Kiểm tra Khoảng cách: Cảnh báo Mặt quá xa camera / Mặt quá gần camera.
-- ✅ Kiểm tra Độ nét & Mờ: Cảnh báo Ảnh bị mờ, yêu cầu giữ yên đầu.
-- ✅ Đủ tiêu chuẩn ➔ Tự động lưu 4/4 góc mặt vào CSDL `data_gallery/`.
+Bản **Master Specification v4.4** đã được bổ sung 2 cải tiến UX quan trọng:
+- ✅ **Lật gương Camera Preview**: Thêm CSS scaleX(-1) giúp người dùng soi gương tự nhiên khi quay các góc mặt.
+- ✅ **Tự động Chuyển hướng theo Role**: Đăng nhập 1 form duy nhất, tự chuyển đến đúng Portal (Sinh viên / Giảng viên / Admin).
 
 Bạn xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** bắt đầu tiến trình Lập trình & Kiểm thử tự động liên tục nhé!
