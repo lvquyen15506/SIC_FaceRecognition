@@ -1,17 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const KYC_ANGLES = [
-  { key: 'FRONT', label: '1. Nhìn Thẳng Chính Diện', guide: 'Hãy giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
-  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Hãy quay nhẹ mặt sang bên trái khoảng 20-30 độ', icon: '👈' },
-  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Hãy quay nhẹ mặt sang bên phải khoảng 20-30 độ', icon: '👉' },
-  { key: 'TILT', label: '4. Ngửa Nhẹ Đầu Lên', guide: 'Hãy ngửa nhẹ cằm lên phía trên khoảng 15 độ', icon: '👆' }
+  { key: 'FRONT', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
+  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang bên trái khoảng 25 độ', icon: '👈' },
+  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang bên phải khoảng 25 độ', icon: '👉' },
+  { key: 'TILT', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm lên phía trên khoảng 15 độ', icon: '👆' }
 ];
 
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedAngles, setCapturedAngles] = useState({});
   const [cameraActive, setCameraActive] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isAutoScanning, setIsAutoScanning] = useState(false);
+  const [countdown, setCountdown] = useState(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -22,56 +23,83 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const currentAngle = KYC_ANGLES[currentStepIndex];
 
   useEffect(() => {
-    let active = true;
-
-    async function startCameraStream() {
-      setErrorMsg('');
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, facingMode: 'user' }
-        });
-
-        if (active) {
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
-          }
-          setCameraActive(true);
-        }
-      } catch (err) {
-        if (active) {
-          setCameraActive(false);
-          setErrorMsg('Không thể kết nối Camera. Vui lòng cho phép quyền truy cập Camera trong Cài đặt Trình duyệt và thử lại.');
-        }
-      }
-    }
-
-    startCameraStream();
-
-    return () => {
-      active = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-    };
+    startCamera();
+    return () => stopCamera();
   }, []);
 
-  // Ensure video plays when element mounts or updates
-  const handleVideoCanPlay = () => {
-    if (videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      videoRef.current.play().catch(() => {});
+  const startCamera = async () => {
+    setErrorMsg('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+      setCameraActive(true);
+    } catch (err) {
+      setCameraActive(false);
+      setErrorMsg('Không thể mở Camera. Vui lòng kiểm tra và cho phép quyền truy cập Camera trong trình duyệt.');
     }
   };
 
-  const captureAndSaveAngle = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
 
-    setIsProcessing(true);
+  // Single Start Button triggers Automatic 4-Angle Scanner Sequence
+  const startAutoScanSequence = async () => {
+    setIsAutoScanning(true);
     setErrorMsg('');
-    setStatusMsg(`AI đang phân tích & trích xuất vector góc mặt ${currentAngle.label}...`);
+    setStatusMsg('🚀 Bắt đầu quy trình tự động quét 4 góc mặt KYC...');
+    
+    // Execute sequence from step 0 to step 3
+    let localCaptured = { ...capturedAngles };
+
+    for (let i = 0; i < KYC_ANGLES.length; i++) {
+      setCurrentStepIndex(i);
+      const angleConfig = KYC_ANGLES[i];
+
+      // Countdown 3, 2, 1 for user to adjust pose
+      for (let c = 3; c > 0; c--) {
+        setCountdown(c);
+        setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] Chuẩn bị chụp trong ${c}s...`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      setCountdown(null);
+      setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] AI đang phân tích & trích xuất vector...`);
+
+      const success = await captureAndSaveSingleAngle(angleConfig.key);
+
+      if (success) {
+        localCaptured[angleConfig.key] = true;
+        setCapturedAngles({ ...localCaptured });
+        setStatusMsg(`✓ Đã lưu góc mặt ${i + 1}/4: ${angleConfig.label}`);
+        await new Promise(r => setTimeout(r, 800));
+      } else {
+        // Retry current step
+        setStatusMsg(`⚠️ Thử lại góc ${angleConfig.label}...`);
+        i--; // Repeat loop index
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+
+    setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
+    setIsAutoScanning(false);
+    setTimeout(() => {
+      onKycSuccess();
+    }, 1500);
+  };
+
+  const captureAndSaveSingleAngle = async (angleKey) => {
+    if (!videoRef.current || !canvasRef.current) return false;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -79,7 +107,6 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     canvas.height = video.videoHeight || 480;
 
     const ctx = canvas.getContext('2d');
-    // Mirror horizontally for natural camera feed
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -94,36 +121,21 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          angle_label: currentAngle.key,
+          angle_label: angleKey,
           image_base64: base64Image
         })
       });
 
       const data = await res.json();
       if (res.ok) {
-        const newCaptured = { ...capturedAngles, [currentAngle.key]: base64Image };
-        setCapturedAngles(newCaptured);
-        setStatusMsg(`✓ Đã ghi nhận góc mặt: ${currentAngle.label}`);
-
-        if (currentStepIndex < KYC_ANGLES.length - 1) {
-          setTimeout(() => {
-            setCurrentStepIndex(prev => prev + 1);
-            setStatusMsg('');
-          }, 800);
-        } else {
-          // Completed all 4 KYC angles!
-          setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
-          setTimeout(() => {
-            onKycSuccess();
-          }, 1500);
-        }
+        return true;
       } else {
-        setErrorMsg(data.detail || 'Khuôn mặt chưa khớp với yêu cầu góc quét. Vui lòng làm theo đúng hướng dẫn!');
+        setErrorMsg(data.detail || 'Khuôn mặt chưa đạt tiêu chuẩn. Đang thử lại...');
+        return false;
       }
     } catch (err) {
       setErrorMsg('Lỗi kết nối khi gửi dữ liệu khuôn mặt.');
-    } finally {
-      setIsProcessing(false);
+      return false;
     }
   };
 
@@ -134,7 +146,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <div className="space-y-3 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
-              🛡️ Quy Trình Xác Thực Live KYC 4 Góc Mặt
+              🛡️ Quy Trình Tự Động Quét KYC 4 Góc Mặt
             </span>
             <button
               onClick={onLogout}
@@ -148,25 +160,30 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Progress Bar */}
-          <div className="grid grid-cols-4 gap-2 pt-1">
-            {KYC_ANGLES.map((ang, idx) => (
-              <div
-                key={ang.key}
-                className={`p-2 rounded-xl border text-center transition ${
-                  idx === currentStepIndex
-                    ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/30'
-                    : capturedAngles[ang.key]
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-900 border-slate-800 text-slate-500'
-                }`}
-              >
-                <div className="text-xs font-bold">{ang.icon} {ang.key}</div>
-                <div className="text-[10px] mt-0.5 font-semibold">
-                  {capturedAngles[ang.key] ? '✓ Đã quét' : idx === currentStepIndex ? 'Đang thực hiện' : 'Chờ'}
+          {/* 4 Steps Visual Badges - Turn Green on Completion */}
+          <div className="grid grid-cols-4 gap-2.5 pt-1">
+            {KYC_ANGLES.map((ang, idx) => {
+              const isDone = capturedAngles[ang.key];
+              const isCurrent = idx === currentStepIndex && isAutoScanning;
+
+              return (
+                <div
+                  key={ang.key}
+                  className={`p-3 rounded-2xl border text-center transition-all ${
+                    isDone
+                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-600/10 ring-1 ring-emerald-500/30'
+                      : isCurrent
+                      ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/40 animate-pulse'
+                      : 'bg-slate-900 border-slate-800 text-slate-500'
+                  }`}
+                >
+                  <div className="text-sm font-bold">{ang.icon} {ang.key}</div>
+                  <div className="text-[11px] mt-1 font-semibold">
+                    {isDone ? '✓ Đã Xanh' : isCurrent ? 'Đang quét...' : 'Chờ quét'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -183,7 +200,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         )}
 
-        {/* Guidance Banner for Active Angle */}
+        {/* Dynamic Guidance Banner */}
         <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
           <span className="text-3xl">{currentAngle.icon}</span>
           <div>
@@ -192,16 +209,21 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         </div>
 
-        {/* Live Camera Video Feed Box */}
+        {/* Live Camera Feed Container */}
         <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-video flex items-center justify-center shadow-inner">
           <canvas ref={canvasRef} className="hidden" />
 
           <video
-            ref={videoRef}
+            ref={(el) => {
+              videoRef.current = el;
+              if (el && streamRef.current && el.srcObject !== streamRef.current) {
+                el.srcObject = streamRef.current;
+                el.play().catch(() => {});
+              }
+            }}
             autoPlay
             playsInline
             muted
-            onCanPlay={handleVideoCanPlay}
             className="w-full h-full object-cover camera-mirror-preview rounded-2xl"
           />
 
@@ -211,6 +233,22 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
                 Vui lòng kiểm tra biểu tượng Camera trên thanh địa chỉ trình duyệt và bấm "Cho phép" (Allow) để kích hoạt Live Camera KYC.
               </p>
+              <button
+                type="button"
+                onClick={startCamera}
+                className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl"
+              >
+                Mở Lại Camera
+              </button>
+            </div>
+          )}
+
+          {/* Countdown Overlay */}
+          {countdown !== null && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-20">
+              <div className="w-24 h-24 rounded-full bg-indigo-600/80 border-4 border-white flex items-center justify-center text-4xl font-black text-white shadow-2xl animate-bounce">
+                {countdown}
+              </div>
             </div>
           )}
 
@@ -224,20 +262,20 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         </div>
 
-        {/* Main Action Button */}
+        {/* Single Start Auto-Scan Sequence Button */}
         <button
           type="button"
-          onClick={captureAndSaveAngle}
-          disabled={!cameraActive || isProcessing}
+          onClick={startAutoScanSequence}
+          disabled={!cameraActive || isAutoScanning}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isProcessing ? (
+          {isAutoScanning ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>AI Đang Kiểm Tra &amp; Trích Xuất Vector...</span>
+              <span>Đang Tự Động Quét 4 Bước KYC...</span>
             </>
           ) : (
-            `📷 Quét &amp; Đăng Ký Góc Mặt: ${currentAngle.label}`
+            '🚀 Bắt Đầu Tự Động Quét 4 Góc Mặt KYC'
           )}
         </button>
       </div>

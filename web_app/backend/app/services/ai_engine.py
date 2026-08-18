@@ -57,24 +57,24 @@ def check_image_quality(image_bytes: bytes) -> dict:
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     brightness = float(np.mean(gray))
 
-    if brightness < 40:
+    if brightness < 15:
         return {
             "pass": False,
             "status": "TOO_DARK",
-            "message": "Ánh sáng quá tối, vui lòng bật thêm đèn hoặc di chuyển ra vùng sáng",
+            "message": "Ánh sáng quá tối, vui lòng di chuyển ra vùng sáng hơn",
             "brightness": brightness
         }
-    if brightness > 220:
+    if brightness > 245:
         return {
             "pass": False,
             "status": "TOO_BRIGHT",
-            "message": "Ánh sáng quá chói hoặc ngược sáng, vui lòng tránh nguồn sáng chiếu thẳng camera",
+            "message": "Ánh sáng quá chói, vui lòng tránh nguồn sáng chiếu thẳng camera",
             "brightness": brightness
         }
 
     # 2. Check Blur (Độ nét & Mờ bằng Laplacian variance)
     blur_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-    if blur_var < 50:
+    if blur_var < 20:
         return {
             "pass": False,
             "status": "BLURRY",
@@ -91,31 +91,27 @@ def check_image_quality(image_bytes: bytes) -> dict:
             faces = []
 
     if len(faces) == 0:
+        # Fallback face check via Haar Cascade
+        try:
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            if os.path.exists(cascade_path):
+                face_cascade = cv2.CascadeClassifier(cascade_path)
+                detected = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20))
+                faces = [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in detected]
+        except Exception:
+            faces = []
+
+    if len(faces) == 0:
         return {
             "pass": False,
             "status": "NO_FACE",
-            "message": "Không tìm thấy khuôn mặt trong khung hình"
+            "message": "Không tìm thấy khuôn mặt trong khung hình. Hãy nhìn thẳng vào camera"
         }
 
     (x, y, w, h) = faces[0]
     img_area = img.shape[0] * img.shape[1]
     face_area = w * h
     area_ratio = face_area / img_area
-
-    if area_ratio < 0.05:
-        return {
-            "pass": False,
-            "status": "TOO_FAR",
-            "message": "Vui lòng di chuyển mặt LẠI GẦN camera hơn",
-            "area_ratio": area_ratio
-        }
-    if area_ratio > 0.85:
-        return {
-            "pass": False,
-            "status": "TOO_CLOSE",
-            "message": "Vui lòng lùi mặt RA XA camera một chút",
-            "area_ratio": area_ratio
-        }
 
     return {
         "pass": True,
