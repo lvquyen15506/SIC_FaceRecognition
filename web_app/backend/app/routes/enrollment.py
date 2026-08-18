@@ -20,7 +20,7 @@ def check_quality(payload: EnrollFaceRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 image data")
 
-    quality_result = check_image_quality(image_bytes)
+    quality_result = check_image_quality(image_bytes, required_angle=payload.angle_label)
     return quality_result
 
 @router.post("/save-face")
@@ -30,8 +30,8 @@ def save_face(payload: EnrollFaceRequest, current_user: User = Depends(get_curre
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 image data")
 
-    # Check environment quality
-    quality = check_image_quality(image_bytes)
+    # Check environment quality & required pose angle
+    quality = check_image_quality(image_bytes, required_angle=payload.angle_label)
     if not quality["pass"]:
         raise HTTPException(status_code=400, detail=quality["message"])
 

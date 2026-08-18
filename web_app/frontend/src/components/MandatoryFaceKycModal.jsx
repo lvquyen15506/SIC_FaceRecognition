@@ -2,23 +2,28 @@ import React, { useState, useRef, useEffect } from 'react';
 
 const KYC_ANGLES = [
   { key: 'FRONT', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
-  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang bên trái khoảng 25 độ', icon: '👈' },
-  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang bên phải khoảng 25 độ', icon: '👉' },
-  { key: 'TILT', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm lên phía trên khoảng 15 độ', icon: '👆' }
+  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang BÊN TRÁI khoảng 25 độ', icon: '👈' },
+  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang BÊN PHẢI khoảng 25 độ', icon: '👉' },
+  { key: 'TILT', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm LÊN TRÊN khoảng 15 độ', icon: '👆' }
 ];
 
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedAngles, setCapturedAngles] = useState({});
   const [hasCameraStream, setHasCameraStream] = useState(false);
-  const [isAutoScanning, setIsAutoScanning] = useState(false);
-  const [countdown, setCountdown] = useState(null);
-  const [statusMsg, setStatusMsg] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('Hãy căn chỉnh mặt vào khung Oval và bấm "Bắt Đầu"');
   const [errorMsg, setErrorMsg] = useState('');
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const mediaStreamRef = useRef(null);
+  const scanLoopRef = useRef(null);
+
+  // Refs for tracking loop state cleanly without stale closures
+  const currentStepRef = useRef(0);
+  const capturedRef = useRef({});
+  const isSavingRef = useRef(false);
 
   const currentAngle = KYC_ANGLES[currentStepIndex];
 
@@ -26,6 +31,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     initCameraStream();
     return () => {
       stopCameraStream();
+      stopSilentScanLoop();
     };
   }, []);
 
@@ -49,7 +55,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       }
     } catch (err) {
       setHasCameraStream(false);
-      setErrorMsg('Không thể truy cập Camera. Vui lòng cho phép quyền trên trình duyệt.');
+      setErrorMsg('Không thể truy cập Camera. Vui lòng cấp quyền truy cập trình duyệt.');
     }
   };
 
@@ -61,6 +67,13 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     setHasCameraStream(false);
   };
 
+  const stopSilentScanLoop = () => {
+    if (scanLoopRef.current) {
+      clearInterval(scanLoopRef.current);
+      scanLoopRef.current = null;
+    }
+  };
+
   useEffect(() => {
     if (videoRef.current && mediaStreamRef.current) {
       videoRef.current.srcObject = mediaStreamRef.current;
@@ -68,70 +81,68 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   });
 
-  // Single Start Button triggers smooth AI-Validated 4-Angle Scanner Sequence
-  const startAutoScanSequence = async () => {
-    if (!hasCameraStream) {
-      await initCameraStream();
-    }
+  // Start Silent Background Capture Loop ("Chụp Ngầm AI Real-Time")
+  const startSilentKycProcess = () => {
+    setIsScanning(true);
+    currentStepRef.current = 0;
+    capturedRef.current = {};
+    setCurrentStepIndex(0);
+    setCapturedAngles({});
+    setStatusMsg(`🔍 AI đang định vị tư thế 3D. ${KYC_ANGLES[0].guide}...`);
 
-    setIsAutoScanning(true);
-    setErrorMsg('');
-    setStatusMsg('🚀 Bắt đầu quy trình quét 4 góc mặt KYC chuẩn AI...');
+    stopSilentScanLoop();
 
-    let localCaptured = { ...capturedAngles };
+    scanLoopRef.current = setInterval(async () => {
+      if (isSavingRef.current) return;
 
-    for (let i = 0; i < KYC_ANGLES.length; i++) {
-      setCurrentStepIndex(i);
-      const angleConfig = KYC_ANGLES[i];
-
-      // Step 1: Smooth 3-2-1 countdown overlay without screen flicker
-      for (let c = 3; c > 0; c--) {
-        setCountdown(c);
-        setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] Chuẩn bị giữ nguyên tư thế...`);
-        await new Promise(r => setTimeout(r, 900));
+      const stepIdx = currentStepRef.current;
+      if (stepIdx >= KYC_ANGLES.length) {
+        stopSilentScanLoop();
+        return;
       }
-      setCountdown(null);
 
-      // Step 2: AI Face Detection & Quality Validation Loop
-      setStatusMsg(`🔍 AI đang kiểm tra vị trí & chất lượng khuôn mặt...`);
-      let validFaceCaptured = false;
-      let attempts = 0;
+      const targetAngle = KYC_ANGLES[stepIdx];
+      const checkRes = await performSilentQualityCheck(targetAngle.key);
 
-      while (!validFaceCaptured && attempts < 5) {
-        attempts++;
-        const checkResult = await validateAndSaveFace(angleConfig.key);
+      if (!checkRes) return;
 
-        if (checkResult.pass) {
-          validFaceCaptured = true;
-          localCaptured[angleConfig.key] = true;
-          setCapturedAngles({ ...localCaptured });
-          setStatusMsg(`✓ Đã xác thực & lưu thành công góc mặt: ${angleConfig.label}`);
-          await new Promise(r => setTimeout(r, 800));
-        } else {
-          // Display exact guidance message from AI Engine without flickering full screen
-          setStatusMsg(`⚠️ ${checkResult.message || 'Chưa phát hiện khuôn mặt. Vui lòng căn chỉnh lại...'}`);
-          await new Promise(r => setTimeout(r, 1200));
+      if (!checkRes.pass) {
+        // Soft live guidance message overlay
+        setStatusMsg(`👉 [${targetAngle.key}]: ${checkRes.message}`);
+      } else {
+        // Pose matched! Trigger Silent Background Save ("Chụp Ngầm")
+        isSavingRef.current = true;
+        setStatusMsg(`✨ Đã khớp tư thế ${targetAngle.key}! Đang lưu dữ liệu sinh trắc...`);
+
+        const saveSuccess = await saveFaceEmbeddingSilent(targetAngle.key);
+
+        if (saveSuccess) {
+          capturedRef.current[targetAngle.key] = true;
+          setCapturedAngles({ ...capturedRef.current });
+
+          const nextStep = stepIdx + 1;
+          currentStepRef.current = nextStep;
+
+          if (nextStep < KYC_ANGLES.length) {
+            setCurrentStepIndex(nextStep);
+            const nextAngleConfig = KYC_ANGLES[nextStep];
+            setStatusMsg(`🎉 Rất tốt! Tiếp theo: ${nextAngleConfig.guide}`);
+          } else {
+            // All 4 angles complete!
+            stopSilentScanLoop();
+            setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
+            setTimeout(() => {
+              onKycSuccess();
+            }, 1500);
+          }
         }
+        isSavingRef.current = false;
       }
-
-      if (!validFaceCaptured) {
-        // If 5 attempts failed, pause and repeat this step
-        setErrorMsg(`Không thể nhận diện góc ${angleConfig.label}. Vui lòng nhìn thẳng vào camera và thử lại.`);
-        i--;
-        await new Promise(r => setTimeout(r, 1500));
-        setErrorMsg('');
-      }
-    }
-
-    setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
-    setIsAutoScanning(false);
-    setTimeout(() => {
-      onKycSuccess();
-    }, 1500);
+    }, 450); // Silent AI polling interval ~450ms
   };
 
-  const validateAndSaveFace = async (angleKey) => {
-    if (!videoRef.current || !canvasRef.current) return { pass: false, message: 'Camera chưa sẵn sàng' };
+  const performSilentQualityCheck = async (angleKey) => {
+    if (!videoRef.current || !canvasRef.current) return null;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -143,24 +154,34 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+    const base64Image = canvas.toDataURL('image/jpeg', 0.85);
 
     try {
-      // 1. Check AI Image Quality & Face Presence
-      const checkRes = await fetch('/api/v1/enrollment/check-quality', {
+      const res = await fetch('/api/v1/enrollment/check-quality', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ angle_label: angleKey, image_base64: base64Image })
       });
+      return await res.json();
+    } catch (err) {
+      return null;
+    }
+  };
 
-      const qualityData = await checkRes.json();
+  const saveFaceEmbeddingSilent = async (angleKey) => {
+    if (!videoRef.current || !canvasRef.current) return false;
 
-      if (!qualityData.pass) {
-        return { pass: false, message: qualityData.message };
-      }
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // 2. Save Face Embedding in Database
-      const saveRes = await fetch('/api/v1/enrollment/save-face', {
+    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+
+    try {
+      const res = await fetch('/api/v1/enrollment/save-face', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,15 +189,9 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         },
         body: JSON.stringify({ angle_label: angleKey, image_base64: base64Image })
       });
-
-      if (saveRes.ok) {
-        return { pass: true };
-      } else {
-        const saveErr = await saveRes.json();
-        return { pass: false, message: saveErr.detail || 'Lỗi lưu vector khuôn mặt' };
-      }
+      return res.ok;
     } catch (err) {
-      return { pass: false, message: 'Lỗi kết nối máy chủ AI' };
+      return false;
     }
   };
 
@@ -187,7 +202,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <div className="space-y-4 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
-              🛡️ Quy Trình Tự Động Quét KYC 4 Góc Mặt
+              🛡️ Quét Ngầm 3D Face ID KYC
             </span>
             <button
               onClick={onLogout}
@@ -201,20 +216,20 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Visual Badges - Smooth SOLID GREEN on Completion */}
+          {/* 4 Steps Visual Badges - Turns SOLID GREEN silently on pose match */}
           <div className="grid grid-cols-4 gap-3 pt-1">
             {KYC_ANGLES.map((ang, idx) => {
               const isDone = capturedAngles[ang.key];
-              const isCurrent = idx === currentStepIndex && isAutoScanning;
+              const isCurrent = idx === currentStepIndex && isScanning;
 
               return (
                 <div
                   key={ang.key}
-                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-300 flex items-center justify-center gap-1.5 font-bold text-sm ${
+                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-500 flex items-center justify-center gap-1.5 font-bold text-sm ${
                     isDone
-                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
+                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30 scale-[1.02]'
                       : isCurrent
-                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg ring-2 ring-indigo-500/40 animate-pulse'
+                      ? 'bg-indigo-600/40 border-indigo-500 text-white ring-2 ring-indigo-500/40 animate-pulse'
                       : 'bg-slate-900 border-slate-800 text-slate-500'
                   }`}
                 >
@@ -227,36 +242,22 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         </div>
 
-        {/* Status & Error Alerts */}
-        {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-between gap-2">
-            <span>⚠️ {errorMsg}</span>
-            <button
-              type="button"
-              onClick={initCameraStream}
-              className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold"
-            >
-              Bật Lại Cam
-            </button>
+        {/* Live Guidance Banner */}
+        {errorMsg ? (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+            ⚠️ {errorMsg}
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
+            <span className="text-3xl animate-pulse">{currentAngle.icon}</span>
+            <div>
+              <div className="text-sm font-bold text-white">Bước {currentStepIndex + 1}/4: {currentAngle.label}</div>
+              <div className="text-xs text-indigo-300 mt-0.5">{statusMsg}</div>
+            </div>
           </div>
         )}
 
-        {statusMsg && (
-          <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-2">
-            <span>✨ {statusMsg}</span>
-          </div>
-        )}
-
-        {/* Dynamic Guidance Banner */}
-        <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
-          <span className="text-3xl">{currentAngle.icon}</span>
-          <div>
-            <div className="text-sm font-bold text-white">Bước {currentStepIndex + 1}/4: {currentAngle.label}</div>
-            <div className="text-xs text-indigo-300 mt-0.5">{currentAngle.guide}</div>
-          </div>
-        </div>
-
-        {/* Smooth Live Camera Feed Box */}
+        {/* Silent Live Camera Feed Box */}
         <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-video flex items-center justify-center shadow-inner">
           <canvas ref={canvasRef} className="hidden" />
 
@@ -272,7 +273,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
               <span className="text-4xl animate-bounce">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
-                Nhấn nút bên dưới để cấp quyền mở Camera Laptop trực tiếp.
+                Cấp quyền truy cập Camera Laptop để tự động quét tư thế khuôn mặt 3D.
               </p>
               <button
                 type="button"
@@ -284,39 +285,30 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             </div>
           )}
 
-          {/* Countdown Overlay */}
-          {countdown !== null && (
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-20 pointer-events-none">
-              <div className="w-24 h-24 rounded-full bg-indigo-600/80 border-4 border-white flex items-center justify-center text-4xl font-black text-white shadow-2xl animate-bounce">
-                {countdown}
-              </div>
-            </div>
-          )}
-
           {/* Dynamic Oval Target Guideline */}
           <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-2xl pointer-events-none flex items-center justify-center">
-            <div className="w-56 h-64 border-2 border-dashed border-indigo-400/60 rounded-full flex flex-col items-center justify-center bg-indigo-950/10 backdrop-blur-[1px]">
-              <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider bg-slate-900/90 px-3 py-1.5 rounded-full border border-indigo-500/30 shadow-lg">
+            <div className="w-56 h-64 border-2 border-dashed border-indigo-400/70 rounded-full flex flex-col items-center justify-center bg-indigo-950/10 backdrop-blur-[1px] shadow-2xl">
+              <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider bg-slate-900/90 px-3 py-1.5 rounded-full border border-indigo-500/40 shadow-lg">
                 {currentAngle.icon} {currentAngle.key}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Single Start Auto-Scan Sequence Button */}
+        {/* Start Silent Scanner Button */}
         <button
           type="button"
-          onClick={startAutoScanSequence}
-          disabled={isAutoScanning}
+          onClick={startSilentKycProcess}
+          disabled={isScanning}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isAutoScanning ? (
+          {isScanning ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Đang Quét AI Định Dạng Khuôn Mặt...</span>
+              <span>Đang Tự Động Nhận Diện &amp; Quét Ngầm Tư Thế 3D...</span>
             </>
           ) : (
-            '🚀 Bắt Đầu Tự Động Quét 4 Góc Mặt KYC'
+            '🚀 Bắt Đầu Tự Động Quét Ngầm 3D Face ID'
           )}
         </button>
       </div>

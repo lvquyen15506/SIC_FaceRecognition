@@ -1,6 +1,7 @@
 """
 Core AI Engine Wrapper
 Bọc trực tiếp các module YuNet & FaceViT ArcFace ONNX trong src/ để phục vụ Web API
+Bổ sung thuật toán ước lượng 3D Head Pose (Yaw / Pitch) từ 5 YuNet Facial Landmarks
 """
 import sys
 import os
@@ -44,9 +45,9 @@ except Exception as e:
     onnx_session = None
     onnx_input_name = None
 
-def check_image_quality(image_bytes: bytes) -> dict:
+def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
     """
-    Đánh giá chất lượng ảnh chụp camera (Ánh sáng, Khoảng cách, Độ mờ)
+    Đánh giá chất lượng & Ước lượng tư thế góc xoay 3D (Head Pose Yaw / Pitch) từ 5 landmarks YuNet
     """
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -72,54 +73,91 @@ def check_image_quality(image_bytes: bytes) -> dict:
             "brightness": brightness
         }
 
-    # 2. Check Blur (Độ nét & Mờ bằng Laplacian variance)
-    blur_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-    if blur_var < 20:
-        return {
-            "pass": False,
-            "status": "BLURRY",
-            "message": "Ảnh bị mờ, xin hãy giữ yên đầu trong giây lát",
-            "blur_score": blur_var
-        }
-
-    # 3. Check Face Bounding Box & Distance (Khoảng cách)
-    faces = []
+    # 2. Detect Face & 5 Landmarks via YuNet
+    face_data_list = []
     if detector is not None:
         try:
-            faces = detector.detect_faces(img)
+            face_data_list = detector.detect_faces_with_landmarks(img)
         except Exception:
-            faces = []
+            face_data_list = []
 
-    if len(faces) == 0:
-        # Fallback face check via Haar Cascade
-        try:
-            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            if os.path.exists(cascade_path):
-                face_cascade = cv2.CascadeClassifier(cascade_path)
-                detected = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20))
-                faces = [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in detected]
-        except Exception:
-            faces = []
-
-    if len(faces) == 0:
+    if not face_data_list:
         return {
             "pass": False,
             "status": "NO_FACE",
-            "message": "Không tìm thấy khuôn mặt trong khung hình. Hãy nhìn thẳng vào camera"
+            "message": "Hãy đưa khuôn mặt vào trong khung Oval..."
         }
 
-    (x, y, w, h) = faces[0]
-    img_area = img.shape[0] * img.shape[1]
-    face_area = w * h
-    area_ratio = face_area / img_area
+    face_info = face_data_list[0]
+    (x, y, w, h) = face_info["box"]
+    landmarks = face_info["landmarks"] # [(x_re, y_re), (x_le, y_le), (x_nt, y_nt), (x_rc, y_rc), (x_lc, y_lc)]
+
+    # Compute Head Pose Yaw & Pitch from Facial Landmarks
+    # Mirror mode consideration for webcam preview:
+    # right_eye = landmarks[0], left_eye = landmarks[1], nose = landmarks[2]
+    re_x, re_y = landmarks[0]
+    le_x, le_y = landmarks[1]
+    nose_x, nose_y = landmarks[2]
+
+    # Horizontal distance from nose to eyes
+    dist_to_re = max(1.0, float(abs(nose_x - re_x)))
+    dist_to_le = max(1.0, float(abs(nose_x - le_x)))
+    
+    # Yaw ratio: dist_to_re / dist_to_le
+    yaw_ratio = dist_to_re / dist_to_le
+
+    # Vertical distance for Pitch (tilt)
+    eye_mid_y = (re_y + le_y) / 2.0
+    mouth_mid_y = (landmarks[3][1] + landmarks[4][1]) / 2.0
+    eye_mouth_dist = max(1.0, mouth_mid_y - eye_mid_y)
+    pitch_ratio = (nose_y - eye_mid_y) / eye_mouth_dist
+
+    # Check Required Pose Angle Match
+    if required_angle:
+        req = required_angle.upper()
+        if req == "FRONT":
+            if yaw_ratio < 0.65 or yaw_ratio > 1.5 or pitch_ratio < 0.35:
+                return {
+                    "pass": False,
+                    "status": "WRONG_POSE",
+                    "message": "Hãy nhìn THẲNG CHÍNH DIỆN vào camera...",
+                    "yaw_ratio": yaw_ratio, "pitch_ratio": pitch_ratio
+                }
+        elif req == "LEFT":
+            # In camera mirror view, turning head to user's Left makes nose move toward left_eye (dist_to_le gets smaller -> yaw_ratio increases > 1.6)
+            if yaw_ratio < 1.45:
+                return {
+                    "pass": False,
+                    "status": "WRONG_POSE",
+                    "message": "Hãy QUAY NHẸ MẶT SANG TRÁI...",
+                    "yaw_ratio": yaw_ratio
+                }
+        elif req == "RIGHT":
+            # Turning head to user's Right makes nose move toward right_eye (dist_to_re gets smaller -> yaw_ratio decreases < 0.7)
+            if yaw_ratio > 0.75:
+                return {
+                    "pass": False,
+                    "status": "WRONG_POSE",
+                    "message": "Hãy QUAY NHẸ MẶT SANG PHẢI...",
+                    "yaw_ratio": yaw_ratio
+                }
+        elif req == "TILT":
+            # Tilting chin UP brings nose closer to eye level (pitch_ratio < 0.38)
+            if pitch_ratio > 0.40:
+                return {
+                    "pass": False,
+                    "status": "WRONG_POSE",
+                    "message": "Hãy NGỬA NHẸ CẰM LÊN TRÊN...",
+                    "pitch_ratio": pitch_ratio
+                }
 
     return {
         "pass": True,
         "status": "PASS",
-        "message": "Chất lượng ảnh đạt chuẩn",
+        "message": "Góc quay mặt đạt chuẩn!",
         "brightness": brightness,
-        "blur_score": blur_var,
-        "area_ratio": area_ratio,
+        "yaw_ratio": yaw_ratio,
+        "pitch_ratio": pitch_ratio,
         "face_box": [int(x), int(y), int(w), int(h)]
     }
 

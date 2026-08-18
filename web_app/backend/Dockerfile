@@ -13,19 +13,7 @@ RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -m appuser
 
 WORKDIR /app
 
-# Copy app code and core AI
-COPY --chown=appuser:appuser web_app/backend/app /app/app
-COPY --chown=appuser:appuser web_app/backend/main.py /app/main.py
-COPY --chown=appuser:appuser src /app/src
-COPY --chown=appuser:appuser data_gallery /app/data_gallery
-COPY --chown=appuser:appuser reports /app/reports
-COPY --chown=appuser:appuser web_app/backend/data /app/web_app/backend/data
-
-# Ensure data directories exist and belong to appuser
-RUN mkdir -p /app/data_gallery /app/reports /app/web_app/backend/data/uploads && \
-    chown -R appuser:appuser /app
-
-# Ultra-lightweight ONNX Runtime inference engine (only ~15MB instead of 800MB PyTorch)
+# Pre-install Python dependencies for ultra-fast Docker layer caching
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
@@ -39,6 +27,18 @@ RUN pip install --no-cache-dir \
     pillow \
     onnxruntime \
     numpy
+
+# Copy app code and core AI
+COPY --chown=appuser:appuser web_app/backend/app /app/app
+COPY --chown=appuser:appuser web_app/backend/main.py /app/main.py
+COPY --chown=appuser:appuser src /app/src
+COPY --chown=appuser:appuser data_gallery /app/data_gallery
+COPY --chown=appuser:appuser reports /app/reports
+COPY --chown=appuser:appuser web_app/backend/data /app/web_app/backend/data
+
+# Ensure data directories exist and belong to appuser
+RUN mkdir -p /app/data_gallery /app/reports /app/web_app/backend/data/uploads && \
+    chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
