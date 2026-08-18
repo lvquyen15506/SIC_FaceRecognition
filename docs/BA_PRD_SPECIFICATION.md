@@ -2,8 +2,8 @@
 
 > **Dự án**: `SIC_FaceRecognition`  
 > **Cấp độ**: Master Enterprise & UI/UX Specification  
-> **Phiên bản**: v4.2 Master  
-> **Trạng thái**: 🟡 Hoàn thiện 100% (Bổ sung điểm danh Hàng loạt Đa tệp Ảnh/Video & Tái sử dụng chuẩn KYC đăng ký trong `src/`) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
+> **Phiên bản**: v4.3 Master  
+> **Trạng thái**: 🟡 Hoàn thiện 100% (Bổ sung Bộ tiêu chuẩn Kiểm tra Chất lượng Ảnh chi tiết: Chói/Tối, Quá Xa/Quá Gần, Mờ/Nét khi đăng ký mặt) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
 
 ---
 
@@ -19,7 +19,7 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
   - `Electric Blue Accent`: `#2563EB` (Dùng cho nút bấm chính, viền camera active)
   - `Success Emerald`: `#059669` (Khung Bounding Box Sinh viên có mặt / PASS Liveness)
   - `Teacher Cyan`: `#0EA5E9` (Khung Bounding Box Giảng viên)
-  - `Warning Amber`: `#D97706` (Cảnh báo góc mặt lệch / Thiếu sáng)
+  - `Warning Amber`: `#D97706` (Cảnh báo góc mặt lệch / Thiếu sáng / Quá xa / Quá gần)
   - `Error Crimson`: `#DC2626` (Khung Bounding Box Người lạ / Spoof Alert / Vắng mặt)
 - **Kiểu chữ (Typography)**:
   - Font tiêu đề & nội dung: **`Inter`** (Sắc nét, hiện đại).
@@ -36,7 +36,7 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
       ▼                                      ▼                                      ▼
 [ PHÂN HỆ SINH VIÊN ]               [ PHÂN HỆ GIẢNG VIÊN ]               [ PHÂN HỆ SUPER ADMIN ]
 ├── Auth & Login                    ├── Auth & Login                    ├── Admin Control Center
-├── Đăng ký Mặt Đa góc (Chuẩn KYC) ├── Dashboard Lớp giảng dạy         ├── Quản lý User (SV/GV/Admin)
+├── Đăng ký Mặt Đa góc (Chất lượng)├── Dashboard Lớp giảng dạy         ├── Quản lý User (SV/GV/Admin)
 └── Portal Cá nhân & Join Lớp       ├── Quản lý Lớp (Tên Lớp + Chủ đề)   ├── Quản lý Lớp toàn trường
                                     ├── Đồng Quản lý (Co-Teaching)       ├── Giám sát CSDL Sinh trắc
                                     ├── Studio Upload Hàng Loạt Đa Tệp   └── Audit Logs & Config AI
@@ -54,23 +54,44 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 ---
 
-### 🖥️ MÀN HÌNH 2: GIAO DIỆN ĐĂNG KÝ KHUÔN MẶT CHUẨN KYC ĐÃ LƯU (`src/app_modules/test_ekyc_enroll.py`)
-- **Tái sử dụng chuẩn KYC cũ**: Kế thừa 100% chuẩn quy trình đăng ký eKYC đã xây dựng và kiểm thử thành công trong `src/app_modules/test_ekyc_enroll.py` & `test_pose_liveness.py`.
-- **Layout**: Màn hình toàn cảnh camera tập trung với khung hướng dẫn sinh trắc học.
+### 🖥️ MÀN HÌNH 2: GIAO DIỆN ĐĂNG KÝ KHUÔN MẶT ĐA GÓC ĐỘ & ĐÁNH GIÁ CHẤT LƯỢNG MÔI TRƯỜNG
+
+Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration) được thiết kế chi tiết với **Bộ tiêu chuẩn đánh giá chất lượng ảnh tự động**:
+
+- **Layout**: Màn hình toàn cảnh camera tập trung với khung hướng dẫn Oval HUD.
 - **Thành phần**:
-  - **Khung Camera Viewport**: Tỷ lệ 4:3 với **Oval Biometric Guide Ring** (Vòng elip quét mặt ở chính giữa).
-  - **Hiệu ứng Vòng Ring Real-time**:
-    - *Xanh Lá*: Mặt nằm đúng vị trí, góc nét.
-    - *Vàng*: Hướng dẫn quay mặt theo chuẩn KYC cũ (Trực diện ➔ Nghiêng trái $30^\circ$ ➔ Nghiêng phải $30^\circ$ ➔ Cúi/Ngẩng).
-    - *Đỏ*: Cảnh báo quá tối hoặc nghi vấn giả mạo.
-  - **Lưu CSDL Gallery cũ**: Vector 512-d trích xuất được lưu đồng bộ trực tiếp vào `src/app_modules/gallery.py` (`data_gallery/`) đã có.
+  - **Khung Camera Viewport**: Tỷ lệ 4:3 với **Oval Guide Ring** (Vòng elip quét mặt ở chính giữa).
+
+#### 🎯 BỘ TIÊU CHUẨN ĐÁNH GIÁ CHẤT LƯỢNG ẢNH TỰ ĐỘNG (IMAGE QUALITY CHECKS):
+
+1. **Kiểm tra Điều kiện Ánh sáng (Illumination Check)**:
+   - 🌑 **Ánh sáng quá tối (Too Dark)**: Cường độ sáng $\text{Brightness} < 70/255$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ánh sáng quá tối, vui lòng bật thêm đèn hoặc di chuyển ra vùng sáng"*.
+   - ☀️ **Ánh sáng quá chói / Ngược sáng (Overexposed / Backlit)**: Cường độ sáng $\text{Brightness} > 210/255$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ánh sáng quá chói hoặc ngược sáng, vui lòng tránh nguồn sáng mạnh chiếu trực tiếp vào camera"*.
+   - ✅ **Ánh sáng đạt chuẩn (Optimal Illumination)**: $70 \le \text{Brightness} \le 210$.
+
+2. **Kiểm tra Khoảng cách tới Camera (Distance Check)**:
+   - 🔍 **Mặt ở quá xa Camera (Too Far)**: Diện tích khuôn mặt chiếm $< 20\%$ diện tích khung Oval ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Vui lòng di chuyển mặt LẠI GẦN camera hơn"*.
+   - 🔬 **Mặt ở quá gần Camera (Too Close)**: Diện tích khuôn mặt chiếm $> 65\%$ diện tích khung Oval ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Vui lòng lùi mặt RA XA camera một chút"*.
+   - ✅ **Khoảng cách đạt chuẩn (Optimal Distance)**: Diện tích khuôn mặt chiếm $25\% \text{ đến } 55\%$ khung Oval.
+
+3. **Kiểm tra Độ nét & Mờ (Blur & Sharpness Check)**:
+   - 💨 **Mặt bị mờ (Blurry)**: Giá trị Laplacian Variance $< 100$ ➔ Vòng Ring hiện **Màu Vàng** + Dòng chữ chỉ dẫn: *"Ảnh bị mờ, xin hãy giữ yên đầu trong giây lát"*.
+   - ✅ **Độ nét đạt chuẩn (Sharp & Clear)**: Giá trị Laplacian Variance $\ge 100$.
+
+4. **Kiểm tra Góc quay Đa góc (Multi-Angle Pose Collection)**:
+   - Khi Ánh sáng, Khoảng cách và Độ nét **TẤT CẢ ĐỀU ĐẠT (PASS)** ➔ Vòng Ring chuyển sang **MÀU XANH LÁ** và tự động chụp/trích xuất Vector 512-d cho 4 góc mặt:
+     - **Góc 1**: Trực diện (Looking Straight).
+     - **Góc 2**: Nghiêng trái $30^\circ$ (Turn Left).
+     - **Góc 3**: Nghiêng phải $30^\circ$ (Turn Right).
+     - **Góc 4**: Cúi/Ngẩng mặt nhẹ (Tilt Up/Down).
+   - Sau khi hoàn thành 4/4 góc, Vector 512-d được lưu đồng bộ trực tiếp vào `src/app_modules/gallery.py` (`data_gallery/`).
 
 ---
 
 ### 🖥️ MÀN HÌNH 3: PORTAL SINH VIÊN (STUDENT DASHBOARD)
 - **Layout**: Sidebar điều hướng + Dashboard tổng quan.
 - **Thành phần**:
-  - **Thẻ Trạng thái Sinh trắc**: Hộp hiển thị "Dữ liệu khuôn mặt KYC: ĐÃ HOÀN THIỆN" kèm nút "Cập nhật".
+  - **Thẻ Trạng thái Sinh trắc**: Hộp hiển thị "Dữ liệu khuôn mặt: ĐÃ HOÀN THIỆN (4/4 góc mặt)" kèm nút "Chụp lại".
   - **Hộp Join Lớp học Mới**: Ô nhập **Mã Lớp (Class Code)** + Nút "Gửi Yêu Cầu Tham Gia".
   - **Danh sách Lớp học Đã Tham gia**: Các thẻ Card hiển thị Tên môn, Giảng viên phụ trách, Tỷ lệ đi học.
   - **Bảng Lịch sử Điểm danh Cá nhân**: Danh sách chi tiết các buổi học (Ngày, Trạng thái Có mặt/Vắng mặt).
@@ -93,22 +114,10 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 #### 📸 4.3. Studio Upload Hàng Loạt & Phân Luồng Xử Lý (Batch Multi-Media Attendance Studio):
 - **Khu vực Drag & Drop Hàng Loạt (Multi-file Drag & Drop Zone)**: Giảng viên có thể kéo-thả **tùy ý bao nhiêu tệp Ảnh và Video cùng lúc** vào một lượt điểm danh (Ví dụ: 5 ảnh `.jpg` + 2 video `.mp4`).
 - **Cơ chế Phân luồng Xử lý Tự động (Automated Pipeline Splitting)**:
-  ```text
-  [ Giảng viên Kéo-thả N ảnh + M video ]
-                    │
-        ┌───────────┴───────────┐
-        ▼                       ▼
-  [ Luồng Xử lý Ảnh ]    [ Luồng Xử lý Video ]
-  (Image Batch Processing) (Celery Background Task)
-        │                       │
-        └───────────┬───────────┘
-                    ▼
-  [ GỘP KẾT QUẢ TỔNG HỢP (Consolidated Attendance Result) ]
-  ```
-  - **Xử lý Ảnh**: Đưa vào luồng xử lý ảnh nhanh song song.
+  - **Xử lý Ảnh**: Chạy qua luồng xử lý ảnh song song siêu tốc.
   - **Xử lý Video**: Đưa vào Celery/Redis background để tách khung hình & xử lý.
 - **Khung Trình Chiếu Ảnh/Video Đã Xử Lý (Interactive Canvas Viewer)**:
-  - Cho phép Giảng viên chuyển qua lại giữa các file ảnh/video đã bóc tách khuôn mặt (Khoanh Bounding Box Xanh lá: SV có mặt + MSSV, Xanh dương: GV, Đỏ: Người lạ).
+  - Hiển thị ảnh/video đã bóc tách khuôn mặt (Khoanh Bounding Box Xanh lá: SV có mặt + MSSV, Xanh dương: GV, Đỏ: Người lạ).
 - **Bảng Kết quả Điểm danh Tổng hợp (Consolidated Summary Table)**:
   - Gộp chung toàn bộ kết quả nhận diện từ tất cả ảnh & video trong lượt đó.
   - Thống kê: **Tổng sĩ số** | **Có mặt (Xanh)** | **Vắng mặt (Đỏ)**.
@@ -117,8 +126,7 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 ---
 
 ### 🖥️ MÀN HÌNH 5: MỤC BÁO CÁO & LƯU TRỮ LỊCH SỬ (REPORT & ARCHIVE CENTER)
-- **Danh sách Buổi học theo Ngày**: Mỗi buổi điểm danh hiển thị danh sách tất cả các tệp ảnh và video đã tải lên trong ngày đó.
-- **Cột Bằng chứng Ảnh/Video (Processed Media Archive)**: Xem lại chi tiết từng ảnh/video đã khoanh Bounding Box.
+- **Danh sách Buổi học theo Ngày**: Xem lại danh sách tất cả các tệp ảnh và video đã xử lý trong ngày đó.
 - **Xuất Báo cáo Excel**: Tải về file `.xlsx` điểm danh tổng hợp.
 
 ---
@@ -142,10 +150,12 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 ---
 
-## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.2
+## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.3
 
-Bản **Master Specification v4.2** đã được cập nhật **chính xác 100% hai yêu cầu mới**:
-- ✅ **Tái sử dụng 100% chuẩn KYC đăng ký khuôn mặt cũ** trong `src/app_modules/test_ekyc_enroll.py` & `gallery.py`.
-- ✅ **Điểm danh Hàng loạt Đa tệp (Multi-Media Batch)**: Giảng viên kéo-thả bao nhiêu ảnh & video tùy ý ➔ Tự động phân luồng xử lý riêng ➔ Gộp chung thành 1 Bảng điểm danh tổng hợp.
+Bản **Master Specification v4.3** đã được cập nhật **chi tiết bộ tiêu chuẩn đánh giá chất lượng môi trường khi đăng ký mặt**:
+- ✅ Kiểm tra Ánh sáng: Cảnh báo Ánh sáng quá tối / Ánh sáng quá chói hoặc ngược sáng.
+- ✅ Kiểm tra Khoảng cách: Cảnh báo Mặt quá xa camera / Mặt quá gần camera.
+- ✅ Kiểm tra Độ nét & Mờ: Cảnh báo Ảnh bị mờ, yêu cầu giữ yên đầu.
+- ✅ Đủ tiêu chuẩn ➔ Tự động lưu 4/4 góc mặt vào CSDL `data_gallery/`.
 
 Bạn xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** bắt đầu tiến trình Lập trình & Kiểm thử tự động liên tục nhé!
