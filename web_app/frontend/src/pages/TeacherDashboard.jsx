@@ -7,14 +7,21 @@ export default function TeacherDashboard({ user, token }) {
   const [subjectTopic, setSubjectTopic] = useState('');
   const [selectedClass, setSelectedClass] = useState(null);
 
-  // Active Main Tab: 'ATTENDANCE' vs 'STUDENTS'
+  // Active Main Tab: 'ATTENDANCE' vs 'ROSTER' (Quản lý Thành viên Lớp Học)
   const [activeTab, setActiveTab] = useState('ATTENDANCE');
 
-  // Student Management State
+  // Roster Management State (Teachers & Students)
+  const [teacherList, setTeacherList] = useState([]);
   const [studentList, setStudentList] = useState([]);
+
+  // Modals for adding Student / Co-Teacher
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [studentQuery, setStudentQuery] = useState('');
   const [isAddingStudent, setIsAddingStudent] = useState(false);
+
+  const [showAddTeacherModal, setShowAddTeacherModal] = useState(false);
+  const [teacherQuery, setTeacherQuery] = useState('');
+  const [isAddingTeacher, setIsAddingTeacher] = useState(false);
 
   // Attendance Studio & History State
   const [uploadFiles, setUploadFiles] = useState([]);
@@ -34,6 +41,7 @@ export default function TeacherDashboard({ user, token }) {
     if (selectedClass) {
       fetchClassSessions(selectedClass.id);
       fetchClassStudents(selectedClass.id);
+      fetchClassTeachers(selectedClass.id);
     }
   }, [selectedClass]);
 
@@ -48,6 +56,18 @@ export default function TeacherDashboard({ user, token }) {
         if (data.length > 0 && !selectedClass) {
           setSelectedClass(data[0]);
         }
+      }
+    } catch (err) {}
+  };
+
+  const fetchClassTeachers = async (classId) => {
+    try {
+      const res = await fetch(`/api/v1/classes/${classId}/teachers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTeacherList(data);
       }
     } catch (err) {}
   };
@@ -100,6 +120,37 @@ export default function TeacherDashboard({ user, token }) {
         setSubjectTopic('');
       }
     } catch (err) {}
+  };
+
+  const handleAddTeacher = async (e) => {
+    e.preventDefault();
+    if (!selectedClass || !teacherQuery.trim()) return;
+
+    setIsAddingTeacher(true);
+    try {
+      const res = await fetch(`/api/v1/classes/${selectedClass.id}/add-teacher`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ teacher_email_or_code: teacherQuery.trim() })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Đã thêm Giảng viên đồng quản lý thành công');
+        setShowAddTeacherModal(false);
+        setTeacherQuery('');
+        fetchClassTeachers(selectedClass.id);
+      } else {
+        alert(data.detail || 'Không thể thêm Giảng viên');
+      }
+    } catch (err) {
+      alert('Lỗi hệ thống khi thêm Giảng viên');
+    } finally {
+      setIsAddingTeacher(false);
+    }
   };
 
   const handleAddStudent = async (e) => {
@@ -231,6 +282,47 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
+      {/* Add Co-Teacher Modal */}
+      {showAddTeacherModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4">
+            <h3 className="text-xl font-bold text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
+            <p className="text-xs text-slate-400">Nhập Mã Giảng viên (GVxxx) hoặc Email để thêm đồng quản lý lớp</p>
+
+            <form onSubmit={handleAddTeacher} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Mã GV / Email Giảng Viên</label>
+                <input
+                  type="text"
+                  required
+                  value={teacherQuery}
+                  onChange={(e) => setTeacherQuery(e.target.value)}
+                  placeholder="VD: GV002 hoặc teacher2@sic.edu.vn"
+                  className="w-full px-4 py-3 rounded-xl glass-input text-sm"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddTeacherModal(false)}
+                  className="flex-1 py-3 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingTeacher}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg transition"
+                >
+                  {isAddingTeacher ? 'Đang Thêm...' : 'Thêm Giảng Viên'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Add Student Modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -356,14 +448,14 @@ export default function TeacherDashboard({ user, token }) {
               📷 Studio Điểm Danh
             </button>
             <button
-              onClick={() => setActiveTab('STUDENTS')}
+              onClick={() => setActiveTab('ROSTER')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === 'STUDENTS'
+                activeTab === 'ROSTER'
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              👥 Sinh Viên Lớp ({studentList.length})
+              👥 Thành Viên Lớp ({teacherList.length} GV | {studentList.length} SV)
             </button>
           </div>
         )}
@@ -552,73 +644,113 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Class Students Roster Management Tab */}
-      {selectedClass && activeTab === 'STUDENTS' && (
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <h3 className="text-xl font-bold text-white">Quản Lý Danh Sách Sinh Viên - {selectedClass.class_name}</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Mã Tham Gia Lớp Học: <span className="font-mono-grotesk font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{selectedClass.class_code}</span> | Tổng số: <span className="text-emerald-400 font-bold">{studentList.length}</span> Sinh viên
-              </p>
+      {/* Class Roster Management Tab (Giảng viên & Sinh viên) */}
+      {selectedClass && activeTab === 'ROSTER' && (
+        <div className="space-y-8">
+          {/* Section 1: Teachers List */}
+          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">👨‍🏫 Giảng Viên Quản Lý Lớp ({teacherList.length})</h3>
+                <p className="text-xs text-slate-400 mt-1">Danh sách Giảng viên có quyền thực hiện điểm danh và xuất báo cáo lớp {selectedClass.class_name}</p>
+              </div>
+
+              <button
+                onClick={() => setShowAddTeacherModal(true)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
+              >
+                + Thêm Giảng Viên Quản Lý
+              </button>
             </div>
 
-            <button
-              onClick={() => setShowAddStudentModal(true)}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
-            >
-              + Thêm Sinh Viên Vào Lớp
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {teacherList.map((t) => (
+                <div key={t.id} className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">{t.full_name}</div>
+                    <div className="text-xs text-slate-400 font-mono-grotesk mt-0.5">Mã GV: {t.code} • {t.email}</div>
+                  </div>
+                  {t.is_owner ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                      Tạo Lớp
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                      Đồng Quản Lý
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            {studentList.length === 0 ? (
-              <div className="py-12 text-center text-slate-500 text-sm italic">
-                Lớp học chưa có sinh viên nào. Hãy nhấn nút "+ Thêm Sinh Viên Vào Lớp" ở trên hoặc chia sẻ Mã Lớp "{selectedClass.class_code}" cho sinh viên!
+          {/* Section 2: Students List */}
+          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">👥 Danh Sách Sinh Viên Lớp ({studentList.length})</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Mã Tham Gia Lớp Học: <span className="font-mono-grotesk font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{selectedClass.class_code}</span>
+                </p>
               </div>
-            ) : (
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 uppercase font-mono-grotesk">
-                  <tr>
-                    <th className="p-3">STT</th>
-                    <th className="p-3">Mã Sinh Viên (MSSV)</th>
-                    <th className="p-3">Họ và Tên</th>
-                    <th className="p-3">Email Liên Hệ</th>
-                    <th className="p-3">Dữ Liệu Khuôn Mặt</th>
-                    <th className="p-3 text-right">Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {studentList.map((st, idx) => (
-                    <tr key={st.id} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3 font-mono-grotesk text-slate-500">{idx + 1}</td>
-                      <td className="p-3 font-mono-grotesk font-bold text-blue-400">{st.code}</td>
-                      <td className="p-3 font-semibold text-white">{st.full_name}</td>
-                      <td className="p-3 text-slate-400">{st.email}</td>
-                      <td className="p-3">
-                        {st.face_count > 0 ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-max">
-                            ✓ Đã đăng ký ({st.face_count} góc mặt)
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1 w-max">
-                            ⚠ Chưa đăng ký ảnh mặt
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleRemoveStudent(st.id, st.full_name)}
-                          className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] font-semibold rounded-lg transition"
-                        >
-                          Xóa Khỏi Lớp
-                        </button>
-                      </td>
+
+              <button
+                onClick={() => setShowAddStudentModal(true)}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
+              >
+                + Thêm Sinh Viên Vào Lớp
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              {studentList.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-sm italic">
+                  Lớp học chưa có sinh viên nào. Hãy nhấn nút "+ Thêm Sinh Viên Vào Lớp" ở trên hoặc chia sẻ Mã Lớp "{selectedClass.class_code}" cho sinh viên!
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/80 text-slate-400 uppercase font-mono-grotesk">
+                    <tr>
+                      <th className="p-3">STT</th>
+                      <th className="p-3">Mã Sinh Viên (MSSV)</th>
+                      <th className="p-3">Họ và Tên</th>
+                      <th className="p-3">Email Liên Hệ</th>
+                      <th className="p-3">Dữ Liệu Khuôn Mặt</th>
+                      <th className="p-3 text-right">Thao Tác</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {studentList.map((st, idx) => (
+                      <tr key={st.id} className="hover:bg-slate-800/40 transition">
+                        <td className="p-3 font-mono-grotesk text-slate-500">{idx + 1}</td>
+                        <td className="p-3 font-mono-grotesk font-bold text-blue-400">{st.code}</td>
+                        <td className="p-3 font-semibold text-white">{st.full_name}</td>
+                        <td className="p-3 text-slate-400">{st.email}</td>
+                        <td className="p-3">
+                          {st.face_count > 0 ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-max">
+                              ✓ Đã đăng ký ({st.face_count} góc mặt)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1 w-max">
+                              ⚠ Chưa đăng ký ảnh mặt
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleRemoveStudent(st.id, st.full_name)}
+                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] font-semibold rounded-lg transition"
+                          >
+                            Xóa Khỏi Lớp
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       )}

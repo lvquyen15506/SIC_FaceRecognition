@@ -17,11 +17,6 @@ router = APIRouter(prefix="/api/v1/classes", tags=["Classes Management"])
 class AddStudentRequest(BaseModel):
     student_code_or_email: str
 
-class QuickCreateStudentRequest(BaseModel):
-    student_code: str
-    full_name: str
-    email: str
-
 def generate_class_code() -> str:
     chars = string.ascii_uppercase + string.digits
     return "SIC-" + "".join(random.choices(chars, k=6))
@@ -56,6 +51,24 @@ def get_my_classes(current_user: User = Depends(get_current_user), db: Session =
     else:
         return current_user.teaching_classes
 
+@router.get("/{class_id}/teachers")
+def get_class_teachers(class_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    classroom = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
+
+    result = []
+    for t in classroom.teachers:
+        result.append({
+            "id": t.id,
+            "code": t.code,
+            "full_name": t.full_name,
+            "email": t.email,
+            "role": t.role,
+            "is_owner": t.id == classroom.created_by_teacher_id
+        })
+    return result
+
 @router.post("/{class_id}/add-teacher")
 def add_co_teacher(
     class_id: int,
@@ -67,19 +80,33 @@ def add_co_teacher(
     if not classroom:
         raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
     
+    query_str = req.teacher_email_or_code.strip()
     teacher = db.query(User).filter(
-        (User.email == req.teacher_email_or_code) | (User.code == req.teacher_email_or_code.upper()),
+        (User.email == query_str) | (User.code == query_str.upper()),
         User.role.in_(["TEACHER", "ADMIN"])
     ).first()
 
+    # Auto-register new teacher profile if not exists
     if not teacher:
-        raise HTTPException(status_code=404, detail="Không tìm thấy Giảng viên")
+        code_gen = query_str.upper() if query_str.isalnum() and len(query_str) >= 4 else f"GV{random.randint(100, 999)}"
+        email_gen = query_str if "@" in query_str else f"{code_gen.lower()}@sic.edu.vn"
+        teacher = User(
+            code=code_gen,
+            full_name=f"Giảng viên {code_gen}",
+            email=email_gen,
+            password_hash=get_password_hash("teacher123"),
+            role="TEACHER"
+        )
+        db.add(teacher)
+        db.commit()
+        db.refresh(teacher)
 
     if teacher not in classroom.teachers:
         classroom.teachers.append(teacher)
         db.commit()
+        return {"status": "SUCCESS", "message": f"Đã thêm Giảng viên {teacher.full_name} ({teacher.code}) vào đồng quản lý lớp học"}
 
-    return {"status": "SUCCESS", "message": f"Đã thêm Giảng viên {teacher.full_name} vào quản lý lớp"}
+    return {"status": "EXISTS", "message": f"Giảng viên {teacher.full_name} ({teacher.code}) đã là giảng viên quản lý lớp rồi"}
 
 @router.post("/join/{class_code}")
 def join_class_by_code(class_code: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -142,7 +169,7 @@ def add_student_to_class(
         User.role == "STUDENT"
     ).first()
 
-    # If student doesn't exist, automatically register new student profile!
+    # If student doesn't exist, automatically register new student profile
     if not student:
         code_gen = query_str.upper() if query_str.isalnum() and len(query_str) >= 4 else f"SV{random.randint(100, 999)}"
         email_gen = query_str if "@" in query_str else f"{code_gen.lower()}@sic.edu.vn"
