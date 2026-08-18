@@ -3,6 +3,7 @@
 project_name: "SIC_FaceRecognition"
 version: "6.0.0"
 methodology: "Agile AI-Driven Development (AiDD)"
+design_specification: "DESIGN.md"
 
 agents:
   analyst: "Mary"
@@ -20,8 +21,10 @@ modules:
 core_ai_path: "src/"
 docs_path: "docs/"
 tests_path: "tests/"
+design_system_path: "DESIGN.md"
 
 quality_gates:
   require_qa_approval: true
   min_test_coverage: 80
   anti_spoofing_liveness_check: true
+  enforce_design_md_tokens: true
