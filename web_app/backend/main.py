@@ -3,11 +3,41 @@ SIC_FaceRecognition FastAPI Server Main Entrypoint
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
+from app.models import User
+from app.security import get_password_hash
 from app.routes import auth, enrollment, classes, attendance, admin
 
 # Initialize Database Tables
 Base.metadata.create_all(bind=engine)
+
+def seed_default_users():
+    db = SessionLocal()
+    try:
+        default_users = [
+            {"email": "student01@sic.edu.vn", "code": "SV001", "full_name": "Nguyễn Văn Sinh Viên", "password": "student123", "role": "STUDENT"},
+            {"email": "teacher01@sic.edu.vn", "code": "GV001", "full_name": "TS. Trịnh Văn Giảng Viên", "password": "teacher123", "role": "TEACHER"},
+            {"email": "admin01@sic.edu.vn", "code": "ADMIN01", "full_name": "Quản Trị Viên Hệ Thống", "password": "admin123", "role": "ADMIN"},
+        ]
+        for u in default_users:
+            exists = db.query(User).filter((User.code == u["code"]) | (User.email == u["email"])).first()
+            if not exists:
+                user_obj = User(
+                    email=u["email"],
+                    code=u["code"],
+                    full_name=u["full_name"],
+                    password_hash=get_password_hash(u["password"]),
+                    role=u["role"],
+                    is_active=True
+                )
+                db.add(user_obj)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        db.close()
+
+seed_default_users()
 
 app = FastAPI(
     title="SIC FaceRecognition API",

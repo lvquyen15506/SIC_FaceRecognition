@@ -34,6 +34,8 @@ services:
     volumes:
       - ./data_gallery:/app/data_gallery
       - ./reports:/app/reports
+      - ./web_app/backend/main.py:/app/main.py
+      - ./web_app/backend/app:/app/app
     environment:
       - SECRET_KEY=sic_face_recognition_super_secret_jwt_key_2026
       - DATABASE_URL=postgresql://sic_user:sic_password_2026@db:5432/sic_facerecognition
