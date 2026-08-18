@@ -4,7 +4,7 @@ SIC_FaceRecognition FastAPI Server Main Entrypoint
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, SessionLocal
-from app.models import User
+from app.models import User, ClassRoom, ClassStudent
 from app.security import get_password_hash
 from app.routes import auth, enrollment, classes, attendance, admin
 
@@ -32,6 +32,34 @@ def seed_default_users():
                 )
                 db.add(user_obj)
         db.commit()
+
+        # Seed Default Class for Demo
+        teacher = db.query(User).filter(User.code == "GV001").first()
+        student = db.query(User).filter(User.code == "SV001").first()
+        if teacher:
+            cls = db.query(ClassRoom).filter(ClassRoom.class_code == "SIC-6940IZ").first()
+            if not cls:
+                cls = ClassRoom(
+                    class_code="SIC-6940IZ",
+                    class_name="Lớp Nhận Diện Khuôn Mặt SIC AI N01",
+                    subject_topic="AI Core & Computer Vision",
+                    created_by_teacher_id=teacher.id
+                )
+                db.add(cls)
+                db.commit()
+                db.refresh(cls)
+
+                if cls and teacher:
+                    cls.teachers.append(teacher)
+                    db.commit()
+
+            if cls and student:
+                cs = db.query(ClassStudent).filter(ClassStudent.class_id == cls.id, ClassStudent.student_id == student.id).first()
+                if not cs:
+                    cs = ClassStudent(class_id=cls.id, student_id=student.id, status="APPROVED")
+                    db.add(cs)
+                    db.commit()
+
     except Exception as e:
         db.rollback()
     finally:
