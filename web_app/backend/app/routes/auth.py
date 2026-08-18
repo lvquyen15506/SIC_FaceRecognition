@@ -1,11 +1,11 @@
 """
-Authentication API Endpoints (Login & Register with Smart Auto-Role Redirection)
+Authentication API Endpoints (Login & Register with Smart Auto-Role Redirection & KYC Check)
 """
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User
+from app.models import User, FaceEmbedding
 from app.schemas import UserRegister, UserLogin, Token, UserResponse
 from app.security import verify_password, get_password_hash, create_access_token, get_current_user
 from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
@@ -21,7 +21,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email or MSSV/MGV code already registered"
+            detail="Email hoặc Mã số đã được đăng ký"
         )
     
     new_user = User(
@@ -37,7 +37,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
     # Single login form: Match email or code (MSSV/MGV/ADMIN_ID)
     user = db.query(User).filter(
@@ -57,14 +57,30 @@ def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
         expires_delta=access_token_expires
     )
     
+    face_count = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user.id).count()
+    kyc_status = "VERIFIED" if face_count > 0 else "UNVERIFIED"
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "role": user.role,
         "full_name": user.full_name,
-        "code": user.code
+        "code": user.code,
+        "face_count": face_count,
+        "kyc_status": kyc_status
     }
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    face_count = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == current_user.id).count()
+    kyc_status = "VERIFIED" if face_count > 0 else "UNVERIFIED"
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "code": current_user.code,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "face_count": face_count,
+        "kyc_status": kyc_status
+    }

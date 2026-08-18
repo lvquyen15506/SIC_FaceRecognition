@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import StudentPortal from './pages/StudentPortal';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminCenter from './pages/AdminCenter';
+import MandatoryFaceKycModal from './components/MandatoryFaceKycModal';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -34,11 +35,7 @@ export default function App() {
   const handleLoginSuccess = (loginData) => {
     setToken(loginData.access_token);
     localStorage.setItem('sic_token', loginData.access_token);
-    setUser({
-      code: loginData.code,
-      full_name: loginData.full_name,
-      role: loginData.role
-    });
+    fetchMe();
   };
 
   const handleLogout = () => {
@@ -46,6 +43,8 @@ export default function App() {
     setUser(null);
     localStorage.removeItem('sic_token');
   };
+
+  const requiresKyc = user && (user.role === 'STUDENT' || user.role === 'TEACHER') && (user.kyc_status === 'UNVERIFIED' || user.face_count === 0);
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
@@ -56,6 +55,16 @@ export default function App() {
           <Login onLoginSuccess={handleLoginSuccess} />
         ) : (
           <>
+            {/* Mandatory Face KYC Modal Overlay */}
+            {requiresKyc && (
+              <MandatoryFaceKycModal
+                user={user}
+                token={token}
+                onKycSuccess={fetchMe}
+                onLogout={handleLogout}
+              />
+            )}
+
             {user.role === 'STUDENT' && <StudentPortal user={user} token={token} />}
             {user.role === 'TEACHER' && <TeacherDashboard user={user} token={token} />}
             {user.role === 'ADMIN' && <AdminCenter user={user} token={token} />}
