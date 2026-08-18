@@ -2,8 +2,8 @@
 
 > **Dự án**: `SIC_FaceRecognition`  
 > **Cấp độ**: Master Enterprise & UI/UX Specification (Đặc tả Tổng thể Kiến trúc & Giao diện)  
-> **Phiên bản**: v4.0 Master  
-> **Trạng thái**: 🟡 Hoàn thiện 100% đầy đủ từ Tech Stack, Phân quyền Admin, Bảo mật đến CHI TIẾT GIAO DIỆN TỪNG MÀN HÌNH (UI/UX Layout) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
+> **Phiên bản**: v4.1 Master  
+> **Trạng thái**: 🟡 Hoàn thiện 100% (Đã tối giản luồng Tạo lớp: Chỉ cần Tên Lớp & Chủ đề học) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
 
 ---
 
@@ -37,7 +37,7 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 [ PHÂN HỆ SINH VIÊN ]               [ PHÂN HỆ GIẢNG VIÊN ]               [ PHÂN HỆ SUPER ADMIN ]
 ├── Auth & Login                    ├── Auth & Login                    ├── Admin Control Center
 ├── Đăng ký Mặt Đa góc (HUD)        ├── Dashboard Lớp giảng dạy         ├── Quản lý User (SV/GV/Admin)
-└── Portal Cá nhân & Join Lớp       ├── Quản lý Lớp & Mã Lớp            ├── Quản lý Lớp toàn trường
+└── Portal Cá nhân & Join Lớp       ├── Quản lý Lớp (Tên Lớp + Chủ đề)   ├── Quản lý Lớp toàn trường
                                     ├── Đồng Quản lý (Co-Teaching)       ├── Giám sát CSDL Sinh trắc
                                     ├── Studio Upload Điểm danh          └── Audit Logs & Config AI
                                     └── Mục Báo cáo & Xuất Excel
@@ -80,9 +80,12 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 Đây là **màn hình trung tâm** dành cho Giảng viên:
 
-#### 📊 4.1. Dashboard Danh sách Lớp giảng dạy:
-- Nút nổi bật **"+ Tạo Lớp Học Mới"**: Mở Modal nhập Tên môn, Học kỳ ➔ Hệ thống tự động hiển thị **Mã Lớp (Class Code)** dạng badge nổi bật (ví dụ: `SIC2026-A1`) để copy gửi cho sinh viên.
-- Danh sách thẻ Lớp học: Hiển thị Sĩ số sinh viên, danh sách Giảng viên cùng quản lý.
+#### 📊 4.1. Dashboard Danh sách Lớp giảng dạy & Modal Tạo Lớp:
+- Nút nổi bật **"+ Tạo Lớp Học Mới"**: Mở Modal nhập đúng **2 thông tin**:
+  1. **Tên Lớp** (ví dụ: `Lớp Khoa học Máy tính K16`)
+  2. **Chủ đề học / Môn học** (ví dụ: `Nhận diện Khuôn mặt & Thị giác Máy tính`)
+- **Tự động sinh Mã Lớp**: Sau khi bấm "Tạo", hệ thống tự động sinh **Mã Lớp (Class Code)** ngẫu nhiên dạng badge (ví dụ: `SIC2026-A1`) để copy gửi cho sinh viên.
+- Danh sách thẻ Lớp học: Hiển thị Tên lớp, Chủ đề học, Sĩ số sinh viên, danh sách Giảng viên cùng quản lý.
 
 #### 👥 4.2. Quản lý Thành viên Lớp học (Class Roster & Co-Teaching):
 - **Tab "Duyệt Sinh Viên"**: Danh sách sinh viên nhập Mã Lớp xin vào ➔ Giảng viên bấm Duyệt/Từ chối.
@@ -140,20 +143,11 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 ---
 
-## 🔒 4. AN NINH VÀ BẢO MẬT HỆ THỐNG (SECURITY & COMPLIANCE)
-
-1. **Mã hóa Sinh trắc học**: Vector 512-d và ảnh gốc được mã hóa bằng **AES-256**, kiểm tra tính toàn vẹn bằng SHA-256.
-2. **Xác thực JWT & RBAC**: JWT Token (`httpOnly Cookie`) phân quyền chặt chẽ Middleware (`Admin`, `Teacher`, `Student`).
-3. **Bảo mật API**: Rate Limiting (60 requests/phút/IP), Input Sanitization (chống Shell/RCE), CORS & HTTPS/TLS 1.3.
-4. **Nhật ký Audit Logging**: Ghi vết IP, Timestamp và hành vi vào bảng `audit_logs`.
-
----
-
-## 🗄️ 5. MÔ HÌNH CƠ SỞ DỮ LIỆU TỔNG THỂ (DATABASE SCHEMA)
+## 🗄️ 4. MÔ HÌNH CƠ SỞ DỮ LIỆU TỔNG THỂ (DATABASE SCHEMA)
 
 1. **`users`**: `id`, `email`, `password_hash`, `full_name`, `role` (ADMIN/TEACHER/STUDENT), `code` (MSSV/MGV), `created_at`.
 2. **`face_embeddings`**: `id`, `user_id`, `vector_512d` (Array/Vector), `angle_label` (FRONT/LEFT/RIGHT/DOWN), `created_at`.
-3. **`classes`**: `id`, `class_code`, `class_name`, `created_by_teacher_id`, `created_at`.
+3. **`classes`**: `id`, `class_code`, `class_name`, `subject_topic`, `created_by_teacher_id`, `created_at`.
 4. **`class_teachers`**: `class_id`, `teacher_id`, `assigned_at` (Đồng quản lý).
 5. **`class_students`**: `class_id`, `student_id`, `status` (PENDING/APPROVED), `joined_at`.
 6. **`attendance_sessions`**: `id`, `class_id`, `session_date`, `raw_media_path`, `processed_media_path`, `created_by`.
@@ -162,12 +156,10 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 ---
 
-## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.0
+## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.1
 
-Bản **Master Specification v4.0** hiện đã hoàn thiện **100% ĐẦY ĐỦ NHẤT**:
-- ✅ Tech Stack 4 tầng & Bảo vệ `src/`.
-- ✅ Phân quyền Super Admin, Giảng viên, Sinh viên.
-- ✅ Bảo mật AES-256, JWT, Rate Limiting & Audit Logs.
-- ✅ **ĐẦY ĐỦ CHI TIẾT GIAO DIỆN TỪNG MÀN HÌNH (Màn hình 1 ➔ Màn hình 6)**.
+Bản **Master Specification v4.1** đã được điều chỉnh tối giản luồng Tạo lớp:
+- ✅ Modal Tạo Lớp chỉ yêu cầu **Tên Lớp** & **Chủ đề học / Môn học** (`subject_topic`).
+- ✅ Hệ thống tự động sinh **Mã Lớp (Class Code)**.
 
 Bạn xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** bắt đầu tiến trình Lập trình - Kiểm thử tự động liên tục nhé!
