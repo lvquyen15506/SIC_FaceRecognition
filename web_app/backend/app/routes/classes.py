@@ -150,20 +150,11 @@ def add_co_teacher(
         User.role.in_(["TEACHER", "ADMIN"])
     ).first()
 
-    # Auto-register new teacher profile if not exists
     if not teacher:
-        code_gen = query_str.upper() if query_str.isalnum() and len(query_str) >= 4 else f"GV{random.randint(100, 999)}"
-        email_gen = query_str if "@" in query_str else f"{code_gen.lower()}@sic.edu.vn"
-        teacher = User(
-            code=code_gen,
-            full_name=f"Giảng viên {code_gen}",
-            email=email_gen,
-            password_hash=get_password_hash("teacher123"),
-            role="TEACHER"
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy Giảng viên với Mã GV/Email '{query_str}'. Tài khoản phải tồn tại trên hệ thống mới có thể thêm!"
         )
-        db.add(teacher)
-        db.commit()
-        db.refresh(teacher)
 
     if teacher not in classroom.teachers:
         classroom.teachers.append(teacher)
@@ -233,20 +224,11 @@ def add_student_to_class(
         User.role == "STUDENT"
     ).first()
 
-    # If student doesn't exist, automatically register new student profile
     if not student:
-        code_gen = query_str.upper() if query_str.isalnum() and len(query_str) >= 4 else f"SV{random.randint(100, 999)}"
-        email_gen = query_str if "@" in query_str else f"{code_gen.lower()}@sic.edu.vn"
-        student = User(
-            code=code_gen,
-            full_name=f"Sinh viên {code_gen}",
-            email=email_gen,
-            password_hash=get_password_hash("student123"),
-            role="STUDENT"
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy Sinh viên với MSSV/Email '{query_str}'. Tài khoản phải tồn tại trên hệ thống mới có thể thêm!"
         )
-        db.add(student)
-        db.commit()
-        db.refresh(student)
 
     existing = db.query(ClassStudent).filter(
         ClassStudent.class_id == class_id,
