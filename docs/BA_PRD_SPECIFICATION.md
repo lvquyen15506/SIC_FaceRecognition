@@ -3,7 +3,7 @@
 > **Dự án**: `SIC_FaceRecognition`  
 > **Cấp độ**: Master Enterprise & UI/UX Specification  
 > **Phiên bản**: v4.4 Master  
-> **Trạng thái**: 🟡 Hoàn thiện 100% (Bổ sung Xử lý Lật Gương Camera Preview & Tự động Chuyển hướng Dashboard theo Role khi Đăng nhập) ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
+> **Trạng thái**: 🟢 ĐÃ ĐƯỢC HUMAN-IN-THE-LOOP PHÊ DUYỆT ➔ ĐANG TIẾN HÀNH TRIỂN KHAI  
 
 ---
 
@@ -40,7 +40,7 @@ Toàn bộ giao diện Web của hệ thống tuân thủ 100% bản thiết k�
 
 ---
 
-### 🖥️ MÀN HÌNH 1: ĐĂNG NHẬP THÔNG MINH & TỰ ĐỘNG CHUYỂN HƯỚNG theo ROLE
+### 🖥️ MÀN HÌNH 1: ĐĂNG NHẬP THÔNG MINH & TỰ ĐỘNG CHUYỂN HƯỚNG THEO ROLE
 - **Đơn giản hóa Đăng nhập**: Không cần chọn Tab vai trò thủ công.
 - **Layout**: Card Glassmorphic căn giữa trên nền Midnight có hiệu ứng mờ nhòe ánh sáng xanh (Ambient Blue Glow).
 - **Thành phần**:
@@ -128,13 +128,3 @@ Quy trình Đăng ký Khuôn mặt Đa góc độ (Multi-Angle Face Registration
 7. **`session_media_files`**: `id`, `session_id`, `media_type` (IMAGE/VIDEO), `raw_file_path`, `processed_file_path`, `status` (PROCESSING/COMPLETED).
 8. **`attendance_records`**: `id`, `session_id`, `user_id`, `status` (PRESENT/ABSENT), `confidence`, `detected_in_media_id`.
 9. **`audit_logs`**: `id`, `user_id`, `action`, `ip_address`, `details_json`, `timestamp`.
-
----
-
-## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) PHÊ DUYỆT BẢN MASTER v4.4
-
-Bản **Master Specification v4.4** đã được bổ sung 2 cải tiến UX quan trọng:
-- ✅ **Lật gương Camera Preview**: Thêm CSS scaleX(-1) giúp người dùng soi gương tự nhiên khi quay các góc mặt.
-- ✅ **Tự động Chuyển hướng theo Role**: Đăng nhập 1 form duy nhất, tự chuyển đến đúng Portal (Sinh viên / Giảng viên / Admin).
-
-Bạn xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** bắt đầu tiến trình Lập trình & Kiểm thử tự động liên tục nhé!

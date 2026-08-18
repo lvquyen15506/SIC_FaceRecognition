@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-midnight: #090D16;
+  --surface-glass: rgba(30, 41, 59, 0.7);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --primary-navy: #0F172A;
+  --electric-blue: #2563EB;
+  --success-emerald: #059669;
+  --error-crimson: #DC2626;
+  --warning-amber: #D97706;
+}
+
+body {
+  background-color: var(--bg-midnight);
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+}
+
+.font-mono-grotesk {
+  font-family: 'Space Grotesk', monospace;
+}
+
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+}
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.3);
+}
+
+/* Natural Camera Mirror Preview Fix */
+.camera-mirror-preview {
+  transform: scaleX(-1);
+}
