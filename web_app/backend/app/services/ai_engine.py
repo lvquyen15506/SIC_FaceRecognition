@@ -17,10 +17,11 @@ from app.config import CORE_AI_PATH, BASE_DIR
 if CORE_AI_PATH not in sys.path:
     sys.path.insert(0, CORE_AI_PATH)
 
-# Initialize YuNet Face Detector
+# Initialize YuNet Face Detector with lower score threshold (0.25) to detect small faces in group photos
 try:
     from app_modules.detector import FaceDetector
-    detector = FaceDetector()
+    detector = FaceDetector(score_threshold=0.25, nms_threshold=0.3)
+    print("[AI Engine] Successfully loaded YuNet Face Detector with score_threshold=0.25")
 except Exception as e:
     print(f"[AI Engine Warning] YuNet Detector load failed: {e}")
     detector = None
@@ -82,10 +83,12 @@ def check_image_quality(image_bytes: bytes) -> dict:
         }
 
     # 3. Check Face Bounding Box & Distance (Khoảng cách)
+    faces = []
     if detector is not None:
-        faces = detector.detect_faces(img)
-    else:
-        faces = []
+        try:
+            faces = detector.detect_faces(img)
+        except Exception:
+            faces = []
 
     if len(faces) == 0:
         return {
@@ -153,7 +156,7 @@ def extract_face_feature_512d(image_bytes: bytes) -> list:
 def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     """
     Xử lý ảnh toàn cảnh lớp học:
-    1. Bóc tách tất cả khuôn mặt bằng SOTA YuNet Face Detector
+    1. Bóc tách tất cả khuôn mặt bằng SOTA YuNet Face Detector (score_threshold=0.25)
     2. Trích xuất 512-d embeddings & So khớp với student_gallery (Mã SV -> Danh sách 512-d vectors)
     3. Phân loại: Có trong DB ➔ Khớp MSSV (Khung xanh). Không có trong DB ➔ Nguoi la (Khung đỏ)
     4. Vẽ Bounding Box & xuất ảnh cùng kết quả chi tiết
@@ -163,17 +166,24 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     if img is None:
         return image_bytes, []
 
+    faces = []
     if detector is not None:
-        faces = detector.detect_faces(img)
-    else:
-        # Fallback Haar Cascade if detector is not loaded
+        try:
+            faces = detector.detect_faces(img)
+        except Exception:
+            faces = []
+
+    # Fallback to OpenCV Haar Cascade if YuNet yielded no faces
+    if not faces:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         try:
-            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=4, minSize=(30, 30))
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            if os.path.exists(cascade_path):
+                face_cascade = cv2.CascadeClassifier(cascade_path)
+                detected = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20))
+                faces = [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in detected]
         except Exception:
-            h_img, w_img = img.shape[:2]
-            faces = [(int(w_img*0.1), int(h_img*0.1), int(w_img*0.3), int(h_img*0.3))]
+            faces = []
 
     attendance_results = []
     
