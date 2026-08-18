@@ -1,7 +1,14 @@
-# Production-Hardened Non-Root Frontend Dockerfile for SIC_FaceRecognition
-FROM nginxinc/nginx-unprivileged:alpine
+# Stage 1: Build React Frontend with Vite & Tailwind CSS
+FROM node:18-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-COPY --chown=101:101 . /usr/share/nginx/html
+# Stage 2: Serve compiled static assets with Nginx
+FROM nginxinc/nginx-unprivileged:alpine
+COPY --from=build --chown=101:101 /app/dist /usr/share/nginx/html
 
 EXPOSE 8080
 
