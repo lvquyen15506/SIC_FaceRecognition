@@ -1,0 +1,27 @@
+# BMAD METHOD PROJECT CONFIGURATION
+
+project_name: "SIC_FaceRecognition"
+version: "6.0.0"
+methodology: "Agile AI-Driven Development (AiDD)"
+
+agents:
+  analyst: "Mary"
+  pm: "John"
+  architect: "Winston"
+  ux_designer: "Sally"
+  developer: "Amelia"
+  qa_lead: "Quinn"        # Full QA & Tester Agent
+
+modules:
+  core: true
+  test_architecture_enterprise: true
+  qa_automation: true
+
+core_ai_path: "src/"
+docs_path: "docs/"
+tests_path: "tests/"
+
+quality_gates:
+  require_qa_approval: true
+  min_test_coverage: 80
+  anti_spoofing_liveness_check: true
