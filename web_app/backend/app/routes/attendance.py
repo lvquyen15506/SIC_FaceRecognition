@@ -150,8 +150,7 @@ async def process_batch_attendance(
                 status="COMPLETED"
             )
         else:
-            # Full Video Frame-by-Frame Bounding Box Overlay & H.264 MP4 Export
-            temp_avi_path = os.path.join(REPORTS_PATH, f"temp_{filename}.avi")
+            # Full Video Frame-by-Frame Bounding Box Overlay
             processed_mp4_path = os.path.join(REPORTS_PATH, f"processed_{filename}.mp4")
             thumbnail_jpg_path = os.path.join(REPORTS_PATH, f"processed_{filename}.jpg")
 
@@ -162,8 +161,8 @@ async def process_batch_attendance(
             if fps <= 0 or np.isnan(fps):
                 fps = 25.0
 
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            out = cv2.VideoWriter(temp_avi_path, fourcc, fps, (width, height))
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(processed_mp4_path, fourcc, fps, (width, height))
 
             best_keyframe_bytes = None
             max_faces_found = 0
@@ -175,8 +174,8 @@ async def process_batch_attendance(
                 if not ret or frame is None:
                     break
 
-                # Run AI face detection every 4th frame for high performance & accuracy
-                if frame_idx % 4 == 0 or len(cached_results) == 0:
+                # Run AI face detection every 8th frame for high speed
+                if frame_idx % 8 == 0 or len(cached_results) == 0:
                     frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
                     p_bytes, cached_results = process_classroom_image(frame_bytes, student_gallery)
 
@@ -208,15 +207,18 @@ async def process_batch_attendance(
             cap.release()
             out.release()
 
-            # Convert temp AVI to H.264 MP4 using ffmpeg for HTML5 video element compatibility
-            if os.path.exists(temp_avi_path):
+            # Optional ffmpeg H.264 re-encoding if ffmpeg CLI is available
+            h264_mp4_path = os.path.join(REPORTS_PATH, f"processed_h264_{filename}.mp4")
+            try:
                 subprocess.run(
-                    ["ffmpeg", "-y", "-i", temp_avi_path, "-vcodec", "libx264", "-pix_fmt", "yuv420p", processed_mp4_path],
+                    ["ffmpeg", "-y", "-i", processed_mp4_path, "-vcodec", "libx264", "-pix_fmt", "yuv420p", h264_mp4_path],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                if os.path.exists(temp_avi_path):
-                    os.remove(temp_avi_path)
+                if os.path.exists(h264_mp4_path):
+                    processed_mp4_path = h264_mp4_path
+            except Exception:
+                pass
 
             # Save Keyframe thumbnail image
             if best_keyframe_bytes is None:
@@ -307,7 +309,6 @@ def get_processed_thumbnail(media_id: int, db: Session = Depends(get_db)):
     if not media:
         raise HTTPException(status_code=404, detail="Media record not found")
 
-    # If processed_file_path is video, check if .jpg thumbnail exists
     thumb_path = media.processed_file_path + ".jpg" if media.media_type == "VIDEO" and not media.processed_file_path.endswith(".jpg") else media.processed_file_path
     
     if not os.path.exists(thumb_path):
