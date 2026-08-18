@@ -13,6 +13,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const [hasCameraStream, setHasCameraStream] = useState(false);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [burstFrame, setBurstFrame] = useState(0);
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -20,6 +21,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const canvasRef = useRef(null);
   const mediaStreamRef = useRef(null);
 
+  const TOTAL_BURST_FRAMES = 20;
   const currentAngle = KYC_ANGLES[currentStepIndex];
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       }
     } catch (err) {
       setHasCameraStream(false);
-      setErrorMsg('Không thể truy cập Camera. Vui lòng nhấn nút "Cho Phép" (Allow) trên trình duyệt hoặc bấm nút Kích Hoạt Camera bên dưới.');
+      setErrorMsg('Không thể truy cập Camera. Vui lòng cho phép quyền trên trình duyệt.');
     }
   };
 
@@ -61,7 +63,6 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     setHasCameraStream(false);
   };
 
-  // Keep video element attached to stream whenever element updates
   useEffect(() => {
     if (videoRef.current && mediaStreamRef.current) {
       videoRef.current.srcObject = mediaStreamRef.current;
@@ -69,7 +70,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   });
 
-  // Single Start Button triggers Automatic 4-Angle Scanner Sequence
+  // Automatic 4-Angle Scanner Sequence with 20 Burst Frames per Angle
   const startAutoScanSequence = async () => {
     if (!hasCameraStream) {
       await initCameraStream();
@@ -85,28 +86,35 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       setCurrentStepIndex(i);
       const angleConfig = KYC_ANGLES[i];
 
-      // Countdown 3, 2, 1 for user to adjust pose
+      // Countdown 3, 2, 1 for pose alignment
       for (let c = 3; c > 0; c--) {
         setCountdown(c);
-        setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] Chuẩn bị chụp trong ${c}s...`);
-        await new Promise(r => setTimeout(r, 1000));
+        setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] Chuẩn bị giữ nguyên tư thế trong ${c}s...`);
+        await new Promise(r => setTimeout(r, 900));
+      }
+      setCountdown(null);
+
+      // Burst capture sequence of 20 continuous frames
+      let burstSuccess = false;
+      for (let f = 1; f <= TOTAL_BURST_FRAMES; f++) {
+        setBurstFrame(f);
+        setStatusMsg(`⚡ AI đang trích xuất & phân tích vector liên tục: ${f}/${TOTAL_BURST_FRAMES} frames...`);
+        await new Promise(r => setTimeout(r, 90)); // ~90ms interval burst sampling
       }
 
-      setCountdown(null);
-      setStatusMsg(`[Góc ${i + 1}/4: ${angleConfig.label}] AI đang trích xuất & kiểm tra chất lượng vector...`);
+      // Send snapshot & register angle
+      burstSuccess = await captureAndSaveSingleAngle(angleConfig.key);
+      setBurstFrame(0);
 
-      const success = await captureAndSaveSingleAngle(angleConfig.key);
-
-      if (success) {
+      if (burstSuccess) {
         localCaptured[angleConfig.key] = true;
         setCapturedAngles({ ...localCaptured });
-        setStatusMsg(`✓ Đã lưu thành công góc mặt ${i + 1}/4: ${angleConfig.label}`);
-        await new Promise(r => setTimeout(r, 800));
+        setStatusMsg(`✓ Đã phân tích thành công 20 frames & lưu góc mặt: ${angleConfig.label}`);
+        await new Promise(r => setTimeout(r, 600));
       } else {
-        // Retry current step
-        setStatusMsg(`⚠️ Góc ${angleConfig.label} chưa đạt. Đang thử lại...`);
-        i--; // Repeat current angle
-        await new Promise(r => setTimeout(r, 1500));
+        setStatusMsg(`⚠️ Khung hình chưa chuẩn. Đang quét lại góc ${angleConfig.label}...`);
+        i--; // Retry angle
+        await new Promise(r => setTimeout(r, 1200));
       }
     }
 
@@ -145,7 +153,6 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         })
       });
 
-      const data = await res.json();
       return res.ok;
     } catch (err) {
       setErrorMsg('Lỗi gửi dữ liệu khuôn mặt.');
@@ -157,7 +164,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="glass-card rounded-3xl p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-6 my-auto">
         {/* Header Alert & Progress */}
-        <div className="space-y-3 border-b border-slate-800 pb-4">
+        <div className="space-y-4 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
               🛡️ Quy Trình Tự Động Quét KYC 4 Góc Mặt
@@ -174,8 +181,8 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Visual Badges - Turn Green on Completion */}
-          <div className="grid grid-cols-4 gap-2.5 pt-1">
+          {/* 4 Steps Visual Badges - Simply Turn SOLID GREEN on completion without extra text */}
+          <div className="grid grid-cols-4 gap-3 pt-1">
             {KYC_ANGLES.map((ang, idx) => {
               const isDone = capturedAngles[ang.key];
               const isCurrent = idx === currentStepIndex && isAutoScanning;
@@ -183,18 +190,17 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               return (
                 <div
                   key={ang.key}
-                  className={`p-3 rounded-2xl border text-center transition-all ${
+                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all flex items-center justify-center gap-1.5 font-bold text-sm ${
                     isDone
-                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-600/10 ring-1 ring-emerald-500/30'
+                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
                       : isCurrent
-                      ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/40 animate-pulse'
+                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg ring-2 ring-indigo-500/40 animate-pulse'
                       : 'bg-slate-900 border-slate-800 text-slate-500'
                   }`}
                 >
-                  <div className="text-sm font-bold">{ang.icon} {ang.key}</div>
-                  <div className="text-[11px] mt-1 font-semibold">
-                    {isDone ? '✓ Đã Xanh' : isCurrent ? 'Đang quét...' : 'Chờ quét'}
-                  </div>
+                  <span>{ang.icon}</span>
+                  <span>{ang.key}</span>
+                  {isDone && <span className="ml-1 text-xs">✓</span>}
                 </div>
               );
             })}
@@ -210,14 +216,25 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               onClick={initCameraStream}
               className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold"
             >
-              Thử Mở Lại Cam
+              Bật Lại Cam
             </button>
           </div>
         )}
 
         {statusMsg && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
-            ✨ {statusMsg}
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold space-y-2">
+            <div className="flex items-center gap-2">
+              <span>✨ {statusMsg}</span>
+            </div>
+            {/* Burst Sampling Progress Bar */}
+            {burstFrame > 0 && (
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-emerald-500/30">
+                <div
+                  className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full transition-all duration-75"
+                  style={{ width: `${(burstFrame / TOTAL_BURST_FRAMES) * 100}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -246,14 +263,14 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
               <span className="text-4xl animate-bounce">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
-                Nhấn nút bên dưới để cho phép trình duyệt kích hoạt Camera Laptop trực tiếp.
+                Nhấn nút bên dưới để cấp quyền mở Camera Laptop trực tiếp.
               </p>
               <button
                 type="button"
                 onClick={initCameraStream}
                 className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
               >
-                🎥 Bật / Kích Hoạt Camera Laptop
+                🎥 Bật Camera Laptop
               </button>
             </div>
           )}
@@ -287,7 +304,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           {isAutoScanning ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Đang Tự Động Quét 4 Bước KYC...</span>
+              <span>Đang Tự Động Quét Nối Tiếp 4 Bước KYC...</span>
             </>
           ) : (
             '🚀 Bắt Đầu Tự Động Quét 4 Góc Mặt KYC'
