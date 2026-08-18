@@ -362,38 +362,44 @@ export default function TeacherDashboard({ user, token }) {
                 />
               </div>
 
-              {/* Inline Suggestions Container (Never blocks buttons) */}
+              {/* Inline Suggestions Container with explicit scrollbar */}
               {teacherSuggestions.length > 0 && (
-                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 divide-y divide-slate-800/60">
-                  {teacherSuggestions.map((t) => (
-                    <div
-                      key={t.id}
-                      onClick={() => {
-                        if (!t.already_in_class) {
-                          setTeacherQuery(t.code);
-                        }
-                      }}
-                      className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
-                        t.already_in_class
-                          ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
-                          : 'hover:bg-indigo-600/20 cursor-pointer'
-                      }`}
-                    >
-                      <div>
-                        <span className="font-bold text-white">{t.full_name}</span>
-                        <span className="text-slate-400 ml-2 font-mono-grotesk">({t.email})</span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase px-1">
+                    <span>Kết quả gợi ý ({teacherSuggestions.length})</span>
+                    {teacherSuggestions.length > 3 && <span className="text-indigo-400 font-normal normal-case">📜 Cuộn để xem thêm...</span>}
+                  </div>
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-48 overflow-y-auto custom-scrollbar space-y-1 divide-y divide-slate-800/60">
+                    {teacherSuggestions.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          if (!t.already_in_class) {
+                            setTeacherQuery(t.code);
+                          }
+                        }}
+                        className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
+                          t.already_in_class
+                            ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
+                            : 'hover:bg-indigo-600/20 cursor-pointer'
+                        }`}
+                      >
+                        <div>
+                          <span className="font-bold text-white">{t.full_name}</span>
+                          <span className="text-slate-400 ml-2 font-mono-grotesk">({t.email})</span>
+                        </div>
+                        {t.already_in_class ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                            ✓ Đã trong lớp
+                          </span>
+                        ) : (
+                          <span className="font-mono-grotesk font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                            {t.code}
+                          </span>
+                        )}
                       </div>
-                      {t.already_in_class ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                          ✓ Đã trong lớp
-                        </span>
-                      ) : (
-                        <span className="font-mono-grotesk font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                          {t.code}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -454,38 +460,44 @@ export default function TeacherDashboard({ user, token }) {
                 />
               </div>
 
-              {/* Inline Suggestions Container (Never blocks buttons) */}
+              {/* Inline Suggestions Container with explicit scrollbar */}
               {studentSuggestions.length > 0 && (
-                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 divide-y divide-slate-800/60">
-                  {studentSuggestions.map((st) => (
-                    <div
-                      key={st.id}
-                      onClick={() => {
-                        if (!st.already_in_class) {
-                          setStudentQuery(st.code);
-                        }
-                      }}
-                      className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
-                        st.already_in_class
-                          ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
-                          : 'hover:bg-emerald-600/20 cursor-pointer'
-                      }`}
-                    >
-                      <div>
-                        <span className="font-bold text-white">{st.full_name}</span>
-                        <span className="text-slate-400 ml-2 font-mono-grotesk">({st.email})</span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase px-1">
+                    <span>Kết quả gợi ý ({studentSuggestions.length})</span>
+                    {studentSuggestions.length > 3 && <span className="text-emerald-400 font-normal normal-case">📜 Cuộn để xem thêm...</span>}
+                  </div>
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-48 overflow-y-auto custom-scrollbar space-y-1 divide-y divide-slate-800/60">
+                    {studentSuggestions.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => {
+                          if (!st.already_in_class) {
+                            setStudentQuery(st.code);
+                          }
+                        }}
+                        className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
+                          st.already_in_class
+                            ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
+                            : 'hover:bg-emerald-600/20 cursor-pointer'
+                        }`}
+                      >
+                        <div>
+                          <span className="font-bold text-white">{st.full_name}</span>
+                          <span className="text-slate-400 ml-2 font-mono-grotesk">({st.email})</span>
+                        </div>
+                        {st.already_in_class ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                            ✓ Đã trong lớp
+                          </span>
+                        ) : (
+                          <span className="font-mono-grotesk font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            {st.code}
+                          </span>
+                        )}
                       </div>
-                      {st.already_in_class ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                          ✓ Đã trong lớp
-                        </span>
-                      ) : (
-                        <span className="font-mono-grotesk font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                          {st.code}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
 
