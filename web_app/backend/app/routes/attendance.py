@@ -7,6 +7,7 @@ import json
 import datetime
 import cv2
 import numpy as np
+import subprocess
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -149,64 +150,89 @@ async def process_batch_attendance(
                 status="COMPLETED"
             )
         else:
-            # Process Video with OpenCV VideoCapture & ffmpeg
+            # Full Video Frame-by-Frame Bounding Box Overlay & H.264 MP4 Export
+            temp_avi_path = os.path.join(REPORTS_PATH, f"temp_{filename}.avi")
+            processed_mp4_path = os.path.join(REPORTS_PATH, f"processed_{filename}.mp4")
+            thumbnail_jpg_path = os.path.join(REPORTS_PATH, f"processed_{filename}.jpg")
+
             cap = cv2.VideoCapture(raw_save_path)
-            best_processed_bytes = None
-            detected_in_video = 0
-            
-            if cap.isOpened():
-                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                if frame_count > 0:
-                    sample_indices = np.linspace(0, max(0, frame_count - 1), num=min(10, max(1, frame_count)), dtype=int)
-                else:
-                    sample_indices = [0, 30, 60, 90, 120, 150, 180, 210, 240, 300]
-                
-                for f_idx in sample_indices:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, f_idx)
-                    ret, frame = cap.read()
-                    if ret and frame is not None:
-                        frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
-                        p_bytes, results = process_classroom_image(frame_bytes, student_gallery)
-                        if best_processed_bytes is None or len(results) > detected_in_video:
-                            best_processed_bytes = p_bytes
-                            detected_in_video = len(results)
-                        for res in results:
-                            if res["code"] != "UNKNOWN":
-                                detected_user_codes.add(res["code"])
-                cap.release()
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 640
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 480
+            fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+            if fps <= 0 or np.isnan(fps):
+                fps = 25.0
 
-            if best_processed_bytes is None:
-                # Fallback sequential frame read if POS_FRAMES seeking fails
-                cap = cv2.VideoCapture(raw_save_path)
-                f_count = 0
-                while cap.isOpened() and f_count < 100:
-                    ret, frame = cap.read()
-                    f_count += 1
-                    if ret and frame is not None and f_count % 15 == 0:
-                        frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
-                        p_bytes, results = process_classroom_image(frame_bytes, student_gallery)
-                        if best_processed_bytes is None or len(results) > detected_in_video:
-                            best_processed_bytes = p_bytes
-                            detected_in_video = len(results)
-                        for res in results:
-                            if res["code"] != "UNKNOWN":
-                                detected_user_codes.add(res["code"])
-                cap.release()
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            out = cv2.VideoWriter(temp_avi_path, fourcc, fps, (width, height))
 
-            if best_processed_bytes is None:
-                blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv2.putText(blank_img, "Video Processed", (100, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                best_processed_bytes = cv2.imencode('.jpg', blank_img)[1].tobytes()
+            best_keyframe_bytes = None
+            max_faces_found = 0
+            frame_idx = 0
+            cached_results = []
 
-            processed_img_path = processed_save_path + ".jpg"
-            with open(processed_img_path, "wb") as f:
-                f.write(best_processed_bytes)
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    break
+
+                # Run AI face detection every 4th frame for high performance & accuracy
+                if frame_idx % 4 == 0 or len(cached_results) == 0:
+                    frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+                    p_bytes, cached_results = process_classroom_image(frame_bytes, student_gallery)
+
+                    if best_keyframe_bytes is None or len(cached_results) > max_faces_found:
+                        best_keyframe_bytes = p_bytes
+                        max_faces_found = len(cached_results)
+
+                    for res in cached_results:
+                        if res["code"] != "UNKNOWN":
+                            detected_user_codes.add(res["code"])
+
+                # Draw green/red bounding boxes frame-by-frame on the video!
+                for res in cached_results:
+                    [x, y, w, h] = res["box"]
+                    if res["code"] != "UNKNOWN":
+                        color = (0, 255, 0)
+                        label = f"{res['code']} ({res['confidence']*100:.1f}%)"
+                    else:
+                        color = (0, 0, 255)
+                        label = "Nguoi la (Unknown)"
+
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
+                    cv2.rectangle(frame, (x, max(0, y-22)), (x+w, y), color, -1)
+                    cv2.putText(frame, label, (x+5, max(12, y-6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
+
+                out.write(frame)
+                frame_idx += 1
+
+            cap.release()
+            out.release()
+
+            # Convert temp AVI to H.264 MP4 using ffmpeg for HTML5 video element compatibility
+            if os.path.exists(temp_avi_path):
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", temp_avi_path, "-vcodec", "libx264", "-pix_fmt", "yuv420p", processed_mp4_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                if os.path.exists(temp_avi_path):
+                    os.remove(temp_avi_path)
+
+            # Save Keyframe thumbnail image
+            if best_keyframe_bytes is None:
+                blank_img = np.zeros((height, width, 3), dtype=np.uint8)
+                best_keyframe_bytes = cv2.imencode('.jpg', blank_img)[1].tobytes()
+
+            with open(thumbnail_jpg_path, "wb") as f:
+                f.write(best_keyframe_bytes)
+
+            final_video_path = processed_mp4_path if os.path.exists(processed_mp4_path) else raw_save_path
 
             media_rec = SessionMediaFile(
                 session_id=session.id,
                 media_type="VIDEO",
                 raw_file_path=raw_save_path,
-                processed_file_path=processed_img_path,
+                processed_file_path=final_video_path,
                 status="COMPLETED"
             )
 
@@ -266,9 +292,9 @@ def get_processed_media(media_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Media record not found")
 
     if media.media_type == "VIDEO":
-        target_path = media.raw_file_path if os.path.exists(media.raw_file_path) else media.processed_file_path
+        target_path = media.processed_file_path if os.path.exists(media.processed_file_path) else media.raw_file_path
         if not os.path.exists(target_path):
-            raise HTTPException(status_code=404, detail="Video file missing")
+            raise HTTPException(status_code=404, detail="Processed video file missing")
         return FileResponse(target_path, media_type="video/mp4")
 
     if not os.path.exists(media.processed_file_path):
@@ -278,9 +304,19 @@ def get_processed_media(media_id: int, db: Session = Depends(get_db)):
 @router.get("/media/{media_id}/thumbnail")
 def get_processed_thumbnail(media_id: int, db: Session = Depends(get_db)):
     media = db.query(SessionMediaFile).filter(SessionMediaFile.id == media_id).first()
-    if not media or not os.path.exists(media.processed_file_path):
+    if not media:
+        raise HTTPException(status_code=404, detail="Media record not found")
+
+    # If processed_file_path is video, check if .jpg thumbnail exists
+    thumb_path = media.processed_file_path + ".jpg" if media.media_type == "VIDEO" and not media.processed_file_path.endswith(".jpg") else media.processed_file_path
+    
+    if not os.path.exists(thumb_path):
+        thumb_path = media.processed_file_path
+
+    if not os.path.exists(thumb_path):
         raise HTTPException(status_code=404, detail="Thumbnail file not found")
-    return FileResponse(media.processed_file_path, media_type="image/jpeg")
+        
+    return FileResponse(thumb_path, media_type="image/jpeg")
 
 @router.get("/export-excel/{session_id}")
 def export_attendance_excel(session_id: int, db: Session = Depends(get_db)):
