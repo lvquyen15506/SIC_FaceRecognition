@@ -148,30 +148,55 @@ async def process_batch_attendance(
                 status="COMPLETED"
             )
         else:
-            # Process Video with OpenCV VideoCapture
+            # Process Video with OpenCV VideoCapture & ffmpeg
             cap = cv2.VideoCapture(raw_save_path)
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if cap.isOpened() else 0
             best_processed_bytes = None
+            detected_in_video = 0
             
-            if frame_count > 0:
-                sample_indices = np.linspace(0, max(0, frame_count - 1), num=min(5, max(1, frame_count)), dtype=int)
+            if cap.isOpened():
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                if frame_count > 0:
+                    sample_indices = np.linspace(0, max(0, frame_count - 1), num=min(10, max(1, frame_count)), dtype=int)
+                else:
+                    sample_indices = [0, 30, 60, 90, 120, 150, 180, 210, 240, 300]
+                
                 for f_idx in sample_indices:
                     cap.set(cv2.CAP_PROP_POS_FRAMES, f_idx)
                     ret, frame = cap.read()
                     if ret and frame is not None:
                         frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
                         p_bytes, results = process_classroom_image(frame_bytes, student_gallery)
-                        if best_processed_bytes is None or len(results) > 0:
+                        if best_processed_bytes is None or len(results) > detected_in_video:
                             best_processed_bytes = p_bytes
+                            detected_in_video = len(results)
                         for res in results:
                             if res["code"] != "UNKNOWN":
                                 detected_user_codes.add(res["code"])
-            cap.release()
+                cap.release()
 
             if best_processed_bytes is None:
-                best_processed_bytes, _ = process_classroom_image(contents, student_gallery)
+                # Fallback sequential frame read if POS_FRAMES seeking fails
+                cap = cv2.VideoCapture(raw_save_path)
+                f_count = 0
+                while cap.isOpened() and f_count < 100:
+                    ret, frame = cap.read()
+                    f_count += 1
+                    if ret and frame is not None and f_count % 15 == 0:
+                        frame_bytes = cv2.imencode('.jpg', frame)[1].tobytes()
+                        p_bytes, results = process_classroom_image(frame_bytes, student_gallery)
+                        if best_processed_bytes is None or len(results) > detected_in_video:
+                            best_processed_bytes = p_bytes
+                            detected_in_video = len(results)
+                        for res in results:
+                            if res["code"] != "UNKNOWN":
+                                detected_user_codes.add(res["code"])
+                cap.release()
 
-            # Save the processed keyframe image with .jpg extension for display preview
+            if best_processed_bytes is None:
+                blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(blank_img, "Video Processed", (100, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                best_processed_bytes = cv2.imencode('.jpg', blank_img)[1].tobytes()
+
             processed_img_path = processed_save_path + ".jpg"
             with open(processed_img_path, "wb") as f:
                 f.write(best_processed_bytes)

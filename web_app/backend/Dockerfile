@@ -1,6 +1,13 @@
 # Production-Hardened Non-Root Backend Dockerfile for SIC_FaceRecognition
 FROM python:3.10-slim
 
+# Install ffmpeg for OpenCV video decoding & processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root app user
 RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -m appuser
 
