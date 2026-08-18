@@ -22,7 +22,12 @@ def generate_class_code() -> str:
     return "SIC-" + "".join(random.choices(chars, k=6))
 
 @router.get("/search-students")
-def search_students(query: str = "", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def search_students(
+    class_id: int = None,
+    query: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     q = db.query(User).filter(User.role == "STUDENT")
     if query.strip():
         term = f"%{query.strip()}%"
@@ -32,15 +37,30 @@ def search_students(query: str = "", current_user: User = Depends(get_current_us
             (User.email.ilike(term))
         )
     students = q.limit(20).all()
+
+    enrolled_ids = set()
+    if class_id:
+        cs_list = db.query(ClassStudent.student_id).filter(
+            ClassStudent.class_id == class_id,
+            ClassStudent.status == "APPROVED"
+        ).all()
+        enrolled_ids = {cs[0] for cs in cs_list}
+
     return [{
         "id": s.id,
         "code": s.code,
         "full_name": s.full_name,
-        "email": s.email
+        "email": s.email,
+        "already_in_class": s.id in enrolled_ids
     } for s in students]
 
 @router.get("/search-teachers")
-def search_teachers(query: str = "", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def search_teachers(
+    class_id: int = None,
+    query: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     q = db.query(User).filter(User.role.in_(["TEACHER", "ADMIN"]))
     if query.strip():
         term = f"%{query.strip()}%"
@@ -50,11 +70,19 @@ def search_teachers(query: str = "", current_user: User = Depends(get_current_us
             (User.email.ilike(term))
         )
     teachers = q.limit(20).all()
+
+    managing_ids = set()
+    if class_id:
+        classroom = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+        if classroom:
+            managing_ids = {t.id for t in classroom.teachers}
+
     return [{
         "id": t.id,
         "code": t.code,
         "full_name": t.full_name,
-        "email": t.email
+        "email": t.email,
+        "already_in_class": t.id in managing_ids
     } for t in teachers]
 
 @router.post("/create", response_model=ClassResponse)

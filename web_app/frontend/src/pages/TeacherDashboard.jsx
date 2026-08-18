@@ -49,23 +49,23 @@ export default function TeacherDashboard({ user, token }) {
 
   // Real-time Autocomplete Search for Students
   useEffect(() => {
-    if (showAddStudentModal) {
+    if (showAddStudentModal && selectedClass) {
       const timer = setTimeout(() => {
-        searchStudents(studentQuery);
-      }, 200);
+        searchStudents(studentQuery, selectedClass.id);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [studentQuery, showAddStudentModal]);
+  }, [studentQuery, showAddStudentModal, selectedClass]);
 
   // Real-time Autocomplete Search for Teachers
   useEffect(() => {
-    if (showAddTeacherModal) {
+    if (showAddTeacherModal && selectedClass) {
       const timer = setTimeout(() => {
-        searchTeachers(teacherQuery);
-      }, 200);
+        searchTeachers(teacherQuery, selectedClass.id);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [teacherQuery, showAddTeacherModal]);
+  }, [teacherQuery, showAddTeacherModal, selectedClass]);
 
   const fetchMyClasses = async () => {
     try {
@@ -82,9 +82,9 @@ export default function TeacherDashboard({ user, token }) {
     } catch (err) {}
   };
 
-  const searchStudents = async (q) => {
+  const searchStudents = async (q, classId) => {
     try {
-      const res = await fetch(`/api/v1/classes/search-students?query=${encodeURIComponent(q)}`, {
+      const res = await fetch(`/api/v1/classes/search-students?class_id=${classId}&query=${encodeURIComponent(q)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -94,9 +94,9 @@ export default function TeacherDashboard({ user, token }) {
     } catch (err) {}
   };
 
-  const searchTeachers = async (q) => {
+  const searchTeachers = async (q, classId) => {
     try {
-      const res = await fetch(`/api/v1/classes/search-teachers?query=${encodeURIComponent(q)}`, {
+      const res = await fetch(`/api/v1/classes/search-teachers?class_id=${classId}&query=${encodeURIComponent(q)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -188,6 +188,7 @@ export default function TeacherDashboard({ user, token }) {
         alert(data.message || 'Đã thêm Giảng viên đồng quản lý thành công');
         setShowAddTeacherModal(false);
         setTeacherQuery('');
+        setTeacherSuggestions([]);
         fetchClassTeachers(selectedClass.id);
       } else {
         alert(data.detail || 'Không thể thêm Giảng viên');
@@ -219,6 +220,7 @@ export default function TeacherDashboard({ user, token }) {
         alert(data.message || 'Đã thêm sinh viên vào lớp thành công');
         setShowAddStudentModal(false);
         setStudentQuery('');
+        setStudentSuggestions([]);
         fetchClassStudents(selectedClass.id);
       } else {
         alert(data.detail || 'Không thể thêm sinh viên');
@@ -328,15 +330,27 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Add Co-Teacher Modal with Autocomplete Dropdown */}
+      {/* Add Co-Teacher Modal */}
       {showAddTeacherModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4 relative">
-            <h3 className="text-xl font-bold text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
-            <p className="text-xs text-slate-400">Gõ tên, mã GV hoặc email để chọn giảng viên từ danh sách gợi ý</p>
+          <div className="glass-card rounded-2xl p-6 max-w-lg w-full border border-slate-800 space-y-4 relative">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-xl font-bold text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
+              <button
+                onClick={() => {
+                  setShowAddTeacherModal(false);
+                  setTeacherQuery('');
+                  setTeacherSuggestions([]);
+                }}
+                className="text-slate-400 hover:text-white w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">Gõ tên, mã GV hoặc email để chọn từ danh sách gợi ý</p>
 
             <form onSubmit={handleAddTeacher} className="space-y-4">
-              <div className="relative">
+              <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Mã GV / Tên / Email Giảng Viên</label>
                 <input
                   type="text"
@@ -346,40 +360,52 @@ export default function TeacherDashboard({ user, token }) {
                   placeholder="Gõ để tìm kiếm: VD: GV002 hoặc Giảng viên..."
                   className="w-full px-4 py-3 rounded-xl glass-input text-sm"
                 />
+              </div>
 
-                {/* Autocomplete Dropdown */}
-                {teacherSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20 divide-y divide-slate-800">
-                    {teacherSuggestions.map((t) => (
-                      <div
-                        key={t.id}
-                        onClick={() => {
+              {/* Inline Suggestions Container (Never blocks buttons) */}
+              {teacherSuggestions.length > 0 && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 divide-y divide-slate-800/60">
+                  {teacherSuggestions.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        if (!t.already_in_class) {
                           setTeacherQuery(t.code);
-                          setTeacherSuggestions([]);
-                        }}
-                        className="p-3 hover:bg-indigo-600/20 cursor-pointer transition flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <span className="font-bold text-white">{t.full_name}</span>
-                          <span className="text-slate-400 ml-2 font-mono-grotesk">({t.email})</span>
-                        </div>
+                        }
+                      }}
+                      className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
+                        t.already_in_class
+                          ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
+                          : 'hover:bg-indigo-600/20 cursor-pointer'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-bold text-white">{t.full_name}</span>
+                        <span className="text-slate-400 ml-2 font-mono-grotesk">({t.email})</span>
+                      </div>
+                      {t.already_in_class ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                          ✓ Đã trong lớp
+                        </span>
+                      ) : (
                         <span className="font-mono-grotesk font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
                           {t.code}
                         </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddTeacherModal(false);
+                    setTeacherQuery('');
                     setTeacherSuggestions([]);
                   }}
-                  className="flex-1 py-3 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl"
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
                 >
                   Hủy Bỏ
                 </button>
@@ -396,15 +422,27 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Add Student Modal with Autocomplete Dropdown */}
+      {/* Add Student Modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4 relative">
-            <h3 className="text-xl font-bold text-white">Thêm Sinh Viên Vào Lớp</h3>
+          <div className="glass-card rounded-2xl p-6 max-w-lg w-full border border-slate-800 space-y-4 relative">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-xl font-bold text-white">Thêm Sinh Viên Vào Lớp</h3>
+              <button
+                onClick={() => {
+                  setShowAddStudentModal(false);
+                  setStudentQuery('');
+                  setStudentSuggestions([]);
+                }}
+                className="text-slate-400 hover:text-white w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
             <p className="text-xs text-slate-400">Gõ MSSV, Tên hoặc Email sinh viên để chọn từ danh sách gợi ý</p>
 
             <form onSubmit={handleAddStudent} className="space-y-4">
-              <div className="relative">
+              <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">MSSV / Tên / Email Sinh Viên</label>
                 <input
                   type="text"
@@ -414,40 +452,52 @@ export default function TeacherDashboard({ user, token }) {
                   placeholder="Gõ để tìm kiếm: VD: SV001 hoặc Nguyễn..."
                   className="w-full px-4 py-3 rounded-xl glass-input text-sm"
                 />
+              </div>
 
-                {/* Autocomplete Dropdown */}
-                {studentSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-20 divide-y divide-slate-800">
-                    {studentSuggestions.map((st) => (
-                      <div
-                        key={st.id}
-                        onClick={() => {
+              {/* Inline Suggestions Container (Never blocks buttons) */}
+              {studentSuggestions.length > 0 && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1 divide-y divide-slate-800/60">
+                  {studentSuggestions.map((st) => (
+                    <div
+                      key={st.id}
+                      onClick={() => {
+                        if (!st.already_in_class) {
                           setStudentQuery(st.code);
-                          setStudentSuggestions([]);
-                        }}
-                        className="p-3 hover:bg-emerald-600/20 cursor-pointer transition flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <span className="font-bold text-white">{st.full_name}</span>
-                          <span className="text-slate-400 ml-2 font-mono-grotesk">({st.email})</span>
-                        </div>
+                        }
+                      }}
+                      className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition ${
+                        st.already_in_class
+                          ? 'opacity-60 bg-slate-800/30 cursor-not-allowed'
+                          : 'hover:bg-emerald-600/20 cursor-pointer'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-bold text-white">{st.full_name}</span>
+                        <span className="text-slate-400 ml-2 font-mono-grotesk">({st.email})</span>
+                      </div>
+                      {st.already_in_class ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                          ✓ Đã trong lớp
+                        </span>
+                      ) : (
                         <span className="font-mono-grotesk font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                           {st.code}
                         </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddStudentModal(false);
+                    setStudentQuery('');
                     setStudentSuggestions([]);
                   }}
-                  className="flex-1 py-3 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl"
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
                 >
                   Hủy Bỏ
                 </button>
