@@ -6,17 +6,6 @@ RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -m appuser
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV & PostgreSQL
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy app code and core AI
 COPY --chown=appuser:appuser web_app/backend/app /app/app
 COPY --chown=appuser:appuser web_app/backend/main.py /app/main.py
@@ -25,6 +14,7 @@ COPY --chown=appuser:appuser data_gallery /app/data_gallery
 COPY --chown=appuser:appuser reports /app/reports
 COPY --chown=appuser:appuser web_app/backend/data /app/web_app/backend/data
 
+# Pre-compiled wheels (opencv-python-headless & psycopg2-binary do not require apt system libs)
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
