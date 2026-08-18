@@ -1,97 +1,168 @@
-# BẢN ĐẶC TẢ BA & PRD CHÍNH THỨC: HỆ THỐNG QUẢN LÝ LỚP HỌC & ĐIỂM DANH SINH VIÊN TỰ ĐỘNG BẰNG AI (SIC_FaceRecognition)
+# BẢN ĐẶC TẢ MASTER THIẾT KẾ VÀ KIẾN TRÚC HỆ THỐNG: QUẢN LÝ LỚP HỌC & ĐIỂM DANH SINH VIÊN TỰ ĐỘNG BẰNG AI (SIC_FaceRecognition)
 
 > **Dự án**: `SIC_FaceRecognition`  
-> **Phiên bản**: v2.0 (Cập nhật đầy đủ nghiệp vụ quản lý lớp, tài khoản & báo cáo)  
-> **Trạng thái**: 🟡 Đã cập nhật 100% chi tiết nghiệp vụ ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
+> **Cấp độ**: Enterprise Specification (Đặc tả Tổng thể Doanh nghiệp)  
+> **Phiên bản**: v3.0 Master  
+> **Trạng thái**: 🟡 Hoàn thiện 100% đầy đủ từ Tech Stack, Phân quyền Admin, Bảo mật đến Luồng Hoạt động ➔ Chờ Human-in-the-loop (Bạn) Phê duyệt  
 
 ---
 
-## 💬 1. BIÊN BẢN THẢO LUẬN CỦA CÁC AGENT (REVISED AGENT LOG V2)
+## 🏗️ 1. TỔNG QUAN KIẾN TRÚC & TECH STACK HỆ THỐNG (FULL TECH STACK)
 
-* **Mary (BA)**: *"Tôi đã bổ sung toàn bộ luồng nghiệp vụ thực tế vào PRD:
-  1. **Quản lý Tài khoản & Phân quyền**: Cả Sinh viên và Giảng viên đều có tài khoản riêng và đều cần đăng ký dữ liệu khuôn mặt đa góc (vì ảnh toàn cảnh lớp dính cả mặt Giảng viên).
-  2. **Quản lý Lớp học**: Giảng viên tạo lớp (sinh Mã Lớp), hỗ trợ nhiều Giảng viên cùng quản lý 1 lớp. Sinh viên có thể join lớp bằng Mã Lớp hoặc Giảng viên add trực tiếp.
-  3. **Điểm danh & Báo cáo**: Lưu vết theo ngày, lưu Ảnh/Video đã xử lý (có vẽ Bounding Box + Tên/MSSV) làm bằng chứng kiểm soát kèm file Excel điểm danh."*
-* **Winston (Architect)**: *"Về mặt kỹ thuật:
-  - CSDL Cần thêm các bảng: `users` (Student/Teacher), `classes` (Mã lớp, tên lớp), `class_members` (Quan hệ GV-Lớp, SV-Lớp), `attendance_sessions` (Ngày điểm danh, đường dẫn ảnh/video gốc & ảnh đã xử lý), `attendance_records` (Trạng thái có mặt/vắng).
-  - Core AI `src/` sẽ được gọi để bóc tách khuôn mặt trên ảnh/video upload, vẽ Bounding Box + Name Label xuất ra ảnh đã xử lý lưu vào thư mục `reports/`."*
-* **Sally (UX Designer)**: *"Giao diện thiết kế theo chuẩn `DESIGN.md`:
-  - **Trang Sinh viên**: Đăng ký đa góc mặt, nhập Mã Lớp để Join, xem lịch sử điểm danh cá nhân.
-  - **Trang Giảng viên**: Dashboard Lớp học, tạo lớp, chia sẻ quyền quản lý, danh sách sinh viên, tab Upload Điểm danh (ảnh/video) và Báo cáo Lịch sử theo ngày."*
-* **John (PM)**: *"Đã chốt bản PRD hoàn chỉnh 100% bên dưới!"*
+Hệ thống được thiết kế theo mô hình **Decoupled Architecture (Kiến trúc Phân tách)** với 4 tầng rõ ràng:
 
----
+```text
+[ FRONTEND LAYER ] ──(REST API / WS)──> [ BACKEND API LAYER ] ──> [ CORE AI LAYER (src/) ]
+(React/Next.js/Tailwind)                 (FastAPI/Async/Celery)         (FaceViT + ArcFace)
+                                                  │
+                                                  ▼
+                                         [ DATABASE LAYER ]
+                                     (PostgreSQL + PGVector/Qdrant)
+```
 
-## 📋 2. PHẠM VI SẢN PHẨM & USER STORIES CHI TIẾT (PRD)
+### 🔹 1.1. Core AI Layer (`src/`) — [GIỮ NGUYÊN & BẢO VỆ 100%]
+- **Mô hình chính**: Custom Vision Transformer (**FaceViT**) kết hợp **ArcFace Margin Loss** (`src/core/model.py`, `src/core/arcface.py`).
+- **Trích xuất Đặc trưng**: Xuất Vector 512 chiều (512-d Normalized Embedding).
+- **Anti-Spoofing & Pose Liveness**: `src/app_modules/test_pose_liveness.py` (Đo góc Pitch, Yaw, Roll).
+- **Face Detector & Alignment**: `src/app_modules/detector.py` (Cắt và chuẩn hóa ảnh 112x112).
+- **Gallery & Matching**: `src/app_modules/gallery.py` (Lưu trữ và so khớp Cosine Distance).
+- **Thư viện AI**: Python 3.10, PyTorch, OpenCV, ONNX Runtime, NumPy, SciPy.
 
-### 👥 PHÂN HỆ 1: QUẢN LÝ TÀI KHOẢN & ĐĂNG KÝ MẶT ĐA GÓC ĐỘ
+### 🔹 1.2. Backend API Layer (Xây dựng mới)
+- **Framework**: Python **FastAPI** (Hỗ trợ Async/Await hiệu năng cao).
+- **ORM & Validation**: SQLAlchemy 2.0 ORM + Pydantic v2 data validation.
+- **Background Tasks**: Celery + Redis (Chuyên xử lý các file Video lớp học dung lượng lớn ở background).
+- **Tạo File Báo cáo**: `pandas`, `openpyxl` (Xuất file Excel `.xlsx`).
 
-#### Story 1.1: Đăng ký & Đăng nhập Tài khoản
-- **Sinh viên & Giảng viên**: Được cấp tài khoản đăng nhập vào hệ thống (Email/MSSV/Mã GV + Mật khẩu).
+### 🔹 1.3. Database Layer (Xây dựng mới)
+- **RDBMS**: **PostgreSQL 16** (Lưu trữ người dùng, lớp học, lịch sử điểm danh).
+- **Vector Search Engine**: Extension `PGVector` hoặc `Qdrant` (Tìm kiếm và so khớp Vector 512-d tốc độ cao $< 10ms$).
 
-#### Story 1.2: Đăng ký Dữ liệu Khuôn mặt Đa góc độ (Face Registration)
-- **Áp dụng cho**: Cả Sinh viên và Giảng viên (do ảnh/video lớp dính cả mặt Giảng viên).
-- **Quy trình**: Người dùng vào mục "Hồ sơ Sinh trắc", bật camera quay/chụp các góc mặt (Trực diện, Nghiêng trái, Nghiêng phải, Cúi/Ngẩng).
-- **Xử lý AI**: `src/core/model.py` trích xuất tập hợp Vector 512-d và lưu vào CSDL (`src/app_modules/gallery.py`).
-
----
-
-### 🏫 PHÂN HỆ 2: QUẢN LÝ LỚP HỌC & THÀNH VIÊN (CLASS MANAGEMENT)
-
-#### Story 2.1: Tạo Lớp & Mã Lớp (Class Creation & Code)
-- **Giảng viên**: Tạo Lớp học mới (Tên môn, Học kỳ). Hệ thống tự sinh **Mã Lớp (Class Code)** duy nhất (ví dụ: `SIC2026-A1`).
-
-#### Story 2.2: Đồng Quản lý Lớp (Multi-Teacher Co-Teaching)
-- Giảng viên tạo lớp có thể mời/thêm các Giảng viên khác cùng tham gia quản lý lớp học đó.
-
-#### Story 2.3: Tham gia Lớp học (Join Class & Student Roster)
-- **Sinh viên**: Nhập Mã Lớp để gửi yêu cầu/gia nhập lớp.
-- **Giảng viên**: Có thể thêm Sinh viên thủ công theo MSSV hoặc duyệt danh sách sinh viên join bằng Mã Lớp. Quản lý danh sách sinh viên thực tế (xem hồ sơ, trạng thái dữ liệu mặt).
+### 🔹 1.4. Frontend Web Layer (Xây dựng mới)
+- **Framework**: **React 18 / Next.js** (TypeScript).
+- **Styling & UI Tokens**: Tailwind CSS tuân thủ 100% bản thiết kế [DESIGN.md](file:///run/media/lvquyen15506/D/SIC/face_recognition_project/DESIGN.md) của Google Labs (Dark Glassmorphism, Deep Navy `#0F172A`, Electric Blue `#2563EB`).
+- **Icons & Components**: Lucide-React Icons, Headless UI / Radix UI.
+- **Canvas API**: Xử lý vẽ Bounding Box + Name Tag real-time trên ảnh/video.
 
 ---
 
-### 📸 PHÂN HỆ 3: ĐIỂM DANH ẢNH / VIDEO TOÀN CẢNH (ATTENDANCE PROCESSING)
+## 👥 2. PHÂN QUYỀN VÀ VAI TRÒ HỆ THỐNG (ROLE-BASED ACCESS CONTROL - RBAC)
 
-#### Story 3.1: Upload Ảnh / Video Điểm danh
-- Giảng viên vào Lớp học ➔ Chọn ngày điểm danh ➔ Upload Ảnh toàn cảnh (Panoramic Photo) hoặc Video quay lớp học.
+Hệ thống được chia làm **3 nhóm vai trò người dùng**:
 
-#### Story 3.2: AI Bóc tách & Xử lý (AI Processing)
-- `src/app_modules/detector.py` cắt tất cả khuôn mặt trong ảnh/video.
-- `src/app_modules/attendance.py` so khớp với CSDL đa góc độ của Sinh viên & Giảng viên trong lớp.
-- **Vẽ Bounding Box & Label**: Vẽ khung chữ nhật quanh từng khuôn mặt (Xanh lá: Sinh viên có mặt, Xanh dương: Giảng viên, Đỏ: Người lạ/Không xác định) kèm Tên + MSSV + Tỷ lệ % khớp.
+```text
+               ┌────────────────────────────────────────┐
+               │          SUPER ADMIN (Quản trị)         │
+               │   (Quyền tối cao: Toàn bộ hệ thống)    │
+               └───────────────────┬────────────────────┘
+                                   │
+         ┌─────────────────────────┴─────────────────────────┐
+         ▼                                                   ▼
+┌─────────────────────────────────┐         ┌─────────────────────────────────┐
+│     GIẢNG VIÊN (TEACHER)        │         │      SINH VIÊN (STUDENT)        │
+│  - Đăng ký mặt đa góc           │         │  - Đăng ký mặt đa góc           │
+│  - Tạo Lớp & Mã Lớp             │         │  - Nhập Mã Lớp để Join          │
+│  - Đồng quản lý Lớp             │         │  - Xem kết quả điểm danh cá nhân│
+│  - Upload Ảnh/Video Điểm danh   │         └─────────────────────────────────┘
+│  - Xem Báo cáo & Xuất Excel     │
+└─────────────────────────────────┘
+```
+
+### 🛡️ 2.1. Quyền Super Admin (Admin Tối Cao)
+Admin có **TOÀN BỘ QUYỀN (Full Permissions)** trên toàn hệ thống:
+1. **Quản lý Tài khoản (User Management)**: Xem, tạo mới, chỉnh sửa, đổi vai trò, khóa hoặc xóa bất kỳ tài khoản Sinh viên, Giảng viên hay Admin khác.
+2. **Quản lý Lớp học Toàn trường (Global Class Management)**: Xem tất cả các lớp học, can thiệp thêm/bớt Giảng viên hoặc Sinh viên vào bất kỳ lớp nào.
+3. **Quản lý CSDL Sinh trắc học (Biometric Data Governance)**: Reset hoặc yêu cầu chụp lại dữ liệu khuôn mặt của người dùng bị lỗi/biến dạng.
+4. **Cấu hình Hệ thống (System Settings)**:
+   - Cài đặt Ngưỡng điểm danh (Cosine Similarity Threshold, mặc định $75\%$).
+   - Cài đặt độ nhạy Liveness Anti-spoofing.
+5. **Nhật ký Giám sát (Audit Logs)**: Xem toàn bộ lịch sử đăng nhập, lịch sử điểm danh, lịch sử chỉnh sửa của Giảng viên và Sinh viên.
+
+### 👨‍🏫 2.2. Quyền Giảng viên (Teacher)
+1. Đăng ký dữ liệu khuôn mặt đa góc độ của bản thân.
+2. Tạo Lớp học mới ➔ Hệ thống sinh **Mã Lớp (Class Code)** duy nhất.
+3. Phân quyền **Đồng Quản Lý**: Thêm các Giảng viên khác vào cùng quản lý lớp.
+4. Quản lý Sinh viên trong lớp: Duyệt sinh viên join bằng Mã Lớp hoặc thêm thủ công theo MSSV.
+5. Upload Ảnh/Video toàn cảnh lớp học để tiến hành Điểm danh tự động.
+6. Xem Mục Báo cáo: Xem Ảnh/Video đã bóc tách khuôn mặt (có Bounding Box), xem danh sách Có mặt/Vắng mặt theo Ngày và xuất file Excel.
+
+### 👨‍🎓 2.3. Quyền Sinh viên (Student)
+1. Đăng ký dữ liệu khuôn mặt đa góc độ (Trực diện, Nghiêng trái, Nghiêng phải, Cúi/Ngẩng) qua camera Web.
+2. Nhập Mã Lớp để xin gia nhập Lớp học.
+3. Xem lịch sử và tỷ lệ điểm danh cá nhân theo từng môn học.
 
 ---
 
-### 📊 PHÂN HỆ 4: MỤC BÁO CÁO & KIỂM SOÁT (REPORT & ARCHIVE CENTER)
+## 🔒 3. AN NINH VÀ BẢO MẬT HỆ THỐNG (SECURITY & COMPLIANCE)
 
-#### Story 4.1: Báo cáo Lịch sử theo Ngày (Date-based Reports)
-- Hệ thống tự động lưu trữ các Buổi điểm danh theo Ngày/Giờ.
-
-#### Story 4.2: Lưu trữ Bằng chứng Ảnh/Video Đã Xử Lý (Processed Media Archive)
-- Giảng viên và Nhà trường có thể xem lại **Ảnh/Video đã xử lý (Processed Media)** có gắn Bounding Box + Tên/MSSV làm nền tảng đối soát minh bạch.
-
-#### Story 4.3: Xuất Tệp Điểm danh (Export Attendance File)
-- Xuất file báo cáo dạng **Excel (`.xlsx`) / CSV** chứa:
-  - Danh sách Sinh viên **CÓ MẶT** (Thời gian nhận diện, Tỷ lệ % khớp).
-  - Danh sách Sinh viên **VẮNG MẶT**.
-  - Danh sách Giảng viên có mặt trong buổi học.
-
----
-
-## 🗄️ 3. MÔ HÌNH CƠ SỞ DỮ LIỆU SƠ BỘ (DATABASE SCHEMA)
-
-1. **`users`**: `id`, `email`, `password_hash`, `full_name`, `role` (STUDENT/TEACHER), `code` (MSSV/MGV).
-2. **`face_embeddings`**: `user_id`, `vector_512d`, `angle_label` (FRONT, LEFT, RIGHT, DOWN).
-3. **`classes`**: `id`, `class_code`, `class_name`, `created_by`.
-4. **`class_teachers`**: `class_id`, `teacher_id`.
-5. **`class_students`**: `class_id`, `student_id`, `joined_at`.
-6. **`attendance_sessions`**: `id`, `class_id`, `date`, `raw_media_path`, `processed_media_path`.
-7. **`attendance_records`**: `session_id`, `user_id`, `status` (PRESENT/ABSENT), `confidence`.
+1. **Mã hóa Sinh trắc học (Biometric Data Encryption)**:
+   - Tất cả Vector đặc trưng 512-d và ảnh gốc khuôn mặt được mã hóa bằng thuật toán **AES-256** khi lưu trên ổ đĩa.
+   - Vector khuôn mặt được hash và kiểm tra tính toàn vẹn bằng SHA-256.
+2. **Xác thực & Phân quyền (Auth & RBAC)**:
+   - Sử dụng **JWT (JSON Web Token)** với cơ chế Access Token (hạn 30 phút) và Refresh Token (hạn 7 ngày) lưu trong `httpOnly Cookie` để chống XSS.
+   - Phân quyền theo Middleware (`RequireRole(["ADMIN"])`, `RequireRole(["TEACHER"])`).
+3. **Bảo mật API & Chống Tấn công**:
+   - **Rate Limiting**: Giới hạn tối đa 60 requests/phút/IP để chống tấn công DDoS API.
+   - **Input Sanitization**: Kiểm tra định dạng file upload (chỉ chấp nhận JPG/PNG/MP4/AVI), chống Malicious Shell / RCE.
+   - **CORS & HTTPS**: Bắt buộc HTTPS / TLS 1.3 và cấu hình CORS nghiêm ngặt.
+4. **Nhật ký Kiểm toán (Audit Logging)**:
+   - Mọi thao tác xóa dữ liệu, sửa điểm danh hoặc thay đổi quyền Admin đều được ghi vết vào bảng `audit_logs` (lưu IP, User Agent, Timestamp, Hành vi).
 
 ---
 
-## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) DUYỆT
+## 🔄 4. CHI TIẾT CÁC QUY TRÌNH HOẠT ĐỘNG (SYSTEM WORKFLOWS)
 
-Bản đặc tả đã được cập nhật **đầy đủ 100% tất cả các tính năng quản lý lớp, tài khoản GV/SV, upload ảnh/video và mục báo cáo đối soát** của bạn.
+### 🔄 Luồng 1: Đăng ký Dữ liệu Mặt Đa góc độ (Multi-Angle Enrollment Workflow)
+```text
+[ SV/GV Đăng nhập ] ──> [ Mở Trang Hồ sơ Sinh trắc ] ──> [ Bật Camera Web ]
+                                                                │
+                                                                ▼
+[ Trích xuất Vector 512-d ] <── [ Kiểm tra Liveness 4 Hướng ] <──┘
+           │                  (Thẳng -> Trái -> Phải -> Cúi)
+           ▼
+[ Mã hóa & Lưu CSDL Gallery (`data_gallery/`) ]
+```
 
-Bạn hãy xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** tiến hành vòng lặp lập trình - kiểm thử tự động nhé!
+### 🔄 Luồng 2: Tạo Lớp & Gia nhập Lớp (Classroom Setup Workflow)
+```text
+[ Giảng viên Tạo Lớp ] ──> [ Sinh Mã Lớp (Class Code) ] ──> [ Gửi Mã Lớp cho SV ]
+                                                                  │
+[ Giảng viên Duyệt / Thêm SV ] <── [ SV Đăng nhập & Nhập Mã Lớp ] <──┘
+```
+
+### 🔄 Luồng 3: Upload & Điểm danh Tự động (Attendance Processing Workflow)
+```text
+[ Giảng viên chọn Lớp & Buổi học ] ──> [ Upload Ảnh / Video Toàn cảnh Lớp ]
+                                                        │
+                                                        ▼
+[ Xuất Bảng Điểm Danh + File Excel ] <── [ AI Bóc tách Mặt & Khoanh Bounding Box ]
+```
+
+### 🔄 Luồng 4: Báo cáo Lịch sử & Kiểm soát Minh bạch (Report & Audit Workflow)
+```text
+[ Vào Mục Báo Cáo Buổi Học ] ──> [ Xem Ảnh/Video Đã Xử Lý (Gắn Bounding Box + Tên) ]
+                                                │
+                                                ▼
+                        [ Tải File Báo cáo Excel (.xlsx) Đối soát ]
+```
+
+---
+
+## 🗄️ 5. MÔ HÌNH CƠ SỞ DỮ LIỆU TỔNG THỂ (MASTER DATABASE SCHEMA)
+
+1. **`users`**: `id`, `email`, `password_hash`, `full_name`, `role` (ADMIN/TEACHER/STUDENT), `code` (MSSV/MGV), `created_at`.
+2. **`face_embeddings`**: `id`, `user_id`, `vector_512d` (Array/Vector), `angle_label` (FRONT/LEFT/RIGHT/DOWN), `created_at`.
+3. **`classes`**: `id`, `class_code`, `class_name`, `created_by_teacher_id`, `created_at`.
+4. **`class_teachers`**: `class_id`, `teacher_id`, `assigned_at` (Hỗ trợ đồng quản lý).
+5. **`class_students`**: `class_id`, `student_id`, `status` (PENDING/APPROVED), `joined_at`.
+6. **`attendance_sessions`**: `id`, `class_id`, `session_date`, `raw_media_path`, `processed_media_path`, `created_by`.
+7. **`attendance_records`**: `id`, `session_id`, `user_id`, `status` (PRESENT/ABSENT), `confidence`, `bounding_box_json`.
+8. **`audit_logs`**: `id`, `user_id`, `action`, `ip_address`, `details_json`, `timestamp`.
+
+---
+
+## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) DUYỆT BẢN MASTER
+
+Bản **Master Specification v3.0** đã hoàn thiện **100% đầy đủ từ Tech Stack, Phân quyền Super Admin, Bảo mật AES-256/JWT, CSDL PostgreSQL đến 4 Luồng Hoạt động**.
+
+Bạn xem qua và nhắn **"Duyệt"** để **Amelia (Dev)** và **Quinn (QA Lead)** bắt đầu tiến trình Lập trình & Kiểm thử tự động nhé!
