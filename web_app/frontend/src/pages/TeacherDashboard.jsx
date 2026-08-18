@@ -14,8 +14,8 @@ export default function TeacherDashboard({ user, token }) {
   const [pastSessions, setPastSessions] = useState([]);
   const [attendanceResult, setAttendanceResult] = useState(null);
 
-  // Image Zoom Lightbox Modal State
-  const [zoomImage, setZoomImage] = useState(null);
+  // Media Zoom / Video Lightbox Modal State
+  const [zoomMedia, setZoomMedia] = useState(null);
 
   useEffect(() => {
     fetchMyClasses();
@@ -131,25 +131,35 @@ export default function TeacherDashboard({ user, token }) {
         </button>
       </div>
 
-      {/* Image Zoom Lightbox Modal */}
-      {zoomImage && (
+      {/* Media Zoom / Video Lightbox Modal */}
+      {zoomMedia && (
         <div
-          onClick={() => setZoomImage(null)}
+          onClick={() => setZoomMedia(null)}
           className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50 cursor-zoom-out"
         >
           <div className="relative max-w-5xl max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setZoomImage(null)}
-              className="absolute -top-10 right-2 text-white bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border border-slate-600"
+              onClick={() => setZoomMedia(null)}
+              className="absolute -top-10 right-2 text-white bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border border-slate-600 z-10"
             >
               ✕
             </button>
-            <img
-              src={zoomImage}
-              alt="Zoomed evidence"
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-slate-700 shadow-2xl"
-            />
-            <p className="text-center text-xs text-slate-400 mt-2 font-mono-grotesk">🔍 Nhấp vào ngoài hoặc nút ✕ để đóng ảnh</p>
+
+            {zoomMedia.media_type === 'VIDEO' ? (
+              <video
+                src={zoomMedia.processed_url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[85vh] rounded-2xl border border-slate-700 shadow-2xl"
+              />
+            ) : (
+              <img
+                src={zoomMedia.processed_url}
+                alt="Zoomed evidence"
+                className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-slate-700 shadow-2xl"
+              />
+            )}
+            <p className="text-center text-xs text-slate-400 mt-2 font-mono-grotesk">🔍 Nhấp vào ngoài hoặc nút ✕ để đóng</p>
           </div>
         </div>
       )}
@@ -327,29 +337,41 @@ export default function TeacherDashboard({ user, token }) {
                   </a>
                 </div>
 
-                {/* Processed Media Preview with Zoom Lightbox */}
+                {/* Processed Media Preview with HTML5 Video Player & Image Zoom Lightbox */}
                 {attendanceResult.media_files && attendanceResult.media_files.length > 0 && (
                   <div className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                      Ảnh / Video Bằng Chứng Đã Xử Lý <span className="text-blue-400 normal-case font-normal">(Nhấp vào ảnh để Zoom to)</span>
+                      Ảnh / Video Bằng Chứng Đã Xử Lý <span className="text-blue-400 normal-case font-normal">(Bấm để xem video hoặc Phóng to ảnh)</span>
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       {attendanceResult.media_files.map((mf) => (
                         <div key={mf.id} className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-2 group relative">
-                          <img
-                            src={mf.processed_url}
-                            alt="Media result"
-                            onClick={() => setZoomImage(mf.processed_url)}
-                            className="w-full h-44 object-cover rounded-lg cursor-zoom-in group-hover:opacity-90 transition"
-                          />
+                          {mf.media_type === 'VIDEO' ? (
+                            <video
+                              src={mf.processed_url}
+                              controls
+                              poster={mf.thumbnail_url}
+                              className="w-full h-44 object-cover rounded-lg bg-black"
+                            />
+                          ) : (
+                            <img
+                              src={mf.processed_url}
+                              alt="Media result"
+                              onClick={() => setZoomMedia(mf)}
+                              className="w-full h-44 object-cover rounded-lg cursor-zoom-in group-hover:opacity-90 transition"
+                            />
+                          )}
+
                           <div className="flex items-center justify-between mt-1 px-1">
-                            <span className="text-[10px] text-slate-400">File bằng chứng #{mf.id}</span>
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                              {mf.media_type === 'VIDEO' ? '🎥 File Video' : '🖼️ File Ảnh'} #{mf.id}
+                            </span>
                             <button
                               type="button"
-                              onClick={() => setZoomImage(mf.processed_url)}
+                              onClick={() => setZoomMedia(mf)}
                               className="text-[10px] text-blue-400 hover:underline font-semibold flex items-center gap-1"
                             >
-                              🔍 Zoom To
+                              {mf.media_type === 'VIDEO' ? '▶ Phóng To Video' : '🔍 Phóng To Ảnh'}
                             </button>
                           </div>
                         </div>

@@ -43,7 +43,8 @@ def get_class_attendance_sessions(
             media_files.append({
                 "id": mf.id,
                 "media_type": mf.media_type,
-                "processed_url": f"/api/v1/attendance/media/{mf.id}"
+                "processed_url": f"/api/v1/attendance/media/{mf.id}",
+                "thumbnail_url": f"/api/v1/attendance/media/{mf.id}/thumbnail" if mf.media_type == "VIDEO" else f"/api/v1/attendance/media/{mf.id}"
             })
 
         records = []
@@ -217,7 +218,8 @@ async def process_batch_attendance(
             "id": media_rec.id,
             "filename": upload.filename,
             "media_type": media_rec.media_type,
-            "processed_url": f"/api/v1/attendance/media/{media_rec.id}"
+            "processed_url": f"/api/v1/attendance/media/{media_rec.id}",
+            "thumbnail_url": f"/api/v1/attendance/media/{media_rec.id}/thumbnail" if media_rec.media_type == "VIDEO" else f"/api/v1/attendance/media/{media_rec.id}"
         })
 
     # 4. Save consolidated attendance records for all students in class
@@ -260,11 +262,25 @@ async def process_batch_attendance(
 @router.get("/media/{media_id}")
 def get_processed_media(media_id: int, db: Session = Depends(get_db)):
     media = db.query(SessionMediaFile).filter(SessionMediaFile.id == media_id).first()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media record not found")
+
+    if media.media_type == "VIDEO":
+        target_path = media.raw_file_path if os.path.exists(media.raw_file_path) else media.processed_file_path
+        if not os.path.exists(target_path):
+            raise HTTPException(status_code=404, detail="Video file missing")
+        return FileResponse(target_path, media_type="video/mp4")
+
+    if not os.path.exists(media.processed_file_path):
+        raise HTTPException(status_code=404, detail="Image file missing")
+    return FileResponse(media.processed_file_path, media_type="image/jpeg")
+
+@router.get("/media/{media_id}/thumbnail")
+def get_processed_thumbnail(media_id: int, db: Session = Depends(get_db)):
+    media = db.query(SessionMediaFile).filter(SessionMediaFile.id == media_id).first()
     if not media or not os.path.exists(media.processed_file_path):
-        raise HTTPException(status_code=404, detail="Media file not found")
-    
-    media_type = "image/jpeg" if media.processed_file_path.endswith(".jpg") or media.media_type == "IMAGE" else "video/mp4"
-    return FileResponse(media.processed_file_path, media_type=media_type)
+        raise HTTPException(status_code=404, detail="Thumbnail file not found")
+    return FileResponse(media.processed_file_path, media_type="image/jpeg")
 
 @router.get("/export-excel/{session_id}")
 def export_attendance_excel(session_id: int, db: Session = Depends(get_db)):
