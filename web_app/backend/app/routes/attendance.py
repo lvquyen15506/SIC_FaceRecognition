@@ -14,6 +14,12 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
 
+try:
+    import imageio_ffmpeg
+    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+except Exception:
+    FFMPEG_EXE = "ffmpeg"
+
 from app.database import get_db
 from app.models import User, ClassRoom, ClassStudent, AttendanceSession, SessionMediaFile, AttendanceRecord, FaceEmbedding
 from app.security import get_current_user, require_role
@@ -151,7 +157,8 @@ async def process_batch_attendance(
             )
         else:
             # Full Video Frame-by-Frame Bounding Box Overlay
-            processed_mp4_path = os.path.join(REPORTS_PATH, f"processed_{filename}.mp4")
+            raw_video_path = os.path.join(REPORTS_PATH, f"raw_vid_{filename}.mp4")
+            h264_mp4_path = os.path.join(REPORTS_PATH, f"processed_h264_{filename}.mp4")
             thumbnail_jpg_path = os.path.join(REPORTS_PATH, f"processed_{filename}.jpg")
 
             cap = cv2.VideoCapture(raw_save_path)
@@ -162,7 +169,7 @@ async def process_batch_attendance(
                 fps = 25.0
 
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(processed_mp4_path, fourcc, fps, (width, height))
+            out = cv2.VideoWriter(raw_video_path, fourcc, fps, (width, height))
 
             best_keyframe_bytes = None
             max_faces_found = 0
@@ -207,18 +214,19 @@ async def process_batch_attendance(
             cap.release()
             out.release()
 
-            # Optional ffmpeg H.264 re-encoding if ffmpeg CLI is available
-            h264_mp4_path = os.path.join(REPORTS_PATH, f"processed_h264_{filename}.mp4")
-            try:
-                subprocess.run(
-                    ["ffmpeg", "-y", "-i", processed_mp4_path, "-vcodec", "libx264", "-pix_fmt", "yuv420p", h264_mp4_path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-                if os.path.exists(h264_mp4_path):
-                    processed_mp4_path = h264_mp4_path
-            except Exception:
-                pass
+            # Re-encode to H.264 (yuv420p) using imageio_ffmpeg binary for 100% HTML5 browser playback
+            final_video_path = raw_video_path
+            if os.path.exists(raw_video_path):
+                try:
+                    subprocess.run(
+                        [FFMPEG_EXE, "-y", "-i", raw_video_path, "-vcodec", "libx264", "-pix_fmt", "yuv420p", h264_mp4_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    if os.path.exists(h264_mp4_path) and os.path.getsize(h264_mp4_path) > 0:
+                        final_video_path = h264_mp4_path
+                except Exception as e:
+                    print(f"[FFMPEG Error] Re-encoding failed: {e}")
 
             # Save Keyframe thumbnail image
             if best_keyframe_bytes is None:
@@ -227,8 +235,6 @@ async def process_batch_attendance(
 
             with open(thumbnail_jpg_path, "wb") as f:
                 f.write(best_keyframe_bytes)
-
-            final_video_path = processed_mp4_path if os.path.exists(processed_mp4_path) else raw_save_path
 
             media_rec = SessionMediaFile(
                 session_id=session.id,
