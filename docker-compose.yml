@@ -12,6 +12,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sic_network
     restart: unless-stopped
 
   backend:
@@ -32,6 +34,8 @@ services:
       - DATABASE_URL=postgresql://sic_user:sic_password_2026@db:5432/sic_facerecognition
     depends_on:
       - db
+    networks:
+      - sic_network
     restart: unless-stopped
 
   frontend:
@@ -45,7 +49,14 @@ services:
       - "3000:8080"
     depends_on:
       - backend
+    networks:
+      - sic_network
     restart: unless-stopped
 
 volumes:
   postgres_data:
+
+networks:
+  sic_network:
+    driver: bridge
+    name: sic_facerecognition_net
