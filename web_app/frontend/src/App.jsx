@@ -12,14 +12,17 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      fetchMe();
+      fetchMeWithToken(token);
     }
   }, [token]);
 
-  const fetchMe = async () => {
+  const fetchMeWithToken = async (authToken) => {
+    const activeToken = authToken || token;
+    if (!activeToken) return;
+
     try {
       const res = await fetch('/api/v1/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${activeToken}` }
       });
       if (res.ok) {
         const userData = await res.json();
@@ -33,9 +36,10 @@ export default function App() {
   };
 
   const handleLoginSuccess = (loginData) => {
-    setToken(loginData.access_token);
-    localStorage.setItem('sic_token', loginData.access_token);
-    fetchMe();
+    const newAccessToken = loginData.access_token;
+    setToken(newAccessToken);
+    localStorage.setItem('sic_token', newAccessToken);
+    fetchMeWithToken(newAccessToken);
   };
 
   const handleLogout = () => {
@@ -60,7 +64,7 @@ export default function App() {
               <MandatoryFaceKycModal
                 user={user}
                 token={token}
-                onKycSuccess={fetchMe}
+                onKycSuccess={() => fetchMeWithToken(token)}
                 onLogout={handleLogout}
               />
             )}
