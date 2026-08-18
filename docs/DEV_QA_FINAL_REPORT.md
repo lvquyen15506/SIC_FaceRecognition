@@ -3,8 +3,9 @@
 > **Dự án**: `SIC_FaceRecognition`  
 > **Cấp độ**: Enterprise Acceptance Report (Báo cáo Nghiệm thu Cấp Doanh nghiệp)  
 > **Các Agent Thực Hiện**: **Amelia (Senior Developer)** & **Quinn (QA Lead & Senior Tester)**  
-> **Chế Độ Vận Hành**: ⚡ **FULL AUTONOMOUS EXECUTION (Tự động hóa hoàn toàn không cần duyệt thủ công từng bước)**  
-> **Trạng thái Nghiệm Thu**: 🟢 **ĐÃ HOÀN THÀNH 100% — PASS ALL BACKEND & UI TESTS & ĐÓNG GÓI DOCKER CONTIANERIZED**  
+> **Chế Độ Vận Hành Agent**: ⚡ **FULL AUTONOMOUS EXECUTION (Tự động hóa Agent không cần duyệt thủ công)**  
+> **Cấu Hình Docker**: 🛡️ **NON-ROOT HARDENED SECURITY (`no-new-privileges:true`, UID 1000, Nginx Unprivileged)**  
+> **Trạng thái Nghiệm Thu**: 🟢 **ĐÃ HOÀN THÀNH 100% — PASS ALL BACKEND & UI TESTS**  
 > **Ngày Xuất Báo Cáo**: 18/08/2026  
 
 ---
@@ -36,24 +37,27 @@
 
 ---
 
-## 📦 2. ĐÓNG GÓI DOCKER CONTAINER & CHẾ ĐỘ TỰ ĐỘNG HÓA CAO NHẤT (FULL AUTONOMY MODE)
+## 🛡️ 2. ĐÓNG GÓI DOCKER CHUẨN BẢO MẬT KHÔNG NÂNG QUYỀN (NON-ROOT SECURE CONTAINERIZATION)
 
-Hệ thống đã được đóng gói container hóa chuẩn doanh nghiệp với 3 tệp cấu hình chính:
+Toàn bộ hệ thống Docker đã được cấu hình lại theo chuẩn **Bảo mật Tối thiểu (Principle of Least Privilege - Non-Root Execution)**:
 
-1. **Backend Dockerfile (`Dockerfile`)**: Đóng gói Python 3.10, PyTorch, OpenCV Headless, FastAPI, SQLAlchemy và Core AI `src/`.
-2. **Frontend Dockerfile (`Dockerfile.frontend`)**: Đóng gói Nginx High-Performance Web Server phục vụ giao diện React Tailwind.
-3. **Orchestration (`docker-compose.yml`)**: Điều phối 2 container kết nối mạng nội bộ.
+1. **Backend Dockerfile (`Dockerfile`)**:
+   - Khởi tạo người dùng hệ thống riêng `appuser` (`UID 1000:GID 1000`).
+   - Loại bỏ hoàn toàn quyền `root` khi thực thi container (`USER appuser`).
+2. **Frontend Dockerfile (`Dockerfile.frontend`)**:
+   - Sử dụng Image bảo mật `nginxinc/nginx-unprivileged:alpine`.
+   - Chạy Nginx dưới dạng non-root user tại cổng `8080`.
+3. **Docker Compose (`docker-compose.yml`)**:
+   - Bật cờ bảo mật `security_opt: [ "no-new-privileges:true" ]` ngăn chặn leo leo quyền container.
+   - Ép kiểu người dùng `user: "1000:1000"`.
 
-### ⚡ Chế độ Tự Động Hóa Thực Thi (Full Auto-Approval Execution Mode):
-- Mọi thao tác khởi tạo tệp tin, chỉnh sửa mã nguồn, xóa file rác, chạy test suite và thực thi command line đều được thiết lập ở **Chế độ Tự động hóa Hoàn toàn (Full Autonomous Execution)** theo chỉ thị từ Product Owner (User), giúp tốc độ phát triển và kiểm thử đạt mức tối đa.
-
-### 🚀 Lệnh Khởi Chạy Docker:
+### 🚀 Lệnh Khởi Chạy Docker Bảo Mật An Toàn:
 
 ```bash
 docker compose up -d --build
 ```
 
-- **Truy cập Frontend Web UI**: `http://localhost:3000` (Hoặc `http://localhost:80`)
+- **Truy cập Frontend Web UI**: `http://localhost:3000`
 - **Truy cập Backend REST API**: `http://localhost:8000`
 - **Truy cập Swagger OpenAPI Docs**: `http://localhost:8000/docs`
 
@@ -71,11 +75,11 @@ docker compose up -d --build
 | **Reporting & Export Excel** | Báo cáo lịch sử buổi học theo ngày, trình xem bằng chứng ảnh/video đã xử lý, xuất file **Excel (`.xlsx`)** danh sách điểm danh chi tiết. | 🟢 Hoàn thành | 🟢 PASS |
 | **Super Admin Control** | Dashboard cho Super Admin quản lý toàn bộ User (SV, GV, Admin), xem/reset dữ liệu sinh trắc khuôn mặt, quản lý tất cả các lớp học toàn trường. | 🟢 Hoàn thành | 🟢 PASS |
 | **Google Labs Design Token** | Tuân thủ 100% **[DESIGN.md](file:///run/media/lvquyen15506/D/SIC/face_recognition_project/DESIGN.md)**: Dark Glassmorphic Banking UI (`#090D16`), Font `Inter` & `Space Grotesk`. | 🟢 Hoàn thành | 🟢 PASS |
-| **Docker Containerization** | Đóng gói đầy đủ `Dockerfile`, `Dockerfile.frontend`, `docker-compose.yml`. | 🟢 Hoàn thành | 🟢 PASS |
+| **Non-Root Docker Hardening** | Đóng gói chuẩn an toàn Non-Root `appuser`, Nginx Unprivileged 8080, `no-new-privileges:true`. | 🟢 Hoàn thành | 🟢 PASS |
 
 ---
 
 ## 🏆 CHỮ KÝ XÁC NHẬN NGHIỆM THU THÀNH CÔNG
 
-- 👩‍💻 **Amelia (Senior Developer)**: *"Tôi đã triển khai đầy đủ 100% các phân hệ Web API Backend, Frontend UI, bọc Core AI `src/`, xử lý Lật gương camera `scaleX(-1)`, điểm danh hàng loạt đa tệp và đóng gói toàn bộ vào Docker Containers. Mọi dòng code đều sạch sẽ, modular và sẵn sàng vận hành!"*
-- 🧪 **Quinn (QA Lead & Senior Tester)**: *"Tôi đã chạy bộ kiểm thử tự động toàn diện cho cả Backend API (`tests/test_api.py`) và Frontend UI/DOM (`tests/test_ui.py`). Tất cả $100\%$ test cases đều PASS hoàn hảo. Đủ điều kiện bàn giao nghiệm thu cho Product Owner!"*
+- 👩‍💻 **Amelia (Senior Developer)**: *"Tôi đã tái cấu trúc toàn bộ Dockerfiles & Docker Compose chạy chuẩn an toàn Non-Root user (UID 1000), loại bỏ root privileges và áp dụng `no-new-privileges:true`. Mọi container đều an toàn tối đa cho môi trường production!"*
+- 🧪 **Quinn (QA Lead & Senior Tester)**: *"Tôi đã xác minh cấu hình Docker mới và bộ test suite tự động cho Backend API (`tests/test_api.py`) và Frontend UI/DOM (`tests/test_ui.py`). Tất cả $100\%$ test cases đều PASS hoàn hảo!"*
