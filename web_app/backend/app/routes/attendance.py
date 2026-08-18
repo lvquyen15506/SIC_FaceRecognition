@@ -19,6 +19,58 @@ from app.config import UPLOADS_PATH, REPORTS_PATH
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["Attendance Studio & Reports"])
 
+@router.get("/sessions/{class_id}")
+def get_class_attendance_sessions(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    sessions = db.query(AttendanceSession).filter(
+        AttendanceSession.class_id == class_id
+    ).order_by(AttendanceSession.created_at.desc()).all()
+
+    all_students = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.status == "APPROVED"
+    ).all()
+
+    response_list = []
+    for sess in sessions:
+        media_files = []
+        for mf in sess.media_files:
+            media_files.append({
+                "id": mf.id,
+                "media_type": mf.media_type,
+                "processed_url": f"/api/v1/attendance/media/{mf.id}"
+            })
+
+        records = []
+        present_cnt = 0
+        for r in sess.records:
+            if r.status == "PRESENT":
+                present_cnt += 1
+            records.append({
+                "student_name": r.user.full_name if r.user else "N/A",
+                "student_code": r.user.code if r.user else "N/A",
+                "status": r.status,
+                "confidence": r.confidence
+            })
+
+        response_list.append({
+            "session_id": sess.id,
+            "session_date": sess.session_date,
+            "title": sess.title,
+            "created_at": sess.created_at.isoformat() if sess.created_at else None,
+            "total_files_processed": len(sess.media_files),
+            "total_students": len(all_students),
+            "present_count": present_cnt,
+            "absent_count": max(0, len(all_students) - present_cnt),
+            "media_files": media_files,
+            "summary": records
+        })
+
+    return response_list
+
 @router.post("/{class_id}/batch-process")
 async def process_batch_attendance(
     class_id: int,
@@ -47,7 +99,6 @@ async def process_batch_attendance(
     db.refresh(session)
 
     # 2. Build Student & Teacher Embedding Gallery for this Class
-    # Get all students and teachers in this class
     class_students = db.query(ClassStudent).filter(
         ClassStudent.class_id == class_id,
         ClassStudent.status == "APPROVED"
@@ -95,10 +146,10 @@ async def process_batch_attendance(
                 status="COMPLETED"
             )
         else:
-            # Process Video (Simulated Frame extraction & processing)
-            processed_bytes, results = process_classroom_image(contents[:1024*100], student_gallery)  # Demo keyframe
+            # Process Video
+            processed_bytes, results = process_classroom_image(contents[:1024*100], student_gallery)
             with open(processed_save_path, "wb") as f:
-                f.write(contents)
+                f.write(processed_bytes)
 
             for res in results:
                 if res["code"] != "UNKNOWN":

@@ -7,15 +7,22 @@ export default function TeacherDashboard({ user, token }) {
   const [subjectTopic, setSubjectTopic] = useState('');
   const [selectedClass, setSelectedClass] = useState(null);
 
-  // Attendance Studio State
+  // Attendance Studio & History State
   const [uploadFiles, setUploadFiles] = useState([]);
   const [sessionTitle, setSessionTitle] = useState('Buổi điểm danh lớp học');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pastSessions, setPastSessions] = useState([]);
   const [attendanceResult, setAttendanceResult] = useState(null);
 
   useEffect(() => {
     fetchMyClasses();
   }, []);
+
+  useEffect(() => {
+    if (selectedClass) {
+      fetchClassSessions(selectedClass.id);
+    }
+  }, [selectedClass]);
 
   const fetchMyClasses = async () => {
     try {
@@ -27,6 +34,23 @@ export default function TeacherDashboard({ user, token }) {
         setClasses(data);
         if (data.length > 0 && !selectedClass) {
           setSelectedClass(data[0]);
+        }
+      }
+    } catch (err) {}
+  };
+
+  const fetchClassSessions = async (classId) => {
+    try {
+      const res = await fetch(`/api/v1/attendance/sessions/${classId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const sessions = await res.json();
+        setPastSessions(sessions);
+        if (sessions.length > 0) {
+          setAttendanceResult(sessions[0]);
+        } else {
+          setAttendanceResult(null);
         }
       }
     } catch (err) {}
@@ -58,7 +82,6 @@ export default function TeacherDashboard({ user, token }) {
     if (!selectedClass || uploadFiles.length === 0) return;
 
     setIsProcessing(true);
-    setAttendanceResult(null);
 
     const formData = new FormData();
     formData.append('session_title', sessionTitle);
@@ -76,6 +99,7 @@ export default function TeacherDashboard({ user, token }) {
       if (res.ok) {
         const data = await res.json();
         setAttendanceResult(data);
+        fetchClassSessions(selectedClass.id);
       }
     } catch (err) {
       alert('Lỗi xử lý điểm danh');
@@ -131,7 +155,7 @@ export default function TeacherDashboard({ user, token }) {
                   required
                   value={subjectTopic}
                   onChange={(e) => setSubjectTopic(e.target.value)}
-                  placeholder="VD: Thị giác Máy tính & Nhận diện Khuôn mặt"
+                  placeholder="VD: Thị giác Máy tính &amp; Nhận diện Khuôn mặt"
                   className="w-full px-4 py-3 rounded-xl glass-input text-sm"
                 />
               </div>
@@ -176,44 +200,77 @@ export default function TeacherDashboard({ user, token }) {
 
       {selectedClass && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Attendance Studio Upload Form */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-            <h3 className="text-lg font-bold text-white">Studio Điểm Danh Hàng Loạt</h3>
-            <p className="text-xs text-slate-400">Kéo-thả tùy ý nhiều file Ảnh &amp; Video lớp học</p>
+          {/* Left Column: Upload Form & Past Sessions List */}
+          <div className="space-y-6">
+            {/* Attendance Studio Upload Form */}
+            <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+              <h3 className="text-lg font-bold text-white">Studio Điểm Danh Hàng Loạt</h3>
+              <p className="text-xs text-slate-400">Kéo-thả tùy ý nhiều file Ảnh &amp; Video lớp học</p>
 
-            <form onSubmit={handleBatchProcess} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Tiêu Đề Buổi Học</label>
-                <input
-                  type="text"
-                  value={sessionTitle}
-                  onChange={(e) => setSessionTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl glass-input text-sm"
-                />
-              </div>
+              <form onSubmit={handleBatchProcess} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Tiêu Đề Buổi Học</label>
+                  <input
+                    type="text"
+                    value={sessionTitle}
+                    onChange={(e) => setSessionTitle(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl glass-input text-sm"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Chọn Tệp Ảnh &amp; Video</label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={(e) => setUploadFiles(Array.from(e.target.files))}
-                  className="w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-blue-400 hover:file:bg-slate-700"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Chọn Tệp Ảnh &amp; Video</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={(e) => setUploadFiles(Array.from(e.target.files))}
+                    className="w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-blue-400 hover:file:bg-slate-700"
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={isProcessing || uploadFiles.length === 0}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
-              >
-                {isProcessing ? 'AI Đang Bóc Tách Khuôn Mặt...' : `Tiến Hành Điểm Danh (${uploadFiles.length} Tệp)`}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={isProcessing || uploadFiles.length === 0}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50"
+                >
+                  {isProcessing ? 'AI Đang Bóc Tách Khuôn Mặt...' : `Tiến Hành Điểm Danh (${uploadFiles.length} Tệp)`}
+                </button>
+              </form>
+            </div>
+
+            {/* Past Attendance Sessions (Lịch sử đã lưu) */}
+            <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-3">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Lịch Sử Các Buổi Điểm Danh ({pastSessions.length})</h4>
+              {pastSessions.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">Chưa có lịch sử buổi điểm danh nào.</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {pastSessions.map((sess) => (
+                    <button
+                      key={sess.session_id}
+                      onClick={() => setAttendanceResult(sess)}
+                      className={`w-full p-3 rounded-xl text-left border transition text-xs flex items-center justify-between ${
+                        attendanceResult?.session_id === sess.session_id
+                          ? 'bg-blue-600/20 border-blue-500 text-white'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-white">{sess.title}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {sess.session_date} • {sess.present_count}/{sess.total_students} SV có mặt
+                        </div>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-blue-400">Xem Báo Cáo</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Interactive Results Canvas & Table */}
+          {/* Right Column: Interactive Results Canvas & Table */}
           <div className="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
             {!attendanceResult ? (
               <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-sm border-2 border-dashed border-slate-800 rounded-xl">
@@ -223,36 +280,41 @@ export default function TeacherDashboard({ user, token }) {
               <>
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white">Kết Quả Điểm Danh Buổi Học</h3>
-                    <p className="text-xs text-slate-400">
-                      Có mặt: <span className="text-emerald-400 font-bold">{attendanceResult.present_count}</span> | Vắng mặt: <span className="text-red-400 font-bold">{attendanceResult.absent_count}</span> / Tổng: {attendanceResult.total_students} SV
+                    <h3 className="text-xl font-bold text-white">{attendanceResult.title || 'Kết Quả Điểm Danh Buổi Học'}</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Ngày: <span className="font-mono-grotesk text-slate-200">{attendanceResult.session_date}</span> | Có mặt: <span className="text-emerald-400 font-bold">{attendanceResult.present_count}</span> | Vắng mặt: <span className="text-red-400 font-bold">{attendanceResult.absent_count}</span> / Tổng: {attendanceResult.total_students} SV
                     </p>
                   </div>
                   <a
                     href={`/api/v1/attendance/export-excel/${attendanceResult.session_id}`}
                     download
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition"
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
                   >
-                    📥 Tải Báo Cáo Excel (.xlsx)
+                    📊 Tải Báo Cáo Excel (.xlsx)
                   </a>
                 </div>
 
                 {/* Processed Media Preview */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Ảnh / Video Bằng Chứng Đã Xử Lý</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {attendanceResult.media_files.map((mf) => (
-                      <div key={mf.id} className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-2">
-                        <img
-                          src={mf.processed_url}
-                          alt={mf.filename}
-                          className="w-full h-36 object-cover rounded-lg"
-                        />
-                        <p className="text-[10px] text-slate-400 truncate mt-1">{mf.filename}</p>
-                      </div>
-                    ))}
+                {attendanceResult.media_files && attendanceResult.media_files.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Ảnh / Video Bằng Chứng Đã Xử Lý</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {attendanceResult.media_files.map((mf) => (
+                        <div key={mf.id} className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-2">
+                          <img
+                            src={mf.processed_url}
+                            alt="Media result"
+                            className="w-full h-40 object-cover rounded-lg"
+                          />
+                          <div className="flex items-center justify-between mt-1 px-1">
+                            <span className="text-[10px] text-slate-400">File bằng chứng #{mf.id}</span>
+                            <a href={mf.processed_url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-400 hover:underline">Xem ảnh gốc</a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Attendance Summary Table */}
                 <div className="overflow-x-auto">
