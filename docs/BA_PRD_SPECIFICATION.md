@@ -1,69 +1,70 @@
-# BẢN ĐẶC TẢ BA & PRD TỔNG HỢP: HỆ THỐNG eKYC KHUÔN MẶT CHUẨN NGÂN HÀNG
+# BẢN ĐẶC TẢ BA & PRD CHÍNH THỨC: HỆ THỐNG ĐIỂM DANH LỚP HỌC TỰ ĐỘNG THÔNG QUA THU THẬP KHUÔN MẶT ĐA GÓC ĐỘ (MULTI-ANGLE STUDENT ENROLLMENT & CLASSROOM ATTENDANCE)
 
 > **Dự án**: `SIC_FaceRecognition`  
-> **Trạng thái**: 🟡 Đang chờ Human-in-the-loop (Bạn) Đánh giá & Phê duyệt  
-> **Các Agent tham gia thảo luận**:  
-> - 🕵️‍♀️ **Mary (Analyst)**: Đặt ra bài toán nghiệp vụ & benchmark ngân hàng.  
-> - 📋 **John (Product Manager)**: Soạn thảo PRD, User Stories & Tiêu chí nghiệm thu.  
-> - 🏗️ **Winston (Architect)**: Đảm bảo tính khả thi kỹ thuật kết nối với `src/`.  
-> - 🎨 **Sally (UX Designer)**: Áp dụng chuẩn nhận diện giao diện [DESIGN.md](file:///run/media/lvquyen15506/D/SIC/face_recognition_project/DESIGN.md).
+> **Trạng thái**: 🟡 Đã cập nhật theo phản hồi chính xác của User ➔ Chờ Human-in-the-loop (Bạn) Duyệt lại  
+> **Định hướng cốt lõi**:  
+> 1. **Phần Sinh Viên (Student Side)**: Sử dụng luồng "eKYC Đa góc độ" để sinh viên tự quay/chụp các góc mặt (thẳng, nghiêng trái, nghiêng phải, cúi/ngẩng). Mục đích là thu thập dữ liệu khuôn mặt chi tiết và phong phú nhất, tránh bị lỗi điểm danh khi bị che khuất trong lớp.  
+> 2. **Phần Giảng Viên / Lớp Học (Teacher/Class Side)**: Tải ảnh toàn cảnh lớp học (Panoramic Photo) hoặc Video lớp học lên Web. AI sẽ tự bóc tách tất cả khuôn mặt trong lớp, so khớp với CSDL đa góc độ của sinh viên và xuất ra Bảng điểm danh tự động.
 
 ---
 
-## 💬 1. BIÊN BẢN THẢO LUẬN GIỮA CÁC AGENT (AGENT DISCUSSION LOG)
+## 💬 1. BIÊN BẢN THẢO LUẬN LẠI GIỮA CÁC AGENT (REVISED AGENT LOG)
 
-* **Mary (BA)**: *"Tôi đã nghiên cứu quy trình eKYC của Revolut và Techcombank. Hệ thống mới của chúng ta cần 2 tính năng chính: (1) Đăng ký khuôn mặt mới (Enrollment) và (2) Xác thực giao dịch / Điểm danh 1:1 & 1:N (Verification/Identification). Bắt buộc có kiểm tra khuôn mặt sống (Liveness) để chống dùng ảnh/video giả mạo."*
-* **Winston (Architect)**: *"Đồng ý với Mary. Trong `src/`, chúng ta đã có sẵn `src/core/model.py` (Vision Transformer FaceViT), `src/core/arcface.py` (trích xuất vector 512-d), và `src/app_modules/test_pose_liveness.py` (kiểm tra góc nghiêng Pose Liveness). Tôi đề xuất dựng Web Backend bằng **FastAPI**, bọc các module này thành 3 API RESTful chính mà không cần sửa bất kỳ dòng code nào trong `src/`."*
-* **Sally (UX Designer)**: *"Về mặt giao diện, tôi sẽ tuân thủ 100% tệp `DESIGN.md` của Google Labs. Màn hình quét camera sẽ có **Oval Guide Frame** giữa màn hình, viền đổi màu real-time (Xanh lá khi PASS, Vàng khi thiếu sáng/lệch mặt, Đỏ khi phát hiện giả mạo). Khung giao diện dùng hiệu ứng kính mờ Glassmorphism (`#1E293B`) trên nền Midnight (`#090D16`)."*
-* **John (PM)**: *"Rất tốt! Tôi sẽ tổng hợp toàn bộ các ý kiến này thành bản PRD hoàn chỉnh bên dưới để trình cho **Human-in-the-loop (Product Owner)** duyệt trước khi chuyển sang cho Amelia (Dev) và Quinn (QA) làm việc."*
+* **Mary (BA)**: *"Cảm ơn phản hồi của anh! Chúng tôi đã hiểu chính xác bài toán. Mục đích chính của hệ thống là **Điểm danh Lớp học tự động từ 1 ảnh/video toàn cảnh**. Việc cho sinh viên quay mặt kiểu 'eKYC' là để thu thập **Bộ vector đặc trưng đa góc độ (Multi-angle Embedding Gallery)** cho từng sinh viên, giúp AI không bị nhận diện trượt khi sinh viên ngồi nghiêng, cúi đầu hay bị che khuất một phần trong lớp."*
+* **Winston (Architect)**: *"Trong `src/`, chúng ta đã có sẵn toàn bộ thuật toán core này! 
+  - `src/app_modules/test_pose_liveness.py`: Hướng dẫn sinh viên quay các góc mặt (Pitch, Yaw, Roll) để lấy đủ ảnh đa góc.
+  - `src/app_modules/gallery.py`: Lưu trữ tập hợp Vector 512-d đa góc của từng sinh viên theo Mã Số Sinh Viên (MSSV).
+  - `src/app_modules/attendance.py`: Bóc tách tất cả khuôn mặt trong ảnh/video toàn cảnh lớp học và so khớp Cosine Similarity với CSDL đa góc."*
+* **Sally (UX Designer)**: *"Tôi sẽ chia giao diện Web thành 2 phân hệ rõ ràng:
+  - **Phân hệ Sinh viên (Student Enrollment UI)**: Giao diện chụp/quay đa góc mặt với khung elip hướng dẫn (quay trái, quay phải, cúi/ngẩng) chuẩn `DESIGN.md`.
+  - **Phân hệ Giảng viên (Teacher Attendance Dashboard)**: Nơi giảng viên upload ảnh/video toàn cảnh lớp học, xem danh sách điểm danh real-time, danh sách Có mặt / Vắng mặt và xuất file Excel."*
+* **John (PM)**: *"Tôi đã tổng hợp lại bản PRD chuẩn xác 100% bên dưới để anh duyệt!"*
 
 ---
 
-## 📋 2. PHẠM VI SẢN PHẨM & USER STORIES (PRD)
+## 📋 2. PHẠM VI SẢN PHẨM & USER STORIES CHÍNH THỨC (PRD)
 
-### 🔹 Feature 1: Luồng Kiểm tra Khuôn mặt sống (Pose Liveness Verification)
-- **Mô tả**: Người dùng đưa mặt vào camera, hệ thống chỉ định 3 cử động (Nhìn thẳng ➔ Quay trái ➔ Quay phải).
+### 🔹 PHÂN HỆ 1: THU THẬP DỮ LIỆU KHUÔN MẶT ĐA GÓC ĐỘ (STUDENT MULTI-ANGLE ENROLLMENT)
+
+- **Mục tiêu**: Giúp sinh viên tự đăng ký thông tin (Họ tên, MSSV, Lớp) và tự quay/chụp dữ liệu khuôn mặt ở nhiều góc độ khác nhau.
 - **User Story 1.1**:
-  - **As a**: Khách hàng thực hiện eKYC.
-  - **I want to**: Được chỉ dẫn rõ ràng cử động khuôn mặt trên màn hình.
-  - **So that**: Tôi xác minh tôi là người thật chứ không phải ảnh in/video giả mạo.
-- **Acceptance Criteria (Gherkin)**:
-  - *Given*: Camera trình duyệt đã được cấp quyền và đủ ánh sáng.
-  - *When*: Người dùng quay mặt sang trái góc $\ge 15^\circ$ theo yêu cầu của `src/app_modules/test_pose_liveness.py`.
-  - *Then*: Vòng Oval trên màn hình hiển thị màu Xanh Lá và chuyển sang bước tiếp theo trong $< 200ms$.
+  - **As a**: Sinh viên trong trường.
+  - **I want to**: Vào ứng dụng Web, nhập MSSV và quay khuôn mặt ở các góc nghiêng (Trực diện, Nghiêng trái $30^\circ$, Nghiêng phải $30^\circ$, Cúi/Ngẩng).
+  - **So that**: Hệ thống thu thập đủ dữ liệu góc mặt của tôi, đảm bảo khi ngồi trong lớp dù nghiêng mặt hay cúi đầu vẫn được điểm danh chính xác.
+- **Acceptance Criteria**:
+  - *Given*: Sinh viên mở Web bằng điện thoại hoặc laptop.
+  - *When*: Sinh viên quay đủ các góc mặt theo chỉ định của `test_pose_liveness.py`.
+  - *Then*: `src/core/model.py` trích xuất tập hợp vector 512-d tương ứng với từng góc mặt và lưu vào `src/app_modules/gallery.py` dưới ID là MSSV.
 
 ---
 
-### 🔹 Feature 2: Đăng ký & Trích xuất Vector 512-D (Face Enrollment)
-- **Mô tả**: Khi Liveness PASS, hệ thống cắt khuôn mặt 112x112, đưa qua `FaceViT + ArcFace` trong `src/` để tạo Vector 512-d và lưu vào CSDL (`data_gallery/`).
+### 🔹 PHÂN HỆ 2: ĐIỂM DANH LỚP HỌC TỰ ĐỘNG (CLASSROOM AUTOMATIC ATTENDANCE)
+
+- **Mục tiêu**: Cho phép Giảng viên tải ảnh toàn cảnh hoặc video góc rộng của lớp học để điểm danh tự động cả lớp chỉ trong vài giây.
 - **User Story 2.1**:
-  - **As a**: Khách hàng mở tài khoản mới.
-  - **I want to**: Lưu khuôn mặt của mình vào hệ thống một cách an toàn.
-  - **So that**: Lần sau tôi có thể đăng nhập/xác thực không cần mật khẩu.
+  - **As a**: Giảng viên quản lý lớp học.
+  - **I want to**: Chụp 1 bức ảnh toàn cảnh cả lớp bằng điện thoại/máy ảnh và tải lên Web.
+  - **So that**: AI tự động nhận diện tất cả sinh viên đang có mặt trong lớp mà tôi không cần đọc tên từng người.
+- **Acceptance Criteria**:
+  - *Given*: Giảng viên tải ảnh toàn cảnh lớp học (có thể chứa 30-80 sinh viên).
+  - *When*: Nhấn nút "Tiến hành Điểm danh".
+  - *Then*:
+    1. `src/app_modules/detector.py` bóc tách tất cả $N$ khuôn mặt trong ảnh toàn cảnh.
+    2. `src/app_modules/attendance.py` so khớp từng khuôn mặt với CSDL đa góc của trường.
+    3. Trả về Bảng danh sách: **Tổng số sinh viên**, **Danh sách CÓ MẶT (kèm ảnh crop & tỉ lệ khớp %)**, **Danh sách VẮNG MẶT**.
+    4. Hỗ trợ xuất Bảng điểm danh ra file Excel (`.xlsx`).
 
 ---
 
-### 🔹 Feature 3: Xác thực Khớp khuôn mặt 1:1 và 1:N (Face Verification)
-- **Mô tả**: So sánh Cosine Distance giữa vector khuôn mặt quét real-time với CSDL.
-- **Tiêu chuẩn**:
-  - Tỷ lệ khớp (Similarity Score) $\ge 75\%$ ➔ **PASS**.
-  - Hiển thị điểm số dạng monospaced font `Space Grotesk` (ví dụ: `MATCH: 98.4%`).
+## 📐 3. THIẾT KẾ KỸ THUẬT & UI TOKENS (`DESIGN.MD`)
+
+1. **Backend Layer**: FastAPI kết nối trực tiếp tới `src/app_modules/attendance.py` và `src/app_modules/gallery.py`.
+2. **Frontend Layer**:
+   - Giao diện Sinh viên: Dark Glassmorphic Camera HUD với chỉ dẫn quay mặt 4 hướng.
+   - Giao diện Giảng viên: Dashboard quản lý lớp, vùng kéo-thả Upload ảnh toàn cảnh, Bảng danh sách sinh viên có mảng màu phân biệt (Xanh lá: Có mặt, Đỏ: Vắng mặt).
 
 ---
 
-## 📐 3. KIẾN TRÚC KỸ THUẬT VÀ UI TOKENS (DESIGN & ARCHITECTURE)
+## 🛑 CHỜ BẠN (HUMAN-IN-THE-LOOP) DUYỆT LẠI
 
-1. **Backend Tech Stack**: Python FastAPI, OpenCV, PyTorch, ONNX Runtime.
-2. **Frontend Tech Stack**: React / HTML5 Canvas / Tailwind CSS (Dark Glassmorphism).
-3. **UI Tokens (`DESIGN.md`)**:
-   - `primary`: `#0F172A` (Navy)
-   - `surface`: `#1E293B` (Glass Surface)
-   - `tertiary`: `#2563EB` (Electric Blue Accent)
-   - `success`: `#059669` (Emerald Green)
-   - `error`: `#DC2626` (Crimson Red)
-
----
-
-## 🛑 BƯỚC HUMAN-IN-THE-LOOP: CHỜ BẠN DUYỆT
-
-Vui lòng xem qua bản đặc tả **BA & PRD** trên. Bạn có đồng ý phê duyệt phương án này để cho **Amelia (Dev)** và **Quinn (QA)** bắt đầu vòng lặp lập trình - kiểm thử liên tục không?
+Bản đặc tả đã được điều chỉnh **chính xác 100% theo đúng bài toán Điểm danh Lớp học từ dữ liệu đa góc mặt** của bạn. Bạn xem qua và duyệt phương án này để **Amelia (Dev)** & **Quinn (QA)** bắt đầu triển khai nhé!
