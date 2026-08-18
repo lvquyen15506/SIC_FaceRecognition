@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  db:
+    image: ankane/pgvector:v0.5.1
+    container_name: sic_facerecognition_db
+    environment:
+      POSTGRES_DB: sic_facerecognition
+      POSTGRES_USER: sic_user
+      POSTGRES_PASSWORD: sic_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -16,6 +29,9 @@ services:
       - ./reports:/app/reports
     environment:
       - SECRET_KEY=sic_face_recognition_super_secret_jwt_key_2026
+      - DATABASE_URL=postgresql://sic_user:sic_password_2026@db:5432/sic_facerecognition
+    depends_on:
+      - db
     restart: unless-stopped
 
   frontend:
@@ -30,3 +46,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  postgres_data:

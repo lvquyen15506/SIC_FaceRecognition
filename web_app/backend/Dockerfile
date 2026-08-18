@@ -6,13 +6,15 @@ RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -m appuser
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV
+# Install system dependencies for OpenCV & PostgreSQL
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    libpq-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy app code and core AI
@@ -27,6 +29,7 @@ RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
     sqlalchemy \
+    psycopg2-binary \
     passlib \
     pyjwt \
     python-multipart \

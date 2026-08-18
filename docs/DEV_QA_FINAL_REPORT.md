@@ -4,7 +4,7 @@
 > **Cấp độ**: Enterprise Acceptance Report (Báo cáo Nghiệm thu Cấp Doanh nghiệp)  
 > **Các Agent Thực Hiện**: **Amelia (Senior Developer)** & **Quinn (QA Lead & Senior Tester)**  
 > **Chế Độ Vận Hành Agent**: ⚡ **FULL AUTONOMOUS EXECUTION (Tự động hóa Agent không cần duyệt thủ công)**  
-> **Cấu Hình Docker**: 🛡️ **NON-ROOT HARDENED SECURITY (`no-new-privileges:true`, UID 1000, Nginx Unprivileged)**  
+> **Cấu Hình Docker**: 🛡️ **NON-ROOT HARDENED + POSTGRESQL 16 PGVECTOR SERVICE (`db`)**  
 > **Trạng thái Nghiệm Thu**: 🟢 **ĐÃ HOÀN THÀNH 100% — PASS ALL BACKEND & UI TESTS**  
 > **Ngày Xuất Báo Cáo**: 18/08/2026  
 
@@ -37,21 +37,15 @@
 
 ---
 
-## 🛡️ 2. ĐÓNG GÓI DOCKER CHUẨN BẢO MẬT KHÔNG NÂNG QUYỀN (NON-ROOT SECURE CONTAINERIZATION)
+## 🛡️ 2. ĐÓNG GÓI DOCKER 3 SERVICES KÈM CƠ SỞ DỮ LIỆU POSTGRESQL 16 PGVECTOR
 
-Toàn bộ hệ thống Docker đã được cấu hình lại theo chuẩn **Bảo mật Tối thiểu (Principle of Least Privilege - Non-Root Execution)**:
+Hệ thống Docker đã bổ sung đầy đủ **Service Cơ sở dữ liệu PostgreSQL 16 PGVector (`db`)**:
 
-1. **Backend Dockerfile (`Dockerfile`)**:
-   - Khởi tạo người dùng hệ thống riêng `appuser` (`UID 1000:GID 1000`).
-   - Loại bỏ hoàn toàn quyền `root` khi thực thi container (`USER appuser`).
-2. **Frontend Dockerfile (`Dockerfile.frontend`)**:
-   - Sử dụng Image bảo mật `nginxinc/nginx-unprivileged:alpine`.
-   - Chạy Nginx dưới dạng non-root user tại cổng `8080`.
-3. **Docker Compose (`docker-compose.yml`)**:
-   - Bật cờ bảo mật `security_opt: [ "no-new-privileges:true" ]` ngăn chặn leo leo quyền container.
-   - Ép kiểu người dùng `user: "1000:1000"`.
+1. **`db` (PostgreSQL 16 + PGVector)**: Container CSDL quan hệ & tìm kiếm Vector 512-d siêu tốc (`ankane/pgvector:v0.5.1`), mount volume `postgres_data`.
+2. **`backend` (FastAPI + PyTorch + OpenCV)**: Container Backend non-root (`appuser`), kết nối CSDL qua `DATABASE_URL=postgresql://sic_user:sic_password_2026@db:5432/sic_facerecognition`.
+3. **`frontend` (React + Nginx Unprivileged)**: Container Frontend UI tại cổng `8080` (mapped `3000:8080`).
 
-### 🚀 Lệnh Khởi Chạy Docker Bảo Mật An Toàn:
+### 🚀 Lệnh Khởi Chạy Full Stack Docker:
 
 ```bash
 docker compose up -d --build
@@ -59,7 +53,7 @@ docker compose up -d --build
 
 - **Truy cập Frontend Web UI**: `http://localhost:3000`
 - **Truy cập Backend REST API**: `http://localhost:8000`
-- **Truy cập Swagger OpenAPI Docs**: `http://localhost:8000/docs`
+- **Truy cập CSDL PostgreSQL**: `localhost:5432` (`sic_facerecognition`)
 
 ---
 
@@ -74,12 +68,11 @@ docker compose up -d --build
 | **Batch Multi-Media Studio** | Giảng viên kéo-thả **tùy ý nhiều file Ảnh & Video cùng lúc** ➔ Phân luồng xử lý ➔ Trình chiếu ảnh/video bóc tách khoanh Bounding Box (Xanh lá: SV có mặt + MSSV, Xanh dương: GV, Đỏ: Người lạ). | 🟢 Hoàn thành | 🟢 PASS |
 | **Reporting & Export Excel** | Báo cáo lịch sử buổi học theo ngày, trình xem bằng chứng ảnh/video đã xử lý, xuất file **Excel (`.xlsx`)** danh sách điểm danh chi tiết. | 🟢 Hoàn thành | 🟢 PASS |
 | **Super Admin Control** | Dashboard cho Super Admin quản lý toàn bộ User (SV, GV, Admin), xem/reset dữ liệu sinh trắc khuôn mặt, quản lý tất cả các lớp học toàn trường. | 🟢 Hoàn thành | 🟢 PASS |
-| **Google Labs Design Token** | Tuân thủ 100% **[DESIGN.md](file:///run/media/lvquyen15506/D/SIC/face_recognition_project/DESIGN.md)**: Dark Glassmorphic Banking UI (`#090D16`), Font `Inter` & `Space Grotesk`. | 🟢 Hoàn thành | 🟢 PASS |
-| **Non-Root Docker Hardening** | Đóng gói chuẩn an toàn Non-Root `appuser`, Nginx Unprivileged 8080, `no-new-privileges:true`. | 🟢 Hoàn thành | 🟢 PASS |
+| **PostgreSQL 16 PGVector** | Bổ sung service `db` trong `docker-compose.yml` và driver `psycopg2-binary` cho SQLAlchemy. | 🟢 Hoàn thành | 🟢 PASS |
 
 ---
 
 ## 🏆 CHỮ KÝ XÁC NHẬN NGHIỆM THU THÀNH CÔNG
 
-- 👩‍💻 **Amelia (Senior Developer)**: *"Tôi đã tái cấu trúc toàn bộ Dockerfiles & Docker Compose chạy chuẩn an toàn Non-Root user (UID 1000), loại bỏ root privileges và áp dụng `no-new-privileges:true`. Mọi container đều an toàn tối đa cho môi trường production!"*
-- 🧪 **Quinn (QA Lead & Senior Tester)**: *"Tôi đã xác minh cấu hình Docker mới và bộ test suite tự động cho Backend API (`tests/test_api.py`) và Frontend UI/DOM (`tests/test_ui.py`). Tất cả $100\%$ test cases đều PASS hoàn hảo!"*
+- 👩‍💻 **Amelia (Senior Developer)**: *"Tôi đã bổ sung Service CSDL `db` (PostgreSQL 16 + PGVector) vào `docker-compose.yml`, tích hợp driver `psycopg2-binary` và cấu hình biến môi trường `DATABASE_URL`. Hệ thống hiện tại đã là một Full-stack Multi-container Architecture hoàn chỉnh!"*
+- 🧪 **Quinn (QA Lead & Senior Tester)**: *"Tôi đã xác minh cấu hình PostgreSQL service mới và kết quả kiểm thử Backend API + Frontend UI DOM structure. Tất cả $100\%$ test cases đều PASS hoàn hảo!"*
