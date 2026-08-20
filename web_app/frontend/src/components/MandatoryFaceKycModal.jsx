@@ -12,6 +12,7 @@ const SAMPLES_PER_STEP = 30; // 30 samples per angle (Total 120 samples across 4
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [stepSampleCounts, setStepSampleCounts] = useState([0, 0, 0, 0]);
+  const [stepProgress, setStepProgress] = useState(0);
   const [hasCameraStream, setHasCameraStream] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Đưa khuôn mặt vào khung elip và bấm "Bắt Đầu Lấy Khuôn Mặt"');
@@ -101,6 +102,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     capturedImagesRef.current = {};
     setCurrentStepIndex(0);
     setStepSampleCounts([0, 0, 0, 0]);
+    setStepProgress(0);
     setIsPoseMatched(false);
     updateStatusText(`🔍 [Bước 1/4]: ${KYC_ANGLES[0].guide}...`);
 
@@ -133,6 +135,10 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         stepSamplesRef.current[stepIdx] += 1;
         const currentCount = stepSamplesRef.current[stepIdx];
 
+        // Calculate smooth progress percentage (0% to 100%)
+        const pct = Math.min(100, Math.round((currentCount / SAMPLES_PER_STEP) * 100));
+        setStepProgress(pct);
+
         if (checkRes.image_base64) {
           capturedImagesRef.current[targetAngle.key] = checkRes.image_base64;
         }
@@ -148,6 +154,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
           if (nextStep < KYC_ANGLES.length) {
             setCurrentStepIndex(nextStep);
+            setStepProgress(0);
             setIsPoseMatched(false);
             const nextAngleConfig = KYC_ANGLES[nextStep];
             updateStatusText(`🎉 Rất tốt! Tiếp theo [Bước ${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
@@ -155,6 +162,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             // ALL 4 ANGLES COMPLETE TOTAL! Trigger Atomic Full KYC Save
             stopSilentScanLoop();
             isSavingRef.current = true;
+            setStepProgress(100);
             updateStatusText('✨ Đã hoàn thành thu thập dữ liệu 3D Face ID! Đang lưu vào CSDL...');
 
             const saveSuccess = await saveFullKycSession();
@@ -228,9 +236,6 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  const activeStepCount = stepSamplesRef.current[currentStepIndex] || 0;
-  const activeStepProgress = Math.min(100, Math.round((activeStepCount / SAMPLES_PER_STEP) * 100));
-
   return (
     <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="glass-card rounded-3xl p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-6 my-auto">
@@ -279,13 +284,13 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         </div>
 
-        {/* Live Guidance & Active Progress Bar Banner */}
+        {/* Live Guidance & Active Smooth Progress Bar Banner */}
         {errorMsg ? (
           <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
             ⚠️ {errorMsg}
           </div>
         ) : (
-          <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2">
+          <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-3">
             <div className="flex items-center gap-3">
               <span className="text-3xl">{currentAngle.icon}</span>
               <div className="flex-1">
@@ -296,11 +301,11 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               </div>
             </div>
 
-            {/* Step Progress Bar */}
-            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            {/* Smooth Auto Animating Step Progress Bar */}
+            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden shadow-inner">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 transition-all duration-300"
-                style={{ width: `${activeStepProgress}%` }}
+                className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 transition-all duration-300 ease-out rounded-full"
+                style={{ width: `${stepProgress}%` }}
               />
             </div>
           </div>
