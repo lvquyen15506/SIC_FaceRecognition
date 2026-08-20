@@ -14,16 +14,18 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const [isScanning, setIsScanning] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Hãy căn chỉnh mặt vào khung Oval và bấm "Bắt Đầu"');
   const [errorMsg, setErrorMsg] = useState('');
+  const [detectedBox, setDetectedBox] = useState(null);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const scanLoopRef = useRef(null);
 
-  // Refs for tracking loop state cleanly without stale closures
+  // Refs for tracking loop state cleanly without stale closures or React flickering
   const currentStepRef = useRef(0);
   const capturedRef = useRef({});
   const isSavingRef = useRef(false);
+  const lastMsgRef = useRef('');
 
   const currentAngle = KYC_ANGLES[currentStepIndex];
 
@@ -43,7 +45,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
 
       mediaStreamRef.current = stream;
@@ -81,6 +83,13 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   });
 
+  const updateStatusText = (newMsg) => {
+    if (lastMsgRef.current !== newMsg) {
+      lastMsgRef.current = newMsg;
+      setStatusMsg(newMsg);
+    }
+  };
+
   // Start Silent Background Capture Loop ("Chụp Ngầm AI Real-Time")
   const startSilentKycProcess = () => {
     setIsScanning(true);
@@ -88,7 +97,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     capturedRef.current = {};
     setCurrentStepIndex(0);
     setCapturedAngles({});
-    setStatusMsg(`🔍 AI đang định vị tư thế 3D. ${KYC_ANGLES[0].guide}...`);
+    updateStatusText(`🔍 AI đang định vị tư thế 3D. ${KYC_ANGLES[0].guide}...`);
 
     stopSilentScanLoop();
 
@@ -106,13 +115,18 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
       if (!checkRes) return;
 
+      if (checkRes.box) {
+        setDetectedBox(checkRes.box);
+      } else {
+        setDetectedBox(null);
+      }
+
       if (!checkRes.pass) {
-        // Soft live guidance message overlay
-        setStatusMsg(`👉 [${targetAngle.key}]: ${checkRes.message}`);
+        updateStatusText(`👉 [${targetAngle.key}]: ${checkRes.message}`);
       } else {
         // Pose matched! Trigger Silent Background Save ("Chụp Ngầm")
         isSavingRef.current = true;
-        setStatusMsg(`✨ Đã khớp tư thế ${targetAngle.key}! Đang lưu dữ liệu sinh trắc...`);
+        updateStatusText(`✨ Đã khớp tư thế ${targetAngle.key}! Đang lưu dữ liệu sinh trắc...`);
 
         const saveSuccess = await saveFaceEmbeddingSilent(targetAngle.key);
 
@@ -126,11 +140,11 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           if (nextStep < KYC_ANGLES.length) {
             setCurrentStepIndex(nextStep);
             const nextAngleConfig = KYC_ANGLES[nextStep];
-            setStatusMsg(`🎉 Rất tốt! Tiếp theo: ${nextAngleConfig.guide}`);
+            updateStatusText(`🎉 Rất tốt! Tiếp theo: ${nextAngleConfig.guide}`);
           } else {
             // All 4 angles complete!
             stopSilentScanLoop();
-            setStatusMsg('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
+            updateStatusText('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC! Đang mở khóa hệ thống...');
             setTimeout(() => {
               onKycSuccess();
             }, 1500);
@@ -138,7 +152,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         }
         isSavingRef.current = false;
       }
-    }, 450); // Silent AI polling interval ~450ms
+    }, 450); // Polling interval ~450ms
   };
 
   const performSilentQualityCheck = async (angleKey) => {
@@ -146,13 +160,17 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
 
     const ctx = canvas.getContext('2d');
-    ctx.translate(canvas.width, 0);
+    // IMPORTANT: Reset transform before matrix flip to prevent alternating flip/unflip bug!
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(w, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, w, h);
 
     const base64Image = canvas.toDataURL('image/jpeg', 0.85);
 
@@ -173,10 +191,16 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
+
     const ctx = canvas.getContext('2d');
-    ctx.translate(canvas.width, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(w, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, w, h);
 
     const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
@@ -202,7 +226,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <div className="space-y-4 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider flex items-center gap-1">
-              🛡️ Quét Ngầm 3D Face ID KYC
+              🛡️ Quét 3D Face ID KYC
             </span>
             <button
               onClick={onLogout}
@@ -216,7 +240,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Visual Badges - Turns SOLID GREEN silently on pose match */}
+          {/* 4 Steps Visual Badges */}
           <div className="grid grid-cols-4 gap-3 pt-1">
             {KYC_ANGLES.map((ang, idx) => {
               const isDone = capturedAngles[ang.key];
@@ -225,11 +249,11 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               return (
                 <div
                   key={ang.key}
-                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-500 flex items-center justify-center gap-1.5 font-bold text-sm ${
+                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-300 flex items-center justify-center gap-1.5 font-bold text-sm ${
                     isDone
-                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30 scale-[1.02]'
+                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
                       : isCurrent
-                      ? 'bg-indigo-600/40 border-indigo-500 text-white ring-2 ring-indigo-500/40 animate-pulse'
+                      ? 'bg-indigo-600/60 border-indigo-400 text-white ring-2 ring-indigo-500/50'
                       : 'bg-slate-900 border-slate-800 text-slate-500'
                   }`}
                 >
@@ -249,7 +273,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           </div>
         ) : (
           <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
-            <span className="text-3xl animate-pulse">{currentAngle.icon}</span>
+            <span className="text-3xl">{currentAngle.icon}</span>
             <div>
               <div className="text-sm font-bold text-white">Bước {currentStepIndex + 1}/4: {currentAngle.label}</div>
               <div className="text-xs text-indigo-300 mt-0.5">{statusMsg}</div>
@@ -271,7 +295,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
           {!hasCameraStream && (
             <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
-              <span className="text-4xl animate-bounce">🎥</span>
+              <span className="text-4xl">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
                 Cấp quyền truy cập Camera Laptop để tự động quét tư thế khuôn mặt 3D.
               </p>
@@ -282,6 +306,24 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               >
                 🎥 Bật Camera Laptop
               </button>
+            </div>
+          )}
+
+          {/* Dynamic AI Bounding Box Overlay (Reference: src/app_modules/test_pose_liveness.py) */}
+          {detectedBox && (
+            <div
+              className="absolute border-2 border-emerald-400 bg-emerald-500/10 rounded-xl transition-all duration-150 pointer-events-none flex items-start justify-center"
+              style={{
+                // Flip X position for mirrored preview
+                left: `${100 - ((detectedBox[0] + detectedBox[2]) / 640) * 100}%`,
+                top: `${(detectedBox[1] / 480) * 100}%`,
+                width: `${(detectedBox[2] / 640) * 100}%`,
+                height: `${(detectedBox[3] / 480) * 100}%`
+              }}
+            >
+              <span className="text-[10px] font-mono-grotesk font-bold text-white bg-emerald-600/90 px-2 py-0.5 rounded-b-md shadow">
+                {currentAngle.key} AI DETECTED
+              </span>
             </div>
           )}
 

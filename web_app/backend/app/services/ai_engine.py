@@ -48,7 +48,9 @@ except Exception as e:
 def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
     """
     Đánh giá chất lượng & Ước lượng tư thế góc xoay 3D (Head Pose Yaw / Pitch) từ 5 landmarks YuNet
+    Khớp 100% với mô hình tham chiếu trong src/app_modules/test_pose_liveness.py
     """
+    import math
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
@@ -90,65 +92,63 @@ def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
 
     face_info = face_data_list[0]
     (x, y, w, h) = face_info["box"]
-    landmarks = face_info["landmarks"] # [(x_re, y_re), (x_le, y_le), (x_nt, y_nt), (x_rc, y_rc), (x_lc, y_lc)]
+    landmarks = face_info["landmarks"] # [re, le, nose, rm, lm]
 
-    # Compute Head Pose Yaw & Pitch from Facial Landmarks
-    # Mirror mode consideration for webcam preview:
-    # right_eye = landmarks[0], left_eye = landmarks[1], nose = landmarks[2]
-    re_x, re_y = landmarks[0]
-    le_x, le_y = landmarks[1]
-    nose_x, nose_y = landmarks[2]
+    re, le, nose = landmarks[0], landmarks[1], landmarks[2]
 
-    # Horizontal distance from nose to eyes
-    dist_to_re = max(1.0, float(abs(nose_x - re_x)))
-    dist_to_le = max(1.0, float(abs(nose_x - le_x)))
-    
-    # Yaw ratio: dist_to_re / dist_to_le
-    yaw_ratio = dist_to_re / dist_to_le
+    # 1. Khoảng cách từ Mũi tới 2 Mắt (Kiểm tra Quay Trái / Phải - Yaw)
+    d_right_eye = math.hypot(nose[0] - re[0], nose[1] - re[1])
+    d_left_eye = math.hypot(nose[0] - le[0], nose[1] - le[1])
+    yaw_ratio = d_left_eye / (d_right_eye + 1e-6)
 
-    # Vertical distance for Pitch (tilt)
-    eye_mid_y = (re_y + le_y) / 2.0
-    mouth_mid_y = (landmarks[3][1] + landmarks[4][1]) / 2.0
-    eye_mouth_dist = max(1.0, mouth_mid_y - eye_mid_y)
-    pitch_ratio = (nose_y - eye_mid_y) / eye_mouth_dist
+    # 2. Trung điểm Mắt và Miệng (Kiểm tra Ngửa / Cúi - Pitch)
+    eyes_y = (re[1] + le[1]) / 2.0
+    mouth_y = (landmarks[3][1] + landmarks[4][1]) / 2.0
+    d_nose_eyes = nose[1] - eyes_y
+    d_nose_mouth = mouth_y - nose[1]
+    pitch_ratio = d_nose_eyes / (d_nose_mouth + 1e-6)
 
-    # Check Required Pose Angle Match
+    # Kiểm tra khoảng cách xa / gần
+    ratio = w / float(img.shape[1])
+    if ratio < 0.20:
+        return {"pass": False, "status": "TOO_FAR", "message": "Vui lòng di chuyển mặt LẠI GẦN camera hơn..."}
+    elif ratio > 0.68:
+        return {"pass": False, "status": "TOO_CLOSE", "message": "Vui lòng lùi mặt RA XA camera một chút..."}
+
+    # Kiểm tra khớp tư thế yêu cầu (Trực diện, Trái, Phải, Ngửa)
     if required_angle:
         req = required_angle.upper()
         if req == "FRONT":
-            if yaw_ratio < 0.65 or yaw_ratio > 1.5 or pitch_ratio < 0.35:
+            if yaw_ratio < 0.75 or yaw_ratio > 1.25 or pitch_ratio < 0.90 or pitch_ratio > 1.45:
                 return {
                     "pass": False,
                     "status": "WRONG_POSE",
                     "message": "Hãy nhìn THẲNG CHÍNH DIỆN vào camera...",
-                    "yaw_ratio": yaw_ratio, "pitch_ratio": pitch_ratio
+                    "yaw_ratio": round(yaw_ratio, 2), "pitch_ratio": round(pitch_ratio, 2)
                 }
         elif req == "LEFT":
-            # In camera mirror view, turning head to user's Left makes nose move toward left_eye (dist_to_le gets smaller -> yaw_ratio increases > 1.6)
-            if yaw_ratio < 1.45:
+            if yaw_ratio <= 1.25:
                 return {
                     "pass": False,
                     "status": "WRONG_POSE",
-                    "message": "Hãy QUAY NHẸ MẶT SANG TRÁI...",
-                    "yaw_ratio": yaw_ratio
+                    "message": "Hãy QUAY MẶT SANG TRÁI...",
+                    "yaw_ratio": round(yaw_ratio, 2)
                 }
         elif req == "RIGHT":
-            # Turning head to user's Right makes nose move toward right_eye (dist_to_re gets smaller -> yaw_ratio decreases < 0.7)
-            if yaw_ratio > 0.75:
+            if yaw_ratio >= 0.75:
                 return {
                     "pass": False,
                     "status": "WRONG_POSE",
-                    "message": "Hãy QUAY NHẸ MẶT SANG PHẢI...",
-                    "yaw_ratio": yaw_ratio
+                    "message": "Hãy QUAY MẶT SANG PHẢI...",
+                    "yaw_ratio": round(yaw_ratio, 2)
                 }
         elif req == "TILT":
-            # Tilting chin UP brings nose closer to eye level (pitch_ratio < 0.38)
-            if pitch_ratio > 0.40:
+            if pitch_ratio >= 0.95:
                 return {
                     "pass": False,
                     "status": "WRONG_POSE",
-                    "message": "Hãy NGỬA NHẸ CẰM LÊN TRÊN...",
-                    "pitch_ratio": pitch_ratio
+                    "message": "Hãy NGỬA CẰM LÊN TRÊN...",
+                    "pitch_ratio": round(pitch_ratio, 2)
                 }
 
     return {
@@ -156,9 +156,9 @@ def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
         "status": "PASS",
         "message": "Góc quay mặt đạt chuẩn!",
         "brightness": brightness,
-        "yaw_ratio": yaw_ratio,
-        "pitch_ratio": pitch_ratio,
-        "face_box": [int(x), int(y), int(w), int(h)]
+        "yaw_ratio": round(yaw_ratio, 2),
+        "pitch_ratio": round(pitch_ratio, 2),
+        "box": [int(x), int(y), int(w), int(h)]
     }
 
 def extract_face_feature_512d(image_bytes: bytes) -> list:
