@@ -222,8 +222,8 @@ async def process_batch_attendance(
 
     # Track overall attendance & exact confidence scores across all uploaded files
     detected_user_confidences = {}  # code -> max confidence float
-    total_faces_detected = 0
-    total_unknown_count = 0
+    file_face_counts = []
+    file_unknown_counts = []
     media_file_responses = []
 
     # 3. Process each uploaded image / video file
@@ -244,7 +244,7 @@ async def process_batch_attendance(
             with open(processed_save_path, "wb") as f:
                 f.write(processed_bytes)
 
-            total_faces_detected += len(results)
+            img_unknown_cnt = 0
             for res in results:
                 if res["code"] != "UNKNOWN":
                     c_code = res["code"]
@@ -252,7 +252,10 @@ async def process_batch_attendance(
                     if c_code not in detected_user_confidences or c_conf > detected_user_confidences[c_code]:
                         detected_user_confidences[c_code] = c_conf
                 else:
-                    total_unknown_count += 1
+                    img_unknown_cnt += 1
+
+            file_face_counts.append(len(results))
+            file_unknown_counts.append(img_unknown_cnt)
 
             media_rec = SessionMediaFile(
                 session_id=session.id,
@@ -323,11 +326,9 @@ async def process_batch_attendance(
             cap.release()
             out.release()
 
-            # Track stats from keyframe
-            total_faces_detected += max_faces_found
-            for res in cached_results:
-                if res["code"] == "UNKNOWN":
-                    total_unknown_count += 1
+            vid_unknown_cnt = sum(1 for res in cached_results if res["code"] == "UNKNOWN")
+            file_face_counts.append(max_faces_found)
+            file_unknown_counts.append(vid_unknown_cnt)
 
             # Re-encode to H.264 (yuv420p) using imageio_ffmpeg binary for 100% HTML5 browser playback
             final_video_path = raw_video_path
@@ -376,6 +377,9 @@ async def process_batch_attendance(
         ClassStudent.class_id == class_id,
         ClassStudent.status == "APPROVED"
     ).all()
+
+    total_faces_detected = max(file_face_counts) if file_face_counts else 0
+    total_unknown_count = max(file_unknown_counts) if file_unknown_counts else 0
 
     session.total_faces_detected = total_faces_detected
     session.unknown_count = total_unknown_count
