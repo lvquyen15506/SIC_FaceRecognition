@@ -151,6 +151,17 @@ def get_class_attendance_sessions(
                 "confidence": r.confidence
             })
 
+        unknown_cnt = getattr(sess, "unknown_count", 0) or 0
+        total_faces = getattr(sess, "total_faces_detected", 0) or (present_cnt + unknown_cnt)
+
+        for u_idx in range(1, unknown_cnt + 1):
+            records.append({
+                "student_name": f"Người lạ #{u_idx} (Khung đỏ)",
+                "student_code": "NGƯỜI LẠ",
+                "status": "UNKNOWN",
+                "confidence": 0.0
+            })
+
         response_list.append({
             "session_id": sess.id,
             "session_date": sess.session_date,
@@ -160,6 +171,8 @@ def get_class_attendance_sessions(
             "total_students": len(all_students),
             "present_count": present_cnt,
             "absent_count": max(0, len(all_students) - present_cnt),
+            "total_faces_detected": total_faces,
+            "unknown_count": unknown_cnt,
             "media_files": media_files,
             "summary": records
         })
@@ -364,6 +377,9 @@ async def process_batch_attendance(
         ClassStudent.status == "APPROVED"
     ).all()
 
+    session.total_faces_detected = total_faces_detected
+    session.unknown_count = total_unknown_count
+
     summary_records = []
     for cs in all_students:
         is_present = cs.student.code in detected_user_confidences
@@ -381,6 +397,15 @@ async def process_batch_attendance(
             "student_code": cs.student.code,
             "status": record.status,
             "confidence": record.confidence
+        })
+
+    # Add unknown stranger entries to summary table
+    for u_idx in range(1, total_unknown_count + 1):
+        summary_records.append({
+            "student_name": f"Người lạ #{u_idx} (Khung đỏ)",
+            "student_code": "NGƯỜI LẠ",
+            "status": "UNKNOWN",
+            "confidence": 0.0
         })
 
     db.commit()

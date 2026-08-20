@@ -74,6 +74,8 @@ class AttendanceSession(Base):
     title = Column(String, default="Buổi điểm danh")
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    total_faces_detected = Column(Integer, default=0)
+    unknown_count = Column(Integer, default=0)
 
     classroom = relationship("ClassRoom", back_populates="sessions")
     media_files = relationship("SessionMediaFile", back_populates="session", cascade="all, delete-orphan")

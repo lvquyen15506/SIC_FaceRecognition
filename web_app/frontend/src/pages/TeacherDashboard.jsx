@@ -860,18 +860,28 @@ export default function TeacherDashboard({ user, token }) {
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                       {attendanceResult.summary.map((rec, idx) => (
-                        <tr key={idx} className="hover:bg-slate-800/40">
-                          <td className="p-3 font-mono-grotesk text-slate-300">{rec.student_code}</td>
+                        <tr key={idx} className={`hover:bg-slate-800/40 ${rec.status === 'UNKNOWN' ? 'bg-amber-950/10' : ''}`}>
+                          <td className="p-3 font-mono-grotesk text-slate-300 font-semibold">
+                            {rec.student_code === 'NGƯỜI LẠ' ? (
+                              <span className="text-amber-400 font-bold">⚠️ NGƯỜI LẠ</span>
+                            ) : (
+                              rec.student_code
+                            )}
+                          </td>
                           <td className="p-3 font-semibold text-white">{rec.student_name}</td>
                           <td className="p-3">
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                              rec.status === 'PRESENT' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              rec.status === 'PRESENT'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : rec.status === 'UNKNOWN'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
                             }`}>
-                              {rec.status === 'PRESENT' ? 'CÓ MẶT' : 'VẮNG MẶT'}
+                              {rec.status === 'PRESENT' ? '✓ CÓ MẶT' : rec.status === 'UNKNOWN' ? '⚠️ NGƯỜI LẠ' : '✗ VẮNG MẶT'}
                             </span>
                           </td>
                           <td className="p-3 font-mono-grotesk text-slate-400">
-                            {(rec.confidence * 100).toFixed(1)}%
+                            {rec.status === 'UNKNOWN' ? '0.0% (Khung đỏ)' : `${(rec.confidence * 100).toFixed(1)}%`}
                           </td>
                         </tr>
                       ))}
