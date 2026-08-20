@@ -59,6 +59,9 @@ class ClassCreateRequest(BaseModel):
     subject_topic: str
     teacher_id: Optional[int] = None
 
+# Backward compatibility aliases for classes.py
+ClassCreate = ClassCreateRequest
+
 class ClassUpdateRequest(BaseModel):
     class_name: Optional[str] = None
     subject_topic: Optional[str] = None
@@ -66,6 +69,8 @@ class ClassUpdateRequest(BaseModel):
 
 class AddMemberRequest(BaseModel):
     user_code_or_email: str
+
+AddTeacherRequest = AddMemberRequest
 
 class ClassResponse(BaseModel):
     id: int
