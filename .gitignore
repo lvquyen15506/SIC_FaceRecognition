@@ -50,3 +50,7 @@ reports/temp_*
 Thumbs.db
 desktop.ini
 
+# AI Agent skills & BMAD configurations (Managed separately in SKILL_AI repo)
+.agents/
+.bmad/
+
