@@ -277,17 +277,17 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     gallery_mgr = None
     model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
 
-    # Threshold for ArcFace v2 (Pos Dist ~0.1149, Neg Dist ~0.2407, EER ~0.1844) vs InfoNCE v2
-    if "arcface" in (onnx_model_path or ""):
-        l2_thresh = 0.22
-        cosine_thresh = 0.85
-    else:
-        l2_thresh = 0.7641
-        cosine_thresh = 0.68
+    # Golden L2 Threshold 0.7641 matching app_demo.py and Core AI GalleryManager
+    l2_thresh = 0.7641
+    cosine_thresh = 0.68
 
     if GalleryManager is not None and student_gallery:
         try:
             gallery_mgr = GalleryManager(threshold=l2_thresh)
+            # Clear static disk-loaded gallery samples to use ONLY class-specific student gallery
+            gallery_mgr.gallery_embeddings = []
+            gallery_mgr.gallery_names = []
+            gallery_mgr.threshold = l2_thresh
             for u_code, u_vecs in student_gallery.items():
                 for vec in u_vecs:
                     if len(vec) == model_dim:
@@ -303,6 +303,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     for item in face_data_list:
         f_vec = item["vec"]
         matched_code = None
+        closest_candidate = None
         best_sim = -1.0
         is_known = False
 
@@ -310,6 +311,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             # Core AI Hybrid Gallery Manager Matching
             res = gallery_mgr.identify(np.array(f_vec, dtype=np.float32))
             is_known = res.get("is_known", False)
+            closest_candidate = res.get("matched_gallery_name")
             if is_known:
                 matched_code = res.get("name")
                 best_sim = res.get("confidence", 0.0) / 100.0
@@ -323,13 +325,16 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
                         sim = float(np.dot(np.array(f_vec), np.array(ref_vec)))
                         if sim > best_sim:
                             best_sim = sim
-                            matched_code = u_code
-            is_known = (best_sim >= cosine_thresh and matched_code is not None)
+                            closest_candidate = u_code
+            is_known = (best_sim >= cosine_thresh and closest_candidate is not None)
+            if is_known:
+                matched_code = closest_candidate
 
         raw_matches.append({
             "idx": item["idx"],
             "box": item["box"],
             "matched_code": matched_code if is_known else None,
+            "closest_code": closest_candidate,
             "similarity": best_sim,
             "is_known": is_known
         })
@@ -348,6 +353,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             assigned_codes.add(code)
             final_face_results[f_idx] = {
                 "code": code,
+                "closest_code": code,
                 "status": "PRESENT",
                 "confidence": m["similarity"],
                 "is_known": True,
@@ -357,6 +363,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             # Demote duplicate face match to Nguoi la (Unknown)
             final_face_results[f_idx] = {
                 "code": "UNKNOWN",
+                "closest_code": code,
                 "status": "UNKNOWN",
                 "confidence": m["similarity"],
                 "is_known": False,
@@ -368,31 +375,37 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         if f_idx not in final_face_results:
             final_face_results[f_idx] = {
                 "code": "UNKNOWN",
+                "closest_code": m["closest_code"],
                 "status": "UNKNOWN",
                 "confidence": max(0.0, m["similarity"]),
                 "is_known": False,
                 "box": m["box"]
             }
 
-    # Step 5: Draw Bounding Boxes & Render Output Image
+    # Step 5: Draw Bounding Boxes & Render Output Image with Confidence %
     attendance_results = []
     for item in face_data_list:
         f_idx = item["idx"]
         res = final_face_results[f_idx]
         x, y, w, h = res["box"]
+        conf_pct = res.get("confidence", 0.0) * 100.0
 
         if res["is_known"] and res["code"] != "UNKNOWN":
             color = (0, 255, 0)  # Green for Registered Student
-            label = f"{res['code']} ({res['confidence']*100:.1f}%)"
+            label = f"{res['code']} ({conf_pct:.1f}%)"
             attendance_results.append(res)
         else:
             color = (0, 0, 255)  # Red for Unknown / Nguoi la
-            label = "Nguoi la"
+            closest = res.get("closest_code")
+            closest_str = f" ({closest} {conf_pct:.1f}%)" if closest else f" ({conf_pct:.1f}%)"
+            label = f"Nguoi la{closest_str}"
             attendance_results.append(res)
 
-        # Draw bounding box & text
+        # Draw bounding box & text with solid top banner for maximum readability
         cv2.rectangle(img, (x, y), (x+w, y+h), color, 2)
-        cv2.rectangle(img, (x, max(0, y-22)), (x+w, y), color, -1)
+        text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+        banner_w = max(w, text_size[0] + 10)
+        cv2.rectangle(img, (x, max(0, y-22)), (x+banner_w, y), color, -1)
         cv2.putText(img, label, (x+5, max(12, y-6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
 
     processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
