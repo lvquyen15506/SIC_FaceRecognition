@@ -67,18 +67,18 @@ def save_face(payload: EnrollFaceRequest, current_user: User = Depends(get_curre
 
 @router.post("/save-full-kyc-session")
 def save_full_kyc_session(payload: FullKycEnrollRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    required_angles = ["FRONT", "LEFT", "RIGHT", "TILT"]
+    required_angles = ["FRONT", "LEFT", "RIGHT", "TILT", "DOWN"]
     
-    # Check if all 4 angles are present
-    missing = [ang for ang in required_angles if ang not in payload.angles or not payload.angles[ang]]
-    if missing:
+    # Check if angles are present
+    present_angles = [ang for ang in required_angles if ang in payload.angles and payload.angles[ang]]
+    if len(present_angles) < 4:
         raise HTTPException(
             status_code=400,
-            detail=f"Chưa hoàn thành đủ 4 góc mặt KYC 3D. Còn thiếu: {', '.join(missing)}"
+            detail=f"Chưa hoàn thành đủ các góc mặt KYC 3D. Còn thiếu các góc yêu cầu."
         )
 
     saved_count = 0
-    for angle_key in required_angles:
+    for angle_key in present_angles:
         base64_str = payload.angles[angle_key]
         try:
             image_bytes = base64.b64decode(base64_str.split(",")[-1])
@@ -107,8 +107,8 @@ def save_full_kyc_session(payload: FullKycEnrollRequest, current_user: User = De
     db.commit()
     return {
         "status": "SUCCESS",
-        "message": "🎉 Đã xác thực và lưu thành công 4 góc mặt KYC 3D!",
-        "total_angles": 4,
+        "message": f"🎉 Đã xác thực và lưu thành công {saved_count} góc mặt KYC 3D!",
+        "total_angles": saved_count,
         "is_complete": True
     }
 

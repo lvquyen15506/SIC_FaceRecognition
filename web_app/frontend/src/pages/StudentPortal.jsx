@@ -92,7 +92,7 @@ export default function StudentPortal({ user, token }) {
           <div>
             <p className="text-xs text-slate-400">Dữ liệu sinh trắc khuôn mặt</p>
             <p className="text-sm font-semibold text-white">
-              {enrollStatus.is_complete ? 'ĐÃ HOÀN THÀNH (4/4 GÓC)' : `CHƯA ĐỦ (${enrollStatus.total_angles}/4 GÓC)`}
+              {enrollStatus.is_complete ? 'ĐÃ HOÀN THÀNH (ĐỦ 5/5 GÓC MẶT)' : `CHƯA ĐỦ (${enrollStatus.total_angles}/5 GÓC)`}
             </p>
           </div>
           {!enrollStatus.is_complete && (

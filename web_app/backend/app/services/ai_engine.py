@@ -167,6 +167,14 @@ def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
                     "message": "Hãy NGỬA CẰM LÊN TRÊN...",
                     "pitch_ratio": round(pitch_ratio, 2)
                 }
+        elif req == "DOWN":
+            if pitch_ratio <= 1.40:
+                return {
+                    "pass": False,
+                    "status": "WRONG_POSE",
+                    "message": "Hãy CÚI NHẸ ĐẦU XUỐNG DƯỚI...",
+                    "pitch_ratio": round(pitch_ratio, 2)
+                }
 
     return {
         "pass": True,

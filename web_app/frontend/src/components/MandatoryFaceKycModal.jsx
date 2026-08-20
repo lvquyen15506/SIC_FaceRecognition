@@ -4,14 +4,15 @@ const KYC_ANGLES = [
   { key: 'FRONT', displayLabel: 'TRỰC DIỆN', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
   { key: 'LEFT', displayLabel: 'QUAY TRÁI', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang BÊN TRÁI khoảng 25 độ', icon: '👈' },
   { key: 'RIGHT', displayLabel: 'QUAY PHẢI', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang BÊN PHẢI khoảng 25 độ', icon: '👉' },
-  { key: 'TILT', displayLabel: 'NGỬA CẰM', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm LÊN TRÊN khoảng 15 độ', icon: '👆' }
+  { key: 'TILT', displayLabel: 'NGỬA CẰM', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm LÊN TRÊN khoảng 15 độ', icon: '👆' },
+  { key: 'DOWN', displayLabel: 'CÚI ĐẦU', label: '5. Cúi Nhẹ Đầu Xuống', guide: 'Cúi nhẹ cằm XUỐNG DƯỚI khoảng 15 độ', icon: '👇' }
 ];
 
-const SAMPLES_PER_STEP = 30; // 30 samples per angle (Total 120 samples across 4 steps)
+const SAMPLES_PER_STEP = 24; // 24 samples per angle (Total 120 samples across 5 steps)
 
 export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLogout }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [stepSampleCounts, setStepSampleCounts] = useState([0, 0, 0, 0]);
+  const [stepSampleCounts, setStepSampleCounts] = useState([0, 0, 0, 0, 0]);
   const [stepProgress, setStepProgress] = useState(0);
   const [hasCameraStream, setHasCameraStream] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -26,7 +27,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
   // Refs for tracking loop state cleanly without stale closures
   const currentStepRef = useRef(0);
-  const stepSamplesRef = useRef([0, 0, 0, 0]);
+  const stepSamplesRef = useRef([0, 0, 0, 0, 0]);
   const capturedImagesRef = useRef({});
   const isSavingRef = useRef(false);
   const lastMsgRef = useRef('');
@@ -87,17 +88,17 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  // Start 4-Step Auto Scanner (30 Samples Per Angle)
+  // Start 5-Step Auto Scanner (24 Samples Per Angle = 120 Total Samples)
   const startSilentKycProcess = () => {
     setIsScanning(true);
     currentStepRef.current = 0;
-    stepSamplesRef.current = [0, 0, 0, 0];
+    stepSamplesRef.current = [0, 0, 0, 0, 0];
     capturedImagesRef.current = {};
     setCurrentStepIndex(0);
-    setStepSampleCounts([0, 0, 0, 0]);
+    setStepSampleCounts([0, 0, 0, 0, 0]);
     setStepProgress(0);
     setIsPoseMatched(false);
-    updateStatusText(`🔍 [Bước 1/4]: ${KYC_ANGLES[0].guide}...`);
+    updateStatusText(`🔍 [Bước 1/5]: ${KYC_ANGLES[0].guide}...`);
 
     stopSilentScanLoop();
 
@@ -139,7 +140,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         // Stable status text during sample collection without numbers flickering
         updateStatusText(`📸 [${targetAngle.displayLabel}]: Đang tự động thu thập dữ liệu sinh trắc...`);
 
-        // If this angle collected 30/30 samples, advance to next angle!
+        // If this angle collected samples, advance to next angle!
         if (currentCount >= SAMPLES_PER_STEP) {
           setStepSampleCounts([...stepSamplesRef.current]);
           const nextStep = stepIdx + 1;
@@ -150,17 +151,17 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             setStepProgress(0);
             setIsPoseMatched(false);
             const nextAngleConfig = KYC_ANGLES[nextStep];
-            updateStatusText(`🎉 Rất tốt! Tiếp theo [Bước ${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
+            updateStatusText(`🎉 Rất tốt! Tiếp theo [Bước ${nextStep + 1}/5]: ${nextAngleConfig.guide}`);
           } else {
-            // ALL 4 ANGLES COMPLETE TOTAL! Trigger Atomic Full KYC Save
+            // ALL 5 ANGLES COMPLETE TOTAL! Trigger Atomic Full KYC Save
             stopSilentScanLoop();
             isSavingRef.current = true;
             setStepProgress(100);
-            updateStatusText('✨ Đã hoàn thành thu thập dữ liệu 3D Face ID! Đang lưu vào CSDL...');
+            updateStatusText('✨ Đã hoàn thành thu thập dữ liệu 3D Face ID đủ 5 góc! Đang lưu vào CSDL...');
 
             const saveSuccess = await saveFullKycSession();
             if (saveSuccess) {
-              updateStatusText('🎉 HOÀN THÀNH XÁC THỰC 4 GÓC MẶT KYC 3D! Đang mở khóa hệ thống...');
+              updateStatusText('🎉 HOÀN THÀNH XÁC THỰC 5 GÓC MẶT KYC 3D! Đang mở khóa hệ thống...');
               setTimeout(() => {
                 onKycSuccess();
               }, 1500);
