@@ -215,9 +215,363 @@ def delete_user(
 
     return {"status": "SUCCESS", "message": f"Đã xóa thành công tài khoản {user.code}"}
 
-@router.get("/classes", response_model=List[ClassResponse])
+import random
+import string
+from app.schemas import UserResponse, UserCreateRequest, UserUpdateRequest, ClassResponse, ClassCreateRequest, ClassUpdateRequest, AddMemberRequest
+
+def generate_class_code() -> str:
+    chars = string.ascii_uppercase + string.digits
+    return "SIC-" + "".join(random.choices(chars, k=6))
+
+@router.get("/classes")
 def get_all_classes(current_user: User = Depends(require_role(["ADMIN"])), db: Session = Depends(get_db)):
-    return db.query(ClassRoom).all()
+    """
+    Lấy danh sách tất cả lớp học kèm danh sách giảng viên đồng quản lý và số lượng sinh viên
+    """
+    classes_list = db.query(ClassRoom).order_by(ClassRoom.id.desc()).all()
+    result = []
+    for cls in classes_list:
+        primary_teacher = db.query(User).filter(User.id == cls.created_by_teacher_id).first()
+        co_teachers = cls.teachers
+
+        students_cnt = db.query(ClassStudent).filter(
+            ClassStudent.class_id == cls.id,
+            ClassStudent.status == "APPROVED"
+        ).count()
+
+        sessions_cnt = db.query(AttendanceSession).filter(AttendanceSession.class_id == cls.id).count()
+
+        result.append({
+            "id": cls.id,
+            "class_code": cls.class_code,
+            "class_name": cls.class_name,
+            "subject_topic": cls.subject_topic,
+            "created_by_teacher_id": cls.created_by_teacher_id,
+            "primary_teacher": {
+                "id": primary_teacher.id,
+                "code": primary_teacher.code,
+                "full_name": primary_teacher.full_name,
+                "email": primary_teacher.email
+            } if primary_teacher else None,
+            "co_teachers": [
+                {"id": t.id, "code": t.code, "full_name": t.full_name, "email": t.email}
+                for t in co_teachers
+            ],
+            "students_count": students_cnt,
+            "sessions_count": sessions_cnt
+        })
+    return result
+
+@router.post("/classes")
+def create_class_by_admin(
+    req: ClassCreateRequest,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin tạo Lớp Học mới và gán Giảng viên chủ nhiệm
+    """
+    teacher_id = req.teacher_id
+    if not teacher_id:
+        admin_user = current_user
+        teacher_id = admin_user.id
+    else:
+        teacher = db.query(User).filter(User.id == teacher_id, User.role.in_(["TEACHER", "ADMIN"])).first()
+        if not teacher:
+            raise HTTPException(status_code=400, detail="Giảng viên chủ nhiệm không hợp lệ!")
+
+    class_code = generate_class_code()
+    while db.query(ClassRoom).filter(ClassRoom.class_code == class_code).first():
+        class_code = generate_class_code()
+
+    new_class = ClassRoom(
+        class_code=class_code,
+        class_name=req.class_name,
+        subject_topic=req.subject_topic,
+        created_by_teacher_id=teacher_id
+    )
+    db.add(new_class)
+    db.commit()
+    db.refresh(new_class)
+
+    # Assign teacher to association table
+    assigned_teacher = db.query(User).filter(User.id == teacher_id).first()
+    if assigned_teacher and assigned_teacher not in new_class.teachers:
+        new_class.teachers.append(assigned_teacher)
+        db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="CREATE_CLASS",
+        details=f"Admin đã tạo lớp mới: {new_class.class_code} - {new_class.class_name} ({new_class.subject_topic})"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Tạo lớp học {new_class.class_code} thành công!", "class_id": new_class.id}
+
+@router.put("/classes/{class_id}")
+def update_class_by_admin(
+    class_id: int,
+    req: ClassUpdateRequest,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Cập nhật thông tin Lớp Học (Tên lớp, Chủ đề, Giảng viên chủ nhiệm)
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    if req.class_name:
+        cls.class_name = req.class_name
+    if req.subject_topic:
+        cls.subject_topic = req.subject_topic
+    if req.teacher_id:
+        teacher = db.query(User).filter(User.id == req.teacher_id).first()
+        if not teacher:
+            raise HTTPException(status_code=400, detail="Giảng viên không tồn tại!")
+        cls.created_by_teacher_id = req.teacher_id
+        if teacher not in cls.teachers:
+            cls.teachers.append(teacher)
+
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="UPDATE_CLASS",
+        details=f"Admin đã cập nhật thông tin lớp ID {class_id} ({cls.class_code})"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Cập nhật thành công lớp học {cls.class_code}"}
+
+@router.delete("/classes/{class_id}")
+def delete_class_by_admin(
+    class_id: int,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Xóa vĩnh viễn Lớp Học và toàn bộ dữ liệu liên quan
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    code_tmp = cls.class_code
+    db.delete(cls)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="DELETE_CLASS",
+        details=f"Admin đã xóa vĩnh viễn lớp học {code_tmp}"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Đã xóa vĩnh viễn lớp học {code_tmp}"}
+
+@router.get("/classes/{class_id}/members")
+def get_class_members(
+    class_id: int,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Lấy danh sách Giảng viên và Sinh viên trong lớp học
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    co_teachers = [
+        {"id": t.id, "code": t.code, "full_name": t.full_name, "email": t.email, "role": t.role}
+        for t in cls.teachers
+    ]
+
+    class_students = db.query(ClassStudent).filter(ClassStudent.class_id == class_id).all()
+    students_list = []
+    for cs in class_students:
+        s = cs.student
+        if s:
+            students_list.append({
+                "id": s.id,
+                "code": s.code,
+                "full_name": s.full_name,
+                "email": s.email,
+                "status": cs.status,
+                "joined_at": cs.joined_at.strftime("%Y-%m-%d %H:%M:%S") if cs.joined_at else None
+            })
+
+    return {
+        "class_id": cls.id,
+        "class_code": cls.class_code,
+        "class_name": cls.class_name,
+        "teachers": co_teachers,
+        "students": students_list
+    }
+
+@router.post("/classes/{class_id}/add-teacher")
+def add_teacher_to_class(
+    class_id: int,
+    req: AddMemberRequest,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Thêm Giảng viên đồng quản lý vào lớp học (theo Mã GV hoặc Email)
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    query_str = req.user_code_or_email.strip()
+    teacher = db.query(User).filter(
+        (User.code == query_str) | (User.email == query_str),
+        User.role.in_(["TEACHER", "ADMIN"])
+    ).first()
+
+    if not teacher:
+        raise HTTPException(status_code=400, detail="Không tìm thấy Giảng viên với mã số hoặc email đã nhập!")
+
+    if teacher in cls.teachers:
+        raise HTTPException(status_code=400, detail=f"Giảng viên {teacher.full_name} đã thuộc lớp học này rồi!")
+
+    cls.teachers.append(teacher)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="ADD_CLASS_TEACHER",
+        details=f"Admin đã thêm GV {teacher.code} ({teacher.full_name}) vào lớp {cls.class_code}"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Đã thêm thành công Giảng viên {teacher.full_name} vào lớp {cls.class_code}"}
+
+@router.delete("/classes/{class_id}/remove-teacher/{teacher_id}")
+def remove_teacher_from_class(
+    class_id: int,
+    teacher_id: int,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Xóa Giảng viên đồng quản lý khỏi lớp học
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    teacher = db.query(User).filter(User.id == teacher_id).first()
+    if not teacher or teacher not in cls.teachers:
+        raise HTTPException(status_code=400, detail="Giảng viên không nằm trong danh sách đồng quản lý lớp!")
+
+    if len(cls.teachers) <= 1 and cls.created_by_teacher_id == teacher_id:
+        raise HTTPException(status_code=400, detail="Không thể xóa Giảng viên duy nhất của lớp!")
+
+    cls.teachers.remove(teacher)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="REMOVE_CLASS_TEACHER",
+        details=f"Admin đã xóa GV {teacher.code} khỏi lớp {cls.class_code}"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Đã xóa Giảng viên {teacher.full_name} khỏi lớp {cls.class_code}"}
+
+@router.post("/classes/{class_id}/add-student")
+def add_student_to_class(
+    class_id: int,
+    req: AddMemberRequest,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Thêm Sinh viên vào lớp học (mặc định trạng thái APPROVED)
+    """
+    cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
+
+    query_str = req.user_code_or_email.strip()
+    student = db.query(User).filter(
+        (User.code == query_str) | (User.email == query_str)
+    ).first()
+
+    if not student:
+        raise HTTPException(status_code=400, detail="Không tìm thấy người dùng/sinh viên với mã số hoặc email này!")
+
+    existing = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.student_id == student.id
+    ).first()
+
+    if existing:
+        if existing.status != "APPROVED":
+            existing.status = "APPROVED"
+            db.commit()
+            return {"status": "SUCCESS", "message": f"Đã phê duyệt Sinh viên {student.full_name} vào lớp {cls.class_code}"}
+        else:
+            raise HTTPException(status_code=400, detail=f"Sinh viên {student.full_name} đã ở trong lớp này!")
+
+    new_cs = ClassStudent(
+        class_id=class_id,
+        student_id=student.id,
+        status="APPROVED"
+    )
+    db.add(new_cs)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="ADD_CLASS_STUDENT",
+        details=f"Admin đã thêm SV {student.code} ({student.full_name}) vào lớp {cls.class_code}"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Đã thêm Sinh viên {student.full_name} vào lớp {cls.class_code}"}
+
+@router.delete("/classes/{class_id}/remove-student/{student_id}")
+def remove_student_from_class(
+    class_id: int,
+    student_id: int,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Xóa Sinh viên khỏi lớp học
+    """
+    cs = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.student_id == student_id
+    ).first()
+
+    if not cs:
+        raise HTTPException(status_code=404, detail="Sinh viên không thuộc lớp học này!")
+
+    student_code = cs.student.code if cs.student else str(student_id)
+    db.delete(cs)
+    db.commit()
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="REMOVE_CLASS_STUDENT",
+        details=f"Admin đã xóa SV {student_code} khỏi lớp ID {class_id}"
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": f"Đã xóa Sinh viên khỏi lớp thành công"}
 
 @router.post("/users/{user_id}/reset-face")
 def reset_user_face_data(user_id: int, current_user: User = Depends(require_role(["ADMIN"])), db: Session = Depends(get_db)):

@@ -54,9 +54,18 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
-class ClassCreate(BaseModel):
+class ClassCreateRequest(BaseModel):
     class_name: str
     subject_topic: str
+    teacher_id: Optional[int] = None
+
+class ClassUpdateRequest(BaseModel):
+    class_name: Optional[str] = None
+    subject_topic: Optional[str] = None
+    teacher_id: Optional[int] = None
+
+class AddMemberRequest(BaseModel):
+    user_code_or_email: str
 
 class ClassResponse(BaseModel):
     id: int
