@@ -11,6 +11,18 @@ from app.routes import auth, enrollment, classes, attendance, admin
 # Initialize Database Tables
 Base.metadata.create_all(bind=engine)
 
+def auto_migrate_db():
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS total_faces_detected INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS unknown_count INTEGER DEFAULT 0;"))
+            conn.commit()
+    except Exception as e:
+        print(f"[Migration Warning] Auto-migration error: {e}")
+
+auto_migrate_db()
+
 def seed_default_users():
     db = SessionLocal()
     try:
