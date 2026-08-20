@@ -187,13 +187,21 @@ def extract_face_feature_512d(image_bytes: bytes) -> list:
     norm_vec = raw_vec / np.linalg.norm(raw_vec)
     return norm_vec.tolist()
 
+try:
+    from app_modules.gallery import GalleryManager
+    print("[AI Engine] Successfully loaded Core AI GalleryManager")
+except Exception as e:
+    print(f"[AI Engine Warning] GalleryManager load failed: {e}")
+    GalleryManager = None
+
 def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     """
     Xử lý ảnh toàn cảnh lớp học:
     1. Bóc tách tất cả khuôn mặt bằng SOTA YuNet Face Detector (score_threshold=0.25)
-    2. Trích xuất 512-d embeddings & So khớp với student_gallery (Mã SV -> Danh sách 512-d vectors)
-    3. Phân loại: Có trong DB ➔ Khớp MSSV (Khung xanh). Không có trong DB ➔ Nguoi la (Khung đỏ)
-    4. Vẽ Bounding Box & xuất ảnh cùng kết quả chi tiết
+    2. Trích xuất 512-d embeddings & So khớp với Core AI GalleryManager (ngưỡng L2 0.7641 ~ Cosine 0.70)
+    3. Phân loại: Có trong DB & Khớp khuôn mặt ➔ Khớp MSSV (Khung xanh). Không có/Không khớp ➔ Nguoi la (Khung đỏ)
+    4. Khử trùng lặp (Duplicate Identity Disambiguation): Mỗi Mã SV chỉ được gán 1 lần cho vị trí khớp nhất trong cùng 1 ảnh.
+    5. Vẽ Bounding Box & xuất ảnh cùng kết quả chi tiết
     """
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -219,48 +227,128 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         except Exception:
             faces = []
 
-    attendance_results = []
-    
-    for (x, y, w, h) in faces:
+    # Step 1: Extract features for all valid face crops
+    face_data_list = []
+    for idx, (x, y, w, h) in enumerate(faces):
         if w < 10 or h < 10:
             continue
-        
         face_crop = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
         if face_crop.size == 0:
             continue
-        
         crop_bytes = cv2.imencode('.jpg', face_crop)[1].tobytes()
-        face_vec = np.array(extract_face_feature_512d(crop_bytes))
+        face_vec = extract_face_feature_512d(crop_bytes)
+        face_data_list.append({
+            "idx": idx,
+            "box": [int(x), int(y), int(w), int(h)],
+            "vec": face_vec
+        })
 
-        best_match_code = None
-        best_similarity = -1.0
+    if not face_data_list:
+        processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
+        return processed_bytes, []
 
-        for user_code, user_vectors in student_gallery.items():
-            for ref_vec in user_vectors:
-                similarity = float(np.dot(face_vec, np.array(ref_vec)))
-                if similarity > best_similarity:
-                    best_similarity = similarity
-                    best_match_code = user_code
+    # Step 2: Build GalleryManager instance with strict L2 threshold (0.7641)
+    gallery_mgr = None
+    if GalleryManager is not None and student_gallery:
+        try:
+            gallery_mgr = GalleryManager(threshold=0.7641)
+            for u_code, u_vecs in student_gallery.items():
+                for vec in u_vecs:
+                    gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
+        except Exception as e:
+            print(f"[AI Engine Gallery Warning] {e}")
+            gallery_mgr = None
 
-        # Threshold similarity check (0.42 per src/app_modules/attendance.py)
-        if best_similarity >= 0.42 and best_match_code:
-            color = (0, 255, 0)  # Green for Registered Student
-            label = f"{best_match_code} ({best_similarity*100:.1f}%)"
-            attendance_results.append({
-                "code": best_match_code,
-                "status": "PRESENT",
-                "confidence": best_similarity,
-                "box": [int(x), int(y), int(w), int(h)]
-            })
+    # Step 3: Match each face against Gallery
+    raw_matches = []
+    for item in face_data_list:
+        f_vec = item["vec"]
+        matched_code = None
+        best_sim = -1.0
+        is_known = False
+
+        if gallery_mgr is not None and len(gallery_mgr.gallery_embeddings) > 0:
+            # Core AI Hybrid Gallery Manager Matching
+            res = gallery_mgr.identify(np.array(f_vec, dtype=np.float32))
+            is_known = res.get("is_known", False)
+            if is_known:
+                matched_code = res.get("name")
+                best_sim = res.get("confidence", 0.0) / 100.0
+            else:
+                best_sim = max(0.0, res.get("confidence", 0.0) / 100.0)
         else:
-            color = (0, 0, 255)  # Red for Unknown / Người lạ
-            label = "Nguoi la (Unknown)"
-            attendance_results.append({
+            # Fallback Cosine Match with strict threshold (0.68 ~ 68.0%)
+            for u_code, u_vecs in student_gallery.items():
+                for ref_vec in u_vecs:
+                    sim = float(np.dot(np.array(f_vec), np.array(ref_vec)))
+                    if sim > best_sim:
+                        best_sim = sim
+                        matched_code = u_code
+            is_known = (best_sim >= 0.68 and matched_code is not None)
+
+        raw_matches.append({
+            "idx": item["idx"],
+            "box": item["box"],
+            "matched_code": matched_code if is_known else None,
+            "similarity": best_sim,
+            "is_known": is_known
+        })
+
+    # Step 4: Duplicate Identity Disambiguation (One student code per face in image)
+    known_matches = [m for m in raw_matches if m["is_known"] and m["matched_code"]]
+    known_matches.sort(key=lambda x: x["similarity"], reverse=True)
+
+    assigned_codes = set()
+    final_face_results = {}  # face idx -> final match dict
+
+    for m in known_matches:
+        f_idx = m["idx"]
+        code = m["matched_code"]
+        if code not in assigned_codes:
+            assigned_codes.add(code)
+            final_face_results[f_idx] = {
+                "code": code,
+                "status": "PRESENT",
+                "confidence": m["similarity"],
+                "is_known": True,
+                "box": m["box"]
+            }
+        else:
+            # Demote duplicate face match to Nguoi la (Unknown)
+            final_face_results[f_idx] = {
                 "code": "UNKNOWN",
                 "status": "UNKNOWN",
-                "confidence": max(0.0, best_similarity),
-                "box": [int(x), int(y), int(w), int(h)]
-            })
+                "confidence": m["similarity"],
+                "is_known": False,
+                "box": m["box"]
+            }
+
+    for m in raw_matches:
+        f_idx = m["idx"]
+        if f_idx not in final_face_results:
+            final_face_results[f_idx] = {
+                "code": "UNKNOWN",
+                "status": "UNKNOWN",
+                "confidence": max(0.0, m["similarity"]),
+                "is_known": False,
+                "box": m["box"]
+            }
+
+    # Step 5: Draw Bounding Boxes & Render Output Image
+    attendance_results = []
+    for item in face_data_list:
+        f_idx = item["idx"]
+        res = final_face_results[f_idx]
+        x, y, w, h = res["box"]
+
+        if res["is_known"] and res["code"] != "UNKNOWN":
+            color = (0, 255, 0)  # Green for Registered Student
+            label = f"{res['code']} ({res['confidence']*100:.1f}%)"
+            attendance_results.append(res)
+        else:
+            color = (0, 0, 255)  # Red for Unknown / Nguoi la
+            label = "Nguoi la"
+            attendance_results.append(res)
 
         # Draw bounding box & text
         cv2.rectangle(img, (x, y), (x+w, y+h), color, 2)
