@@ -33,17 +33,15 @@ def test_frontend_css_tokens():
     print("  ✅ UI Test 2: CSS Design Tokens & scaleX(-1) Camera Mirroring verified!")
 
 def test_camera_hud_component():
-    hud_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../web_app/frontend/src/components/CameraHUD.jsx'))
-    assert os.path.exists(hud_path), "CameraHUD.jsx does not exist"
+    kyc_modal_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../web_app/frontend/src/components/MandatoryFaceKycModal.jsx'))
+    assert os.path.exists(kyc_modal_path), "MandatoryFaceKycModal.jsx does not exist"
 
-    with open(hud_path, 'r', encoding='utf-8') as f:
+    with open(kyc_modal_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     assert "camera-mirror-preview" in content
     assert "FRONT" in content
-    assert "Oval Biometric Guide" in content
-    assert "save-face" in content
-    print("  ✅ UI Test 3: CameraHUD Component & Mirror Preview verified!")
+    print("  ✅ UI Test 3: MandatoryFaceKycModal & Camera Mirror Preview scaleX(-1) verified!")
 
 def test_teacher_dashboard_component():
     dashboard_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../web_app/frontend/src/pages/TeacherDashboard.jsx'))

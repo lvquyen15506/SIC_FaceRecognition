@@ -27,19 +27,36 @@ except Exception as e:
     print(f"[AI Engine Warning] YuNet Detector load failed: {e}")
     detector = None
 
-# Initialize ONNX inference session for FaceViT ArcFace
-onnx_model_path = os.path.join(CORE_AI_PATH, "weights", "sic_facevit_infonce_v2.onnx")
-if not os.path.exists(onnx_model_path):
-    onnx_model_path = os.path.join(BASE_DIR, "src", "weights", "sic_facevit_infonce_v2.onnx")
+# Initialize ONNX inference session for FaceViT ArcFace v2
+model_type = os.getenv("AI_MODEL_TYPE", "arcface").lower()
+model_filename = f"sic_facevit_{model_type}_v2.onnx"
+
+candidate_paths = [
+    os.path.join(BASE_DIR, "weights", model_filename),
+    os.path.join(CORE_AI_PATH, "weights", model_filename),
+    os.path.join(BASE_DIR, "src", "weights", model_filename),
+    # Fallback paths
+    os.path.join(BASE_DIR, "weights", "sic_facevit_arcface_v2.onnx"),
+    os.path.join(BASE_DIR, "src", "weights", "sic_facevit_arcface_v2.onnx"),
+    os.path.join(BASE_DIR, "weights", "sic_facevit_infonce_v2.onnx"),
+    os.path.join(BASE_DIR, "src", "weights", "sic_facevit_infonce_v2.onnx"),
+]
+
+onnx_model_path = None
+for p in candidate_paths:
+    if os.path.exists(p):
+        onnx_model_path = p
+        break
 
 try:
-    if os.path.exists(onnx_model_path):
+    if onnx_model_path and os.path.exists(onnx_model_path):
         onnx_session = ort.InferenceSession(onnx_model_path, providers=["CPUExecutionProvider"])
         onnx_input_name = onnx_session.get_inputs()[0].name
         print(f"[AI Engine] Loaded FaceViT ONNX Model from: {onnx_model_path}")
     else:
         onnx_session = None
         onnx_input_name = None
+        print(f"[AI Engine Warning] No ONNX model file found in candidate paths")
 except Exception as e:
     print(f"[AI Engine Warning] ONNX Session load failed: {e}")
     onnx_session = None
@@ -227,15 +244,24 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         except Exception:
             faces = []
 
-    # Step 1: Extract features for all valid face crops
+    # Step 1: Extract features for all valid face crops using Core AI Detector padding (15%) and shadow lifting
     face_data_list = []
     for idx, (x, y, w, h) in enumerate(faces):
         if w < 10 or h < 10:
             continue
-        face_crop = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
-        if face_crop.size == 0:
+        if detector is not None:
+            try:
+                face_bgr, _ = detector.crop_face(img, (x, y, w, h))
+            except Exception:
+                face_bgr = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
+                face_bgr = cv2.resize(face_bgr, (224, 224))
+        else:
+            face_bgr = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
+            face_bgr = cv2.resize(face_bgr, (224, 224))
+
+        if face_bgr is None or face_bgr.size == 0:
             continue
-        crop_bytes = cv2.imencode('.jpg', face_crop)[1].tobytes()
+        crop_bytes = cv2.imencode('.jpg', face_bgr)[1].tobytes()
         face_vec = extract_face_feature_512d(crop_bytes)
         face_data_list.append({
             "idx": idx,
@@ -247,14 +273,27 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
         return processed_bytes, []
 
-    # Step 2: Build GalleryManager instance with strict L2 threshold (0.7641)
+    # Step 2: Build GalleryManager instance with ArcFace L2 threshold (0.22 ~ EER Threshold 0.1844)
     gallery_mgr = None
+    model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
+
+    # Threshold for ArcFace v2 (Pos Dist ~0.1149, Neg Dist ~0.2407, EER ~0.1844) vs InfoNCE v2
+    if "arcface" in (onnx_model_path or ""):
+        l2_thresh = 0.22
+        cosine_thresh = 0.85
+    else:
+        l2_thresh = 0.7641
+        cosine_thresh = 0.68
+
     if GalleryManager is not None and student_gallery:
         try:
-            gallery_mgr = GalleryManager(threshold=0.7641)
+            gallery_mgr = GalleryManager(threshold=l2_thresh)
             for u_code, u_vecs in student_gallery.items():
                 for vec in u_vecs:
-                    gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
+                    if len(vec) == model_dim:
+                        gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
+                    else:
+                        print(f"[AI Engine Warning] Skipping vector for {u_code} with mismatched dim ({len(vec)} != {model_dim})")
         except Exception as e:
             print(f"[AI Engine Gallery Warning] {e}")
             gallery_mgr = None
@@ -277,14 +316,15 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             else:
                 best_sim = max(0.0, res.get("confidence", 0.0) / 100.0)
         else:
-            # Fallback Cosine Match with strict threshold (0.68 ~ 68.0%)
+            # Fallback Cosine Match with dimension filtering
             for u_code, u_vecs in student_gallery.items():
                 for ref_vec in u_vecs:
-                    sim = float(np.dot(np.array(f_vec), np.array(ref_vec)))
-                    if sim > best_sim:
-                        best_sim = sim
-                        matched_code = u_code
-            is_known = (best_sim >= 0.68 and matched_code is not None)
+                    if len(ref_vec) == len(f_vec):
+                        sim = float(np.dot(np.array(f_vec), np.array(ref_vec)))
+                        if sim > best_sim:
+                            best_sim = sim
+                            matched_code = u_code
+            is_known = (best_sim >= cosine_thresh and matched_code is not None)
 
         raw_matches.append({
             "idx": item["idx"],

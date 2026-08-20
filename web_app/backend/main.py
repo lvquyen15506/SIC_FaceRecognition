@@ -15,8 +15,16 @@ def auto_migrate_db():
     from sqlalchemy import text
     try:
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS total_faces_detected INTEGER DEFAULT 0;"))
-            conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS unknown_count INTEGER DEFAULT 0;"))
+            if engine.dialect.name == "sqlite":
+                res = conn.execute(text("PRAGMA table_info(attendance_sessions);")).fetchall()
+                cols = [r[1] for r in res]
+                if "total_faces_detected" not in cols:
+                    conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN total_faces_detected INTEGER DEFAULT 0;"))
+                if "unknown_count" not in cols:
+                    conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN unknown_count INTEGER DEFAULT 0;"))
+            else:
+                conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS total_faces_detected INTEGER DEFAULT 0;"))
+                conn.execute(text("ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS unknown_count INTEGER DEFAULT 0;"))
             conn.commit()
     except Exception as e:
         print(f"[Migration Warning] Auto-migration error: {e}")
