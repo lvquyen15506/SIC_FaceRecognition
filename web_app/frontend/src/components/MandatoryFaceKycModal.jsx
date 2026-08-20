@@ -132,17 +132,17 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
         stepSamplesRef.current[stepIdx] += 1;
         const currentCount = stepSamplesRef.current[stepIdx];
-        setStepSampleCounts([...stepSamplesRef.current]);
 
         if (checkRes.image_base64) {
           capturedImagesRef.current[targetAngle.key] = checkRes.image_base64;
         }
 
-        const pct = Math.round((currentCount / SAMPLES_PER_STEP) * 100);
-        updateStatusText(`📸 [${targetAngle.displayLabel}]: Đang lấy mẫu... (${pct}%)`);
+        // Stable status text during sample collection without numbers flickering
+        updateStatusText(`📸 [${targetAngle.displayLabel}]: Đang tự động thu thập dữ liệu sinh trắc...`);
 
         // If this angle collected 30/30 samples, advance to next angle!
         if (currentCount >= SAMPLES_PER_STEP) {
+          setStepSampleCounts([...stepSamplesRef.current]);
           const nextStep = stepIdx + 1;
           currentStepRef.current = nextStep;
 
@@ -150,12 +150,12 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             setCurrentStepIndex(nextStep);
             setIsPoseMatched(false);
             const nextAngleConfig = KYC_ANGLES[nextStep];
-            updateStatusText(`🎉 Rất tốt! Tiếp theo [${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
+            updateStatusText(`🎉 Rất tốt! Tiếp theo [Bước ${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
           } else {
-            // ALL 4 ANGLES COMPLETE (120 SAMPLES TOTAL)! Trigger Atomic Full KYC Save
+            // ALL 4 ANGLES COMPLETE TOTAL! Trigger Atomic Full KYC Save
             stopSilentScanLoop();
             isSavingRef.current = true;
-            updateStatusText('✨ Đã lấy đủ 120 mẫu 3D Face ID! Đang lưu dữ liệu sinh trắc...');
+            updateStatusText('✨ Đã hoàn thành thu thập dữ liệu 3D Face ID! Đang lưu vào CSDL...');
 
             const saveSuccess = await saveFullKycSession();
             if (saveSuccess) {
@@ -181,11 +181,12 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     const canvas = canvasRef.current;
     const w = video.videoWidth || 640;
     const h = video.videoHeight || 480;
-    canvas.width = w;
-    canvas.height = h;
+
+    // Only resize canvas when dimensions change to prevent DOM layout flickering
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
 
     const ctx = canvas.getContext('2d');
-    // Reset transform matrix to prevent compound flip bug!
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.translate(w, 0);
     ctx.scale(-1, 1);
@@ -227,8 +228,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  const totalCapturedSamples = stepSampleCounts.reduce((a, b) => a + b, 0);
-  const activeStepCount = stepSampleCounts[currentStepIndex] || 0;
+  const activeStepCount = stepSamplesRef.current[currentStepIndex] || 0;
   const activeStepProgress = Math.min(100, Math.round((activeStepCount / SAMPLES_PER_STEP) * 100));
 
   return (
@@ -238,7 +238,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <div className="space-y-4 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider flex items-center gap-1">
-              🛡️ Quét 3D Face ID (120 Mẫu)
+              🛡️ Quét 3D Face ID Đa Góc Độ
             </span>
             <button
               onClick={onLogout}
@@ -262,7 +262,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               return (
                 <div
                   key={ang.key}
-                  className={`py-3 px-2 rounded-2xl border text-center transition-all duration-300 flex flex-col items-center justify-center font-bold text-xs ${
+                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-300 flex items-center justify-center gap-1.5 font-bold text-xs ${
                     isDone
                       ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
                       : isCurrent
@@ -270,14 +270,9 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
                       : 'bg-slate-900 border-slate-800 text-slate-500'
                   }`}
                 >
-                  <div className="flex items-center gap-1">
-                    <span>{ang.icon}</span>
-                    <span>{ang.displayLabel}</span>
-                    {isDone && <span className="text-xs">✓</span>}
-                  </div>
-                  <div className="text-[10px] mt-1 opacity-90">
-                    {count}/{SAMPLES_PER_STEP} mẫu
-                  </div>
+                  <span>{ang.icon}</span>
+                  <span>{ang.displayLabel}</span>
+                  {isDone && <span className="text-xs">✓</span>}
                 </div>
               );
             })}
@@ -294,9 +289,8 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             <div className="flex items-center gap-3">
               <span className="text-3xl">{currentAngle.icon}</span>
               <div className="flex-1">
-                <div className="text-sm font-bold text-white flex items-center justify-between">
-                  <span>Bước {currentStepIndex + 1}/4: {currentAngle.label}</span>
-                  <span className="text-xs text-emerald-400 font-mono font-bold">{activeStepCount}/{SAMPLES_PER_STEP} mẫu ({activeStepProgress}%)</span>
+                <div className="text-sm font-bold text-white">
+                  Bước {currentStepIndex + 1}/4: {currentAngle.label}
                 </div>
                 <div className="text-xs text-indigo-300 mt-0.5">{statusMsg}</div>
               </div>
@@ -305,7 +299,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             {/* Step Progress Bar */}
             <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 transition-all duration-200"
+                className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 transition-all duration-300"
                 style={{ width: `${activeStepProgress}%` }}
               />
             </div>
@@ -328,7 +322,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
               <span className="text-4xl">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
-                Cấp quyền truy cập Camera Laptop để quét đủ 120 mẫu khuôn mặt 3D.
+                Cấp quyền truy cập Camera Laptop để quét khuôn mặt 3D.
               </p>
               <button
                 type="button"
@@ -372,7 +366,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           {isScanning ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Đang Tự Động Thu Thập 120 Mẫu 3D Face ID ({totalCapturedSamples}/120)...</span>
+              <span>Đang Tự Động Thu Thập Dữ Liệu 3D Face ID...</span>
             </>
           ) : (
             '🚀 Bắt Đầu Lấy Khuôn Mặt (3D Face ID)'
