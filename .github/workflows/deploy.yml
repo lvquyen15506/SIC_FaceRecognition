@@ -1,0 +1,61 @@
+name: CI/CD Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Verify Code Syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Check Backend Syntax
+        run: |
+          python -m py_compile web_app/backend/main.py
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: web_app/frontend/package-lock.json
+
+      - name: Build Frontend React App
+        run: |
+          cd web_app/frontend
+          npm ci
+          npm run build
+
+  deploy-to-vps:
+    name: Deploy to Remote VPS
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: SSH and Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🚀 Starting Automated Deployment on VPS..."
+            cd ${{ secrets.VPS_TARGET_DIR || '/var/www/face_recognition_project' }}
+            git pull origin ${{ github.ref_name }}
+            docker compose up -d --build
+            docker image prune -f
+            echo "✅ Deployment Completed Successfully!"
