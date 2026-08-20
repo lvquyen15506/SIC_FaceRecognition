@@ -14,9 +14,9 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   const [stepSampleCounts, setStepSampleCounts] = useState([0, 0, 0, 0]);
   const [hasCameraStream, setHasCameraStream] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('Hãy đưa mặt vào khung và bấm "Bắt Đầu Quét 3D"');
+  const [statusMsg, setStatusMsg] = useState('Đưa khuôn mặt vào khung elip và bấm "Bắt Đầu Lấy Khuôn Mặt"');
   const [errorMsg, setErrorMsg] = useState('');
-  const [detectedBox, setDetectedBox] = useState(null);
+  const [isPoseMatched, setIsPoseMatched] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -93,7 +93,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  // Start 4-Step Auto Scanner (30 Samples Per Angle, Inspired by src/app_demo.py)
+  // Start 4-Step Auto Scanner (30 Samples Per Angle)
   const startSilentKycProcess = () => {
     setIsScanning(true);
     currentStepRef.current = 0;
@@ -101,7 +101,8 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     capturedImagesRef.current = {};
     setCurrentStepIndex(0);
     setStepSampleCounts([0, 0, 0, 0]);
-    updateStatusText(`🔍 [Bước 1/4]: ${KYC_ANGLES[0].guide} (Cần 30 mẫu)...`);
+    setIsPoseMatched(false);
+    updateStatusText(`🔍 [Bước 1/4]: ${KYC_ANGLES[0].guide}...`);
 
     stopSilentScanLoop();
 
@@ -117,29 +118,28 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
       const targetAngle = KYC_ANGLES[stepIdx];
       const checkRes = await performSilentQualityCheck(targetAngle.key);
 
-      if (!checkRes) return;
-
-      if (checkRes.box) {
-        setDetectedBox(checkRes.box);
-      } else {
-        setDetectedBox(null);
+      if (!checkRes) {
+        setIsPoseMatched(false);
+        return;
       }
 
       if (!checkRes.pass) {
+        setIsPoseMatched(false);
         updateStatusText(`👉 [${targetAngle.key}]: ${checkRes.message}`);
       } else {
-        // Frame quality & pose match! Increment sample count for this step
+        // Match! Turn Oval Guide SOLID EMERALD GREEN
+        setIsPoseMatched(true);
+
         stepSamplesRef.current[stepIdx] += 1;
         const currentCount = stepSamplesRef.current[stepIdx];
         setStepSampleCounts([...stepSamplesRef.current]);
 
-        // Keep latest valid base64 image frame for this angle
         if (checkRes.image_base64) {
           capturedImagesRef.current[targetAngle.key] = checkRes.image_base64;
         }
 
         const pct = Math.round((currentCount / SAMPLES_PER_STEP) * 100);
-        updateStatusText(`📸 [${targetAngle.key}]: Đã chụp ${currentCount}/${SAMPLES_PER_STEP} mẫu (${pct}%)`);
+        updateStatusText(`📸 [${targetAngle.key}]: Đang lấy mẫu... (${pct}%)`);
 
         // If this angle collected 30/30 samples, advance to next angle!
         if (currentCount >= SAMPLES_PER_STEP) {
@@ -148,13 +148,14 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
           if (nextStep < KYC_ANGLES.length) {
             setCurrentStepIndex(nextStep);
+            setIsPoseMatched(false);
             const nextAngleConfig = KYC_ANGLES[nextStep];
-            updateStatusText(`🎉 Tuyệt vời! Bước tiếp theo [${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
+            updateStatusText(`🎉 Rất tốt! Tiếp theo [${nextStep + 1}/4]: ${nextAngleConfig.guide}`);
           } else {
             // ALL 4 ANGLES COMPLETE (120 SAMPLES TOTAL)! Trigger Atomic Full KYC Save
             stopSilentScanLoop();
             isSavingRef.current = true;
-            updateStatusText('✨ Đã hoàn thành 120 mẫu 3D Face ID! Đang lưu dữ liệu sinh trắc...');
+            updateStatusText('✨ Đã lấy đủ 120 mẫu 3D Face ID! Đang lưu dữ liệu sinh trắc...');
 
             const saveSuccess = await saveFullKycSession();
             if (saveSuccess) {
@@ -170,7 +171,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           }
         }
       }
-    }, 280); // Fast AI polling ~280ms per sample
+    }, 250); // Polling ~250ms per frame
   };
 
   const performSilentQualityCheck = async (angleKey) => {
@@ -237,7 +238,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         <div className="space-y-4 border-b border-slate-800 pb-4">
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider flex items-center gap-1">
-              🛡️ Quét Ngầm 3D Face ID (120 Mẫu)
+              🛡️ Quét 3D Face ID (120 Mẫu)
             </span>
             <button
               onClick={onLogout}
@@ -251,7 +252,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Visual Badges with 30-Sample Progress Counters */}
+          {/* 4 Steps Visual Badges */}
           <div className="grid grid-cols-4 gap-3 pt-1">
             {KYC_ANGLES.map((ang, idx) => {
               const count = stepSampleCounts[idx] || 0;
@@ -339,28 +340,23 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
             </div>
           )}
 
-          {/* Dynamic AI Bounding Box Overlay (Reference: src/app_demo.py & test_pose_liveness.py) */}
-          {detectedBox && (
+          {/* Dynamic Target Oval Guide (Turns SOLID EMERALD GREEN when face/pose is matched!) */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <div
-              className="absolute border-2 border-emerald-400 bg-emerald-500/10 rounded-xl transition-all duration-150 pointer-events-none flex items-start justify-center"
-              style={{
-                left: `${100 - ((detectedBox[0] + detectedBox[2]) / 640) * 100}%`,
-                top: `${(detectedBox[1] / 480) * 100}%`,
-                width: `${(detectedBox[2] / 640) * 100}%`,
-                height: `${(detectedBox[3] / 480) * 100}%`
-              }}
+              className={`w-56 h-64 rounded-full flex flex-col items-center justify-center backdrop-blur-[1px] transition-all duration-300 ${
+                isPoseMatched
+                  ? 'border-4 border-emerald-400 bg-emerald-500/15 shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-[1.02]'
+                  : 'border-2 border-dashed border-indigo-400/70 bg-indigo-950/10 shadow-2xl'
+              }`}
             >
-              <span className="text-[10px] font-mono-grotesk font-bold text-white bg-emerald-600/90 px-2 py-0.5 rounded-b-md shadow">
-                {currentAngle.key}: {activeStepCount}/30
-              </span>
-            </div>
-          )}
-
-          {/* Dynamic Target Oval Guide */}
-          <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-2xl pointer-events-none flex items-center justify-center">
-            <div className="w-56 h-64 border-2 border-dashed border-indigo-400/70 rounded-full flex flex-col items-center justify-center bg-indigo-950/10 backdrop-blur-[1px] shadow-2xl">
-              <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider bg-slate-900/90 px-3 py-1.5 rounded-full border border-indigo-500/40 shadow-lg">
-                {currentAngle.icon} {currentAngle.key} ({activeStepCount}/30)
+              <span
+                className={`text-[11px] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full border shadow-lg transition-all duration-300 ${
+                  isPoseMatched
+                    ? 'bg-emerald-600 text-white border-emerald-300 shadow-emerald-600/40'
+                    : 'bg-slate-900/90 text-indigo-200 border-indigo-500/40'
+                }`}
+              >
+                {currentAngle.icon} {currentAngle.key}
               </span>
             </div>
           </div>
@@ -379,7 +375,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               <span>Đang Tự Động Thu Thập 120 Mẫu 3D Face ID ({totalCapturedSamples}/120)...</span>
             </>
           ) : (
-            '🚀 Bắt Đầu Tự Động Quét 3D Face ID (120 Mẫu)'
+            '🚀 Bắt Đầu Lấy Khuôn Mặt (3D Face ID)'
           )}
         </button>
       </div>
