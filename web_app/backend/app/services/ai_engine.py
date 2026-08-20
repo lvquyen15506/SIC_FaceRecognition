@@ -285,10 +285,10 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     gallery_mgr = None
     model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
 
-    # ArcFace v2 Optimal EER Threshold (Pos Dist ~0.1149, Neg Dist ~0.2407, EER ~0.1844)
+    # ArcFace v2 Optimal EER Threshold (Pos Dist ~0.1149, Neg Dist ~0.2407, EER ~0.1844 -> Cosine ~0.9758)
     if "arcface" in (onnx_model_path or "").lower():
         l2_thresh = 0.22
-        cosine_thresh = 0.85
+        cosine_thresh = 0.9758
     else:
         l2_thresh = 0.7641
         cosine_thresh = 0.68
