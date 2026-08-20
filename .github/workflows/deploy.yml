@@ -29,13 +29,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: web_app/frontend/package-lock.json
 
       - name: Build Frontend React App
         run: |
           cd web_app/frontend
-          npm ci
+          npm install
           npm run build
 
   deploy-to-vps:
