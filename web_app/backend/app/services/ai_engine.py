@@ -281,25 +281,17 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
         return processed_bytes, []
 
-    # Step 2: Build GalleryManager instance with ArcFace L2 threshold (0.22 ~ EER Threshold 0.1844)
+    # Step 2: Build GalleryManager instance with Gold Standard Threshold 0.42 (exact match to app_demo.py)
     gallery_mgr = None
     model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
 
-    # ArcFace v2 Optimal EER Threshold (Pos Dist ~0.1149, Neg Dist ~0.2407, EER ~0.1844 -> Cosine ~0.9758)
-    if "arcface" in (onnx_model_path or "").lower():
-        l2_thresh = 0.22
-        cosine_thresh = 0.9758
-    else:
-        l2_thresh = 0.7641
-        cosine_thresh = 0.68
-
     if GalleryManager is not None and student_gallery:
         try:
-            gallery_mgr = GalleryManager(threshold=l2_thresh)
+            gallery_mgr = GalleryManager(threshold=0.42)
             # Clear static disk-loaded gallery samples to use ONLY class-specific student gallery
             gallery_mgr.gallery_embeddings = []
             gallery_mgr.gallery_names = []
-            gallery_mgr.threshold = l2_thresh
+            gallery_mgr.threshold = 0.42
             for u_code, u_vecs in student_gallery.items():
                 for vec in u_vecs:
                     if len(vec) == model_dim:
@@ -310,108 +302,70 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             print(f"[AI Engine Gallery Warning] {e}")
             gallery_mgr = None
 
-    # Step 3: Match each face against Gallery
-    raw_matches = []
+    # Step 3: Match each face against Gallery using Core AI GalleryManager.identify()
+    face_matches = []
     for item in face_data_list:
         f_vec = item["vec"]
-        matched_code = None
-        closest_candidate = None
-        best_sim = -1.0
-        is_known = False
-
+        box = item["box"]
         if gallery_mgr is not None and len(gallery_mgr.gallery_embeddings) > 0:
-            # Core AI Hybrid Gallery Manager Matching
-            res = gallery_mgr.identify(np.array(f_vec, dtype=np.float32))
-            is_known = res.get("is_known", False)
-            closest_candidate = res.get("matched_gallery_name")
-            if is_known:
-                matched_code = res.get("name")
-                best_sim = res.get("confidence", 0.0) / 100.0
-            else:
-                best_sim = max(0.0, res.get("confidence", 0.0) / 100.0)
+            match = gallery_mgr.identify(np.array(f_vec, dtype=np.float32))
+            face_matches.append({
+                "idx": item["idx"],
+                "box": box,
+                "name": match["name"],
+                "distance": match["distance"],
+                "confidence": match["confidence"],
+                "is_known": match["is_known"]
+            })
         else:
-            # Fallback Cosine Match with dimension filtering
-            for u_code, u_vecs in student_gallery.items():
-                for ref_vec in u_vecs:
-                    if len(ref_vec) == len(f_vec):
-                        sim = float(np.dot(np.array(f_vec), np.array(ref_vec)))
-                        if sim > best_sim:
-                            best_sim = sim
-                            closest_candidate = u_code
-            is_known = (best_sim >= cosine_thresh and closest_candidate is not None)
-            if is_known:
-                matched_code = closest_candidate
+            face_matches.append({
+                "idx": item["idx"],
+                "box": box,
+                "name": "Unknown",
+                "distance": 999.0,
+                "confidence": 0.0,
+                "is_known": False
+            })
 
-        raw_matches.append({
-            "idx": item["idx"],
-            "box": item["box"],
-            "matched_code": matched_code if is_known else None,
-            "closest_code": closest_candidate,
-            "similarity": best_sim,
-            "is_known": is_known
-        })
-
-    # Step 4: Duplicate Identity Disambiguation (One student code per face in image)
-    known_matches = [m for m in raw_matches if m["is_known"] and m["matched_code"]]
-    known_matches.sort(key=lambda x: x["similarity"], reverse=True)
-
-    assigned_codes = set()
-    final_face_results = {}  # face idx -> final match dict
-
-    for m in known_matches:
-        f_idx = m["idx"]
-        code = m["matched_code"]
-        if code not in assigned_codes:
-            assigned_codes.add(code)
-            final_face_results[f_idx] = {
-                "code": code,
-                "closest_code": code,
-                "status": "PRESENT",
-                "confidence": m["similarity"],
-                "is_known": True,
-                "box": m["box"]
-            }
-        else:
-            # Demote duplicate face match to Nguoi la (Unknown)
-            final_face_results[f_idx] = {
-                "code": "UNKNOWN",
-                "closest_code": code,
-                "status": "UNKNOWN",
-                "confidence": m["similarity"],
-                "is_known": False,
-                "box": m["box"]
-            }
-
-    for m in raw_matches:
-        f_idx = m["idx"]
-        if f_idx not in final_face_results:
-            final_face_results[f_idx] = {
-                "code": "UNKNOWN",
-                "closest_code": m["closest_code"],
-                "status": "UNKNOWN",
-                "confidence": max(0.0, m["similarity"]),
-                "is_known": False,
-                "box": m["box"]
-            }
-
-    # Step 5: Draw Bounding Boxes & Render Output Image with Confidence %
+    # Step 4: Non-Duplicate Identity Assignment (Exact logic from app_demo.py & attendance.py)
+    face_matches.sort(key=lambda item: item["distance"])
+    assigned_names = set()
     attendance_results = []
-    for item in face_data_list:
-        f_idx = item["idx"]
-        res = final_face_results[f_idx]
-        x, y, w, h = res["box"]
-        conf_pct = res.get("confidence", 0.0) * 100.0
 
-        if res["is_known"] and res["code"] != "UNKNOWN":
+    for item in face_matches:
+        x, y, w, h = item["box"]
+        name = item["name"]
+        dist = item["distance"]
+        conf = item["confidence"]
+        is_known = item["is_known"]
+
+        if is_known and name not in assigned_names:
+            assigned_names.add(name)
             color = (0, 255, 0)  # Green for Registered Student
-            label = f"{res['code']} ({conf_pct:.1f}%)"
-            attendance_results.append(res)
+            label = f"{name} ({conf:.1f}%)"
+            res = {
+                "code": name,
+                "closest_code": name,
+                "status": "PRESENT",
+                "confidence": conf / 100.0,
+                "is_known": True,
+                "box": item["box"]
+            }
         else:
             color = (0, 0, 255)  # Red for Unknown / Nguoi la
             label = "Nguoi la"
-            attendance_results.append(res)
+            res = {
+                "code": "UNKNOWN",
+                "closest_code": None,
+                "status": "UNKNOWN",
+                "confidence": conf / 100.0,
+                "is_known": False,
+                "box": item["box"]
+            }
 
-        # Draw bounding box & text with solid top banner for maximum readability
+        attendance_results.append(res)
+
+        # Draw bounding box & label with solid banner (exact match to attendance.py)
         cv2.rectangle(img, (x, y), (x+w, y+h), color, 2)
         text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
         banner_w = max(w, text_size[0] + 10)
