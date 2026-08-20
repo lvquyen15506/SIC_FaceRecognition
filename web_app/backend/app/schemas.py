@@ -34,9 +34,25 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    has_face_data: bool = False
+    face_angles_count: int = 0
 
     class Config:
         from_attributes = True
+
+class UserCreateRequest(BaseModel):
+    email: str
+    code: str
+    full_name: str
+    password: str
+    role: str
+
+class UserUpdateRequest(BaseModel):
+    email: Optional[str] = None
+    code: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
 
 class ClassCreate(BaseModel):
     class_name: str
