@@ -772,17 +772,33 @@ export default function TeacherDashboard({ user, token }) {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <div>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                  <div className="space-y-1.5">
                     <h3 className="text-xl font-bold text-white">{attendanceResult.title || 'Kết Quả Điểm Danh Buổi Học'}</h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Ngày: <span className="font-mono-grotesk text-slate-200">{attendanceResult.session_date}</span> | Có mặt: <span className="text-emerald-400 font-bold">{attendanceResult.present_count}</span> | Vắng mặt: <span className="text-red-400 font-bold">{attendanceResult.absent_count}</span> / Tổng: {attendanceResult.total_students} SV
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 font-mono text-slate-200">
+                        📅 {attendanceResult.session_date}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium">
+                        🔍 Tổng phát hiện: <b className="text-indigo-400 font-mono">{attendanceResult.total_faces_detected || attendanceResult.present_count}</b> khuôn mặt
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-medium">
+                        ✓ Có mặt: <b className="text-emerald-400 font-mono">{attendanceResult.present_count}/{attendanceResult.total_students}</b> SV
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20 font-medium">
+                        ✗ Vắng mặt: <b className="text-rose-400 font-mono">{attendanceResult.absent_count}</b> SV
+                      </span>
+                      {attendanceResult.unknown_count > 0 && (
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                          ⚠️ Người lạ: <b className="text-amber-400 font-mono">{attendanceResult.unknown_count}</b> người
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <a
                     href={`/api/v1/attendance/export-excel/${attendanceResult.session_id}`}
                     download
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5 shrink-0"
                   >
                     📊 Tải Báo Cáo Excel (.xlsx)
                   </a>

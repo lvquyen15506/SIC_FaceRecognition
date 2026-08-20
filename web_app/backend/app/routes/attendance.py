@@ -207,8 +207,10 @@ async def process_batch_attendance(
             vectors = [json.loads(e.embedding_json) for e in embeddings]
             student_gallery[user.code] = vectors
 
-    # Track overall attendance across all uploaded files
-    detected_user_codes = set()
+    # Track overall attendance & exact confidence scores across all uploaded files
+    detected_user_confidences = {}  # code -> max confidence float
+    total_faces_detected = 0
+    total_unknown_count = 0
     media_file_responses = []
 
     # 3. Process each uploaded image / video file
@@ -229,9 +231,15 @@ async def process_batch_attendance(
             with open(processed_save_path, "wb") as f:
                 f.write(processed_bytes)
 
+            total_faces_detected += len(results)
             for res in results:
                 if res["code"] != "UNKNOWN":
-                    detected_user_codes.add(res["code"])
+                    c_code = res["code"]
+                    c_conf = float(res.get("confidence", 0.0))
+                    if c_code not in detected_user_confidences or c_conf > detected_user_confidences[c_code]:
+                        detected_user_confidences[c_code] = c_conf
+                else:
+                    total_unknown_count += 1
 
             media_rec = SessionMediaFile(
                 session_id=session.id,
@@ -277,7 +285,10 @@ async def process_batch_attendance(
 
                     for res in cached_results:
                         if res["code"] != "UNKNOWN":
-                            detected_user_codes.add(res["code"])
+                            c_code = res["code"]
+                            c_conf = float(res.get("confidence", 0.0))
+                            if c_code not in detected_user_confidences or c_conf > detected_user_confidences[c_code]:
+                                detected_user_confidences[c_code] = c_conf
 
                 # Draw green/red bounding boxes frame-by-frame on the video!
                 for res in cached_results:
@@ -298,6 +309,12 @@ async def process_batch_attendance(
 
             cap.release()
             out.release()
+
+            # Track stats from keyframe
+            total_faces_detected += max_faces_found
+            for res in cached_results:
+                if res["code"] == "UNKNOWN":
+                    total_unknown_count += 1
 
             # Re-encode to H.264 (yuv420p) using imageio_ffmpeg binary for 100% HTML5 browser playback
             final_video_path = raw_video_path
@@ -349,12 +366,14 @@ async def process_batch_attendance(
 
     summary_records = []
     for cs in all_students:
-        is_present = cs.student.code in detected_user_codes
+        is_present = cs.student.code in detected_user_confidences
+        actual_conf = detected_user_confidences.get(cs.student.code, 0.0) if is_present else 0.0
+
         record = AttendanceRecord(
             session_id=session.id,
             user_id=cs.student.id,
             status="PRESENT" if is_present else "ABSENT",
-            confidence=0.98 if is_present else 0.0
+            confidence=round(actual_conf, 4)
         )
         db.add(record)
         summary_records.append({
@@ -372,8 +391,10 @@ async def process_batch_attendance(
         "title": session.title,
         "total_files_processed": len(files),
         "total_students": len(all_students),
-        "present_count": len(detected_user_codes),
-        "absent_count": len(all_students) - len(detected_user_codes),
+        "present_count": len(detected_user_confidences),
+        "absent_count": len(all_students) - len(detected_user_confidences),
+        "total_faces_detected": total_faces_detected,
+        "unknown_count": total_unknown_count,
         "media_files": media_file_responses,
         "summary": summary_records
     }
