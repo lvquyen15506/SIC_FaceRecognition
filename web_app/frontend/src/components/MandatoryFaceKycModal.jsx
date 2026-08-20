@@ -80,13 +80,6 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  useEffect(() => {
-    if (videoRef.current && mediaStreamRef.current) {
-      videoRef.current.srcObject = mediaStreamRef.current;
-      videoRef.current.play().catch(() => {});
-    }
-  });
-
   const updateStatusText = (newMsg) => {
     if (lastMsgRef.current !== newMsg) {
       lastMsgRef.current = newMsg;
