@@ -165,29 +165,35 @@ export default function StudentPortal({ user, token }) {
             </div>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {myClasses.map((cls) => (
-                <div
-                  key={cls.id}
-                  onClick={() => setSelectedClassId(cls.id === selectedClassId ? null : cls.id)}
-                  className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${cls.id === selectedClassId ? 'bg-indigo-950/40 border-indigo-500/50' : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'}`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        {cls.code}
-                      </span>
-                      <h4 className="text-sm font-bold text-white">{cls.name}</h4>
-                    </div>
-                    {cls.subject && (
-                      <p className="text-xs text-slate-400 mt-1">Chủ đề: {cls.subject}</p>
-                    )}
-                  </div>
+              {myClasses.map((cls) => {
+                const codeStr = cls.class_code || cls.code || `LỚP-${cls.id}`;
+                const nameStr = cls.class_name || cls.name || 'Lớp Học';
+                const subjectStr = cls.subject_topic || cls.subject;
 
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    Đã gia nhập
-                  </span>
-                </div>
-              ))}
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => setSelectedClassId(cls.id === selectedClassId ? null : cls.id)}
+                    className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${cls.id === selectedClassId ? 'bg-indigo-950/40 border-indigo-500/50' : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'}`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          {codeStr}
+                        </span>
+                        <h4 className="text-sm font-bold text-white">{nameStr}</h4>
+                      </div>
+                      {subjectStr && (
+                        <p className="text-xs text-slate-400 mt-1">Chủ đề: {subjectStr}</p>
+                      )}
+                    </div>
+
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Đã gia nhập
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
