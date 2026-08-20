@@ -220,6 +220,16 @@ async def process_batch_attendance(
             vectors = [json.loads(e.embedding_json) for e in embeddings]
             student_gallery[user.code] = vectors
 
+    # Fallback to system-wide enrolled faces if class enrollment is empty (e.g. newly created class testing)
+    if not student_gallery:
+        all_embeddings = db.query(FaceEmbedding).all()
+        for fe in all_embeddings:
+            u = fe.user
+            if u:
+                if u.code not in student_gallery:
+                    student_gallery[u.code] = []
+                student_gallery[u.code].append(json.loads(fe.embedding_json))
+
     # Track overall attendance & exact confidence scores across all uploaded files
     detected_user_confidences = {}  # code -> max confidence float
     file_face_counts = []
@@ -306,18 +316,22 @@ async def process_batch_attendance(
                             if c_code not in detected_user_confidences or c_conf > detected_user_confidences[c_code]:
                                 detected_user_confidences[c_code] = c_conf
 
-                # Draw green/red bounding boxes frame-by-frame on the video!
+                # Draw green/red bounding boxes frame-by-frame on the video with exact confidence %
                 for res in cached_results:
                     [x, y, w, h] = res["box"]
+                    c_conf = float(res.get("confidence", 0.0))
+                    conf_pct = c_conf * 100.0 if c_conf <= 1.0 else c_conf
                     if res["code"] != "UNKNOWN":
                         color = (0, 255, 0)
-                        label = f"{res['code']} ({res['confidence']*100:.1f}%)"
+                        label = f"{res['code']} ({conf_pct:.1f}%)"
                     else:
                         color = (0, 0, 255)
-                        label = "Nguoi la (Unknown)"
+                        label = "Nguoi la"
 
                     cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-                    cv2.rectangle(frame, (x, max(0, y-22)), (x+w, y), color, -1)
+                    text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+                    banner_w = max(w, text_size[0] + 10)
+                    cv2.rectangle(frame, (x, max(0, y-22)), (x+banner_w, y), color, -1)
                     cv2.putText(frame, label, (x+5, max(12, y-6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
 
                 out.write(frame)

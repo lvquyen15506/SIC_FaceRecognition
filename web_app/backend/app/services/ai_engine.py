@@ -408,9 +408,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             attendance_results.append(res)
         else:
             color = (0, 0, 255)  # Red for Unknown / Nguoi la
-            closest = res.get("closest_code")
-            closest_str = f" ({closest} {conf_pct:.1f}%)" if closest else f" ({conf_pct:.1f}%)"
-            label = f"Nguoi la{closest_str}"
+            label = "Nguoi la"
             attendance_results.append(res)
 
         # Draw bounding box & text with solid top banner for maximum readability
