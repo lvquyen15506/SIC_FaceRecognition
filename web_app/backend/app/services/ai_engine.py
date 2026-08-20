@@ -353,7 +353,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             }
         else:
             color = (0, 0, 255)  # Red for Unknown / Nguoi la
-            label = "Nguoi la"
+            label = f"Nguoi la ({conf:.1f}%)"
             res = {
                 "code": "UNKNOWN",
                 "closest_code": None,

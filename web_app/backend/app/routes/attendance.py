@@ -326,7 +326,7 @@ async def process_batch_attendance(
                         label = f"{res['code']} ({conf_pct:.1f}%)"
                     else:
                         color = (0, 0, 255)
-                        label = "Nguoi la"
+                        label = f"Nguoi la ({conf_pct:.1f}%)"
 
                     cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
                     text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
