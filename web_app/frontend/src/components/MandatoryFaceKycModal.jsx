@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const KYC_ANGLES = [
-  { key: 'FRONT', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
-  { key: 'LEFT', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang BÊN TRÁI khoảng 25 độ', icon: '👈' },
-  { key: 'RIGHT', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang BÊN PHẢI khoảng 25 độ', icon: '👉' },
-  { key: 'TILT', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm LÊN TRÊN khoảng 15 độ', icon: '👆' }
+  { key: 'FRONT', displayLabel: 'TRỰC DIỆN', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
+  { key: 'LEFT', displayLabel: 'QUAY TRÁI', label: '2. Quay Nhẹ Sang Trái', guide: 'Quay nhẹ mặt sang BÊN TRÁI khoảng 25 độ', icon: '👈' },
+  { key: 'RIGHT', displayLabel: 'QUAY PHẢI', label: '3. Quay Nhẹ Sang Phải', guide: 'Quay nhẹ mặt sang BÊN PHẢI khoảng 25 độ', icon: '👉' },
+  { key: 'TILT', displayLabel: 'NGỬA CẰM', label: '4. Ngửa Nhẹ Cằm Lên', guide: 'Ngửa nhẹ cằm LÊN TRÊN khoảng 15 độ', icon: '👆' }
 ];
 
 const SAMPLES_PER_STEP = 30; // 30 samples per angle (Total 120 samples across 4 steps)
@@ -125,7 +125,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
       if (!checkRes.pass) {
         setIsPoseMatched(false);
-        updateStatusText(`👉 [${targetAngle.key}]: ${checkRes.message}`);
+        updateStatusText(`👉 [${targetAngle.displayLabel}]: ${checkRes.message}`);
       } else {
         // Match! Turn Oval Guide SOLID EMERALD GREEN
         setIsPoseMatched(true);
@@ -139,7 +139,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         }
 
         const pct = Math.round((currentCount / SAMPLES_PER_STEP) * 100);
-        updateStatusText(`📸 [${targetAngle.key}]: Đang lấy mẫu... (${pct}%)`);
+        updateStatusText(`📸 [${targetAngle.displayLabel}]: Đang lấy mẫu... (${pct}%)`);
 
         // If this angle collected 30/30 samples, advance to next angle!
         if (currentCount >= SAMPLES_PER_STEP) {
@@ -272,7 +272,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
                 >
                   <div className="flex items-center gap-1">
                     <span>{ang.icon}</span>
-                    <span>{ang.key}</span>
+                    <span>{ang.displayLabel}</span>
                     {isDone && <span className="text-xs">✓</span>}
                   </div>
                   <div className="text-[10px] mt-1 opacity-90">
@@ -356,7 +356,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
                     : 'bg-slate-900/90 text-indigo-200 border-indigo-500/40'
                 }`}
               >
-                {currentAngle.icon} {currentAngle.key}
+                {currentAngle.icon} {currentAngle.displayLabel}
               </span>
             </div>
           </div>
