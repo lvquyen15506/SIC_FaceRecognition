@@ -168,6 +168,8 @@ def test_admin_audit_logs():
     assert len(data["items"]) >= 1
 
 def test_full_kyc_session_save():
+    import io, base64
+    from PIL import Image
     setup_test_db()
     s_login = client.post("/api/v1/auth/login", json={"code_or_email": "SV001", "password": "student123"}).json()
     s_token = s_login["access_token"]
@@ -180,16 +182,20 @@ def test_full_kyc_session_save():
     )
     assert fail_resp.status_code == 400
 
-    # 2. Complete 4 angles payload (120 samples aggregate) test
-    dummy_img = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP--------------------------------------------------------------------------------------/2wBDAP--------------------------------------------------------------------------------------/wAARCAABAAADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAEC/8QAFREBAAAAAAAAAAAAAAAAAAAAAD/2gAMAw24D0BAH//Z"
+    # 2. Complete 4 angles payload test with valid 224x224 JPEG
+    test_img = Image.new('RGB', (224, 224), color=(100, 150, 200))
+    buf = io.BytesIO()
+    test_img.save(buf, format='JPEG')
+    valid_base64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode('utf-8')
+
     full_resp = client.post(
         "/api/v1/enrollment/save-full-kyc-session",
         json={
             "angles": {
-                "FRONT": dummy_img,
-                "LEFT": dummy_img,
-                "RIGHT": dummy_img,
-                "TILT": dummy_img
+                "FRONT": valid_base64,
+                "LEFT": valid_base64,
+                "RIGHT": valid_base64,
+                "TILT": valid_base64
             }
         },
         headers={"Authorization": f"Bearer {s_token}"}

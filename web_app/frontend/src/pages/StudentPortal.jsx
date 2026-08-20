@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import CameraHUD from '../components/CameraHUD';
+import MandatoryFaceKycModal from '../components/MandatoryFaceKycModal';
 
 export default function StudentPortal({ user, token }) {
   const [showHUD, setShowHUD] = useState(false);
@@ -104,17 +104,17 @@ export default function StudentPortal({ user, token }) {
         </div>
       </div>
 
-      {/* Camera HUD Modal */}
+      {/* Mandatory 3D Face KYC Modal */}
       {showHUD && (
-        <div className="mb-8">
-          <CameraHUD
-            token={token}
-            onEnrollSuccess={() => {
-              fetchEnrollStatus();
-              setShowHUD(false);
-            }}
-          />
-        </div>
+        <MandatoryFaceKycModal
+          user={user}
+          token={token}
+          onKycSuccess={() => {
+            fetchEnrollStatus();
+            setShowHUD(false);
+          }}
+          onLogout={() => setShowHUD(false)}
+        />
       )}
 
       {/* Main Grid */}
