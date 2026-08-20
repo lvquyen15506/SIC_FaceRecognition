@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import User, ClassRoom, ClassStudent, FaceEmbedding
 from app.schemas import ClassCreate, ClassResponse, AddTeacherRequest, UserResponse
 from app.security import get_current_user, require_role, get_password_hash
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/api/v1/classes", tags=["Classes Management"])
 
@@ -175,16 +176,111 @@ def join_class_by_code(class_code: str, current_user: User = Depends(get_current
     ).first()
 
     if existing:
-        return {"status": "EXISTS", "message": "Bạn đã đăng ký tham gia lớp học này rồi"}
+        if existing.status == "PENDING":
+            return {"status": "PENDING", "message": f"Yêu cầu tham gia lớp {classroom.class_name} của bạn đang chờ Giảng viên duyệt"}
+        return {"status": "EXISTS", "message": f"Bạn đã là thành viên của lớp {classroom.class_name} rồi"}
 
     new_join = ClassStudent(
         class_id=classroom.id,
         student_id=current_user.id,
-        status="APPROVED"
+        status="PENDING"
     )
     db.add(new_join)
     db.commit()
-    return {"status": "SUCCESS", "message": f"Đã gia nhập lớp {classroom.class_name} thành công"}
+    log_action(db, current_user.id, "STUDENT_JOIN_REQUEST", {"class_id": classroom.id, "class_code": classroom.class_code})
+    return {"status": "SUCCESS", "message": f"Đã gửi yêu cầu tham gia lớp {classroom.class_name}. Vui lòng chờ Giảng viên duyệt!"}
+
+@router.get("/{class_id}/pending-students")
+def get_pending_students(
+    class_id: int,
+    current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
+
+    pending_list = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.status == "PENDING"
+    ).all()
+
+    result = []
+    for cs in pending_list:
+        s = cs.student
+        face_cnt = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == s.id).count()
+        result.append({
+            "id": s.id,
+            "code": s.code,
+            "full_name": s.full_name,
+            "email": s.email,
+            "joined_at": cs.joined_at.strftime("%Y-%m-%d %H:%M:%S") if cs.joined_at else "",
+            "face_count": face_cnt
+        })
+    return result
+
+@router.post("/{class_id}/students/{student_id}/approve")
+def approve_student_request(
+    class_id: int,
+    student_id: int,
+    current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    cs = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.student_id == student_id
+    ).first()
+
+    if not cs:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu gia nhập của sinh viên này")
+
+    cs.status = "APPROVED"
+    db.commit()
+    log_action(db, current_user.id, "APPROVE_STUDENT_JOIN", {"class_id": class_id, "student_id": student_id})
+    return {"status": "SUCCESS", "message": f"Đã duyệt Sinh viên {cs.student.full_name} vào lớp học thành công"}
+
+@router.post("/{class_id}/students/{student_id}/reject")
+def reject_student_request(
+    class_id: int,
+    student_id: int,
+    current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    cs = db.query(ClassStudent).filter(
+        ClassStudent.class_id == class_id,
+        ClassStudent.student_id == student_id
+    ).first()
+
+    if not cs:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu gia nhập")
+
+    db.delete(cs)
+    db.commit()
+    log_action(db, current_user.id, "REJECT_STUDENT_JOIN", {"class_id": class_id, "student_id": student_id})
+    return {"status": "SUCCESS", "message": "Đã từ chối yêu cầu tham gia lớp học"}
+
+@router.delete("/{class_id}/teachers/{teacher_id}")
+def remove_co_teacher(
+    class_id: int,
+    teacher_id: int,
+    current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
+
+    if teacher_id == classroom.created_by_teacher_id:
+        raise HTTPException(status_code=400, detail="Không thể xóa Giảng viên chủ nhiệm / người tạo lớp")
+
+    target_teacher = db.query(User).filter(User.id == teacher_id).first()
+    if not target_teacher or target_teacher not in classroom.teachers:
+        raise HTTPException(status_code=404, detail="Giảng viên không nằm trong danh sách đồng quản lý lớp này")
+
+    classroom.teachers.remove(target_teacher)
+    db.commit()
+    log_action(db, current_user.id, "REMOVE_CO_TEACHER", {"class_id": class_id, "teacher_id": teacher_id})
+    return {"status": "SUCCESS", "message": f"Đã xóa Giảng viên {target_teacher.full_name} khỏi lớp học"}
 
 @router.get("/{class_id}/students")
 def get_class_students(class_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -249,6 +345,7 @@ def add_student_to_class(
     )
     db.add(new_cs)
     db.commit()
+    log_action(db, current_user.id, "ADD_STUDENT_DIRECTLY", {"class_id": class_id, "student_id": student.id})
 
     return {"status": "SUCCESS", "message": f"Đã thêm Sinh viên {student.full_name} ({student.code}) vào lớp thành công"}
 
@@ -269,4 +366,6 @@ def remove_student_from_class(
 
     db.delete(cs)
     db.commit()
+    log_action(db, current_user.id, "REMOVE_STUDENT", {"class_id": class_id, "student_id": student_id})
     return {"status": "SUCCESS", "message": "Đã xóa sinh viên khỏi lớp học thành công"}
+

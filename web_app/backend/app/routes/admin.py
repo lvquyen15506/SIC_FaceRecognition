@@ -65,3 +65,41 @@ def toggle_user_active(user_id: int, current_user: User = Depends(require_role([
     user.is_active = not user.is_active
     db.commit()
     return {"status": "SUCCESS", "is_active": user.is_active}
+
+@router.get("/audit-logs")
+def get_audit_logs(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Truy vấn danh sách nhật ký hoạt động hệ thống (Audit Logs) dành cho Super Admin
+    """
+    total = db.query(AuditLog).count()
+    logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
+
+    items = []
+    for l in logs:
+        user_info = None
+        if l.user_id:
+            u = db.query(User).filter(User.id == l.user_id).first()
+            if u:
+                user_info = {"id": u.id, "code": u.code, "full_name": u.full_name, "role": u.role}
+
+        items.append({
+            "id": l.id,
+            "user_id": l.user_id,
+            "user_info": user_info,
+            "action": l.action,
+            "details": l.details,
+            "timestamp": l.timestamp.strftime("%Y-%m-%d %H:%M:%S") if l.timestamp else None
+        })
+
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "items": items
+    }
+

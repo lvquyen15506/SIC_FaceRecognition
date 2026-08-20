@@ -6,11 +6,14 @@ export default function StudentPortal({ user, token }) {
   const [classCode, setClassCode] = useState('');
   const [joinMsg, setJoinMsg] = useState('');
   const [myClasses, setMyClasses] = useState([]);
+  const [historyData, setHistoryData] = useState(null);
   const [enrollStatus, setEnrollStatus] = useState({ is_complete: false, total_angles: 0 });
+  const [selectedClassId, setSelectedClassId] = useState(null);
 
   useEffect(() => {
     fetchMyClasses();
     fetchEnrollStatus();
+    fetchAttendanceHistory();
   }, []);
 
   const fetchMyClasses = async () => {
@@ -37,6 +40,18 @@ export default function StudentPortal({ user, token }) {
     } catch (err) {}
   };
 
+  const fetchAttendanceHistory = async () => {
+    try {
+      const res = await fetch('/api/v1/attendance/my-history', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryData(data);
+      }
+    } catch (err) {}
+  };
+
   const handleJoinClass = async (e) => {
     e.preventDefault();
     setJoinMsg('');
@@ -49,6 +64,7 @@ export default function StudentPortal({ user, token }) {
       setJoinMsg(data.message);
       if (res.ok) {
         fetchMyClasses();
+        fetchAttendanceHistory();
         setClassCode('');
       }
     } catch (err) {
@@ -126,7 +142,7 @@ export default function StudentPortal({ user, token }) {
           </form>
 
           {joinMsg && (
-            <p className="text-xs text-emerald-400 text-center font-medium">{joinMsg}</p>
+            <p className="text-xs text-emerald-400 text-center font-medium p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">{joinMsg}</p>
           )}
         </div>
 
@@ -142,9 +158,14 @@ export default function StudentPortal({ user, token }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {myClasses.map((cls) => (
                 <div key={cls.id} className="p-4 rounded-xl glass-card border border-slate-700/60 space-y-2">
-                  <span className="text-[10px] font-mono-grotesk text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-                    {cls.class_code}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono-grotesk text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                      {cls.class_code}
+                    </span>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-medium">
+                      Đã gia nhập
+                    </span>
+                  </div>
                   <h4 className="text-base font-bold text-white">{cls.class_name}</h4>
                   <p className="text-xs text-slate-400">Chủ đề: {cls.subject_topic}</p>
                 </div>
@@ -152,6 +173,104 @@ export default function StudentPortal({ user, token }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Attendance History Section */}
+      <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-white">Bảng Thống Kê & Lịch Sử Điểm Danh Cá Nhân</h3>
+            <p className="text-xs text-slate-400">Theo dõi tỷ lệ đi học chuyên cần của bạn trên từng lớp học</p>
+          </div>
+          {historyData && (
+            <div className="flex items-center gap-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Tỷ lệ Chuyên cần Tổng quan</p>
+                <p className="text-lg font-bold font-mono-grotesk text-emerald-400">
+                  {historyData.overall_summary.overall_rate}%
+                </p>
+              </div>
+              <div className="h-8 w-[1px] bg-slate-800" />
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Có mặt / Tổng số buổi</p>
+                <p className="text-lg font-bold font-mono-grotesk text-white">
+                  {historyData.overall_summary.total_present} / {historyData.overall_summary.total_sessions}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!historyData || historyData.classes.length === 0 ? (
+          <div className="p-8 text-center text-slate-500 text-sm">
+            Chưa có dữ liệu lịch sử điểm danh. Dữ liệu sẽ xuất hiện khi Giảng viên thực hiện điểm danh lớp học.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {historyData.classes.map((clsHist) => (
+              <div key={clsHist.class_id} className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div>
+                    <span className="text-[10px] font-mono-grotesk text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 mr-2">
+                      {clsHist.class_code}
+                    </span>
+                    <span className="text-base font-bold text-white">{clsHist.class_name}</span>
+                    <span className="text-xs text-slate-400 ml-2">({clsHist.subject_topic})</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">
+                      Có mặt: <strong className="text-emerald-400 font-mono-grotesk">{clsHist.present_count}</strong>/{clsHist.total_sessions} buổi
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold font-mono-grotesk bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {clsHist.attendance_rate}%
+                    </span>
+                  </div>
+                </div>
+
+                {clsHist.sessions.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic">Chưa có buổi điểm danh nào được ghi nhận cho lớp này.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                          <th className="py-2 px-3">STT</th>
+                          <th className="py-2 px-3">Tên Buổi Học</th>
+                          <th className="py-2 px-3">Ngày Điểm Danh</th>
+                          <th className="py-2 px-3">Trạng Thái</th>
+                          <th className="py-2 px-3">Tỷ lệ AI Khớp %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {clsHist.sessions.map((sess, idx) => (
+                          <tr key={sess.session_id} className="hover:bg-slate-800/30 transition">
+                            <td className="py-2.5 px-3 font-mono-grotesk text-slate-400">{idx + 1}</td>
+                            <td className="py-2.5 px-3 font-medium text-white">{sess.title}</td>
+                            <td className="py-2.5 px-3 font-mono-grotesk text-slate-300">{sess.date}</td>
+                            <td className="py-2.5 px-3">
+                              {sess.status === 'PRESENT' ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  CÓ MẶT
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                  VẮNG MẶT
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono-grotesk text-slate-300">
+                              {sess.status === 'PRESENT' ? `${(sess.confidence * 100).toFixed(1)}%` : '0%'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

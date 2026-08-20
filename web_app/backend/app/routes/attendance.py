@@ -24,9 +24,94 @@ from app.database import get_db
 from app.models import User, ClassRoom, ClassStudent, AttendanceSession, SessionMediaFile, AttendanceRecord, FaceEmbedding
 from app.security import get_current_user, require_role
 from app.services.ai_engine import process_classroom_image
+from app.services.audit import log_action
 from app.config import UPLOADS_PATH, REPORTS_PATH
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["Attendance Studio & Reports"])
+
+@router.get("/my-history")
+def get_my_attendance_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Sinh viên tra cứu lịch sử điểm danh cá nhân theo từng lớp học
+    """
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Chỉ sinh viên mới có quyền xem lịch sử cá nhân")
+
+    joined_classes = db.query(ClassStudent).filter(
+        ClassStudent.student_id == current_user.id,
+        ClassStudent.status == "APPROVED"
+    ).all()
+
+    class_history = []
+    total_all_sessions = 0
+    total_all_present = 0
+
+    for jc in joined_classes:
+        cls = jc.classroom
+        sessions = db.query(AttendanceSession).filter(
+            AttendanceSession.class_id == cls.id
+        ).order_by(AttendanceSession.created_at.desc()).all()
+
+        session_records = []
+        present_count = 0
+
+        for sess in sessions:
+            rec = db.query(AttendanceRecord).filter(
+                AttendanceRecord.session_id == sess.id,
+                AttendanceRecord.user_id == current_user.id
+            ).first()
+
+            status_str = rec.status if rec else "ABSENT"
+            if status_str == "PRESENT":
+                present_count += 1
+
+            session_records.append({
+                "session_id": sess.id,
+                "title": sess.title,
+                "date": sess.session_date,
+                "created_at": sess.created_at.isoformat() if sess.created_at else None,
+                "status": status_str,
+                "confidence": rec.confidence if rec else 0.0
+            })
+
+        total_sessions = len(sessions)
+        attendance_rate = (present_count / total_sessions * 100.0) if total_sessions > 0 else 100.0
+
+        total_all_sessions += total_sessions
+        total_all_present += present_count
+
+        class_history.append({
+            "class_id": cls.id,
+            "class_code": cls.class_code,
+            "class_name": cls.class_name,
+            "subject_topic": cls.subject_topic,
+            "total_sessions": total_sessions,
+            "present_count": present_count,
+            "absent_count": total_sessions - present_count,
+            "attendance_rate": round(attendance_rate, 1),
+            "sessions": session_records
+        })
+
+    overall_rate = (total_all_present / total_all_sessions * 100.0) if total_all_sessions > 0 else 100.0
+
+    return {
+        "student_info": {
+            "id": current_user.id,
+            "code": current_user.code,
+            "full_name": current_user.full_name
+        },
+        "overall_summary": {
+            "total_classes": len(joined_classes),
+            "total_sessions": total_all_sessions,
+            "total_present": total_all_present,
+            "total_absent": total_all_sessions - total_all_present,
+            "overall_rate": round(overall_rate, 1)
+        },
+        "classes": class_history
+    }
 
 @router.get("/sessions/{class_id}")
 def get_class_attendance_sessions(

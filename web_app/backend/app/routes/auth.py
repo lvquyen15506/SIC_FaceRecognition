@@ -9,6 +9,7 @@ from app.models import User, FaceEmbedding
 from app.schemas import UserRegister, UserLogin, Token, UserResponse
 from app.security import verify_password, get_password_hash, create_access_token, get_current_user
 from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
@@ -35,6 +36,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    log_action(db, new_user.id, "USER_REGISTER", {"role": new_user.role, "code": new_user.code})
     return new_user
 
 @router.post("/login")
@@ -59,6 +61,7 @@ def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
     
     face_count = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user.id).count()
     kyc_status = "VERIFIED" if face_count > 0 else "UNVERIFIED"
+    log_action(db, user.id, "USER_LOGIN", {"role": user.role, "code": user.code})
 
     return {
         "access_token": access_token,

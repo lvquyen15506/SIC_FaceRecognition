@@ -10,9 +10,10 @@ export default function TeacherDashboard({ user, token }) {
   // Active Main Tab: 'ATTENDANCE' vs 'ROSTER' (Quản lý Thành viên Lớp Học)
   const [activeTab, setActiveTab] = useState('ATTENDANCE');
 
-  // Roster Management State (Teachers & Students)
+  // Roster Management State (Teachers, Students & Pending Requests)
   const [teacherList, setTeacherList] = useState([]);
   const [studentList, setStudentList] = useState([]);
+  const [pendingList, setPendingList] = useState([]);
 
   // Modals for adding Student / Co-Teacher with Autocomplete Suggestions
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -44,6 +45,7 @@ export default function TeacherDashboard({ user, token }) {
       fetchClassSessions(selectedClass.id);
       fetchClassStudents(selectedClass.id);
       fetchClassTeachers(selectedClass.id);
+      fetchPendingStudents(selectedClass.id);
     }
   }, [selectedClass]);
 
@@ -130,6 +132,18 @@ export default function TeacherDashboard({ user, token }) {
     } catch (err) {}
   };
 
+  const fetchPendingStudents = async (classId) => {
+    try {
+      const res = await fetch(`/api/v1/classes/${classId}/pending-students`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingList(data);
+      }
+    } catch (err) {}
+  };
+
   const fetchClassSessions = async (classId) => {
     try {
       const res = await fetch(`/api/v1/attendance/sessions/${classId}`, {
@@ -200,6 +214,23 @@ export default function TeacherDashboard({ user, token }) {
     }
   };
 
+  const handleRemoveCoTeacher = async (teacherId, teacherName) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa Giảng viên ${teacherName} khỏi danh sách đồng quản lý lớp?`)) return;
+
+    try {
+      const res = await fetch(`/api/v1/classes/${selectedClass.id}/teachers/${teacherId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fetchClassTeachers(selectedClass.id);
+      } else {
+        alert(data.detail || 'Không thể xóa');
+      }
+    } catch (err) {}
+  };
+
   const handleAddStudent = async (e) => {
     e.preventDefault();
     if (!selectedClass || !studentQuery.trim()) return;
@@ -222,6 +253,7 @@ export default function TeacherDashboard({ user, token }) {
         setStudentQuery('');
         setStudentSuggestions([]);
         fetchClassStudents(selectedClass.id);
+        fetchPendingStudents(selectedClass.id);
       } else {
         alert(data.detail || 'Không thể thêm sinh viên');
       }
@@ -230,6 +262,31 @@ export default function TeacherDashboard({ user, token }) {
     } finally {
       setIsAddingStudent(false);
     }
+  };
+
+  const handleApproveStudent = async (studentId) => {
+    try {
+      const res = await fetch(`/api/v1/classes/${selectedClass.id}/students/${studentId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchClassStudents(selectedClass.id);
+        fetchPendingStudents(selectedClass.id);
+      }
+    } catch (err) {}
+  };
+
+  const handleRejectStudent = async (studentId) => {
+    try {
+      const res = await fetch(`/api/v1/classes/${selectedClass.id}/students/${studentId}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchPendingStudents(selectedClass.id);
+      }
+    } catch (err) {}
   };
 
   const handleRemoveStudent = async (studentId, studentName) => {
@@ -362,7 +419,7 @@ export default function TeacherDashboard({ user, token }) {
                 />
               </div>
 
-              {/* Inline Suggestions Container with explicit scrollbar */}
+              {/* Inline Suggestions Container */}
               {teacherSuggestions.length > 0 && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase px-1">
@@ -460,7 +517,7 @@ export default function TeacherDashboard({ user, token }) {
                 />
               </div>
 
-              {/* Inline Suggestions Container with explicit scrollbar */}
+              {/* Inline Suggestions Container */}
               {studentSuggestions.length > 0 && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase px-1">
@@ -611,13 +668,18 @@ export default function TeacherDashboard({ user, token }) {
             </button>
             <button
               onClick={() => setActiveTab('ROSTER')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 relative ${
                 activeTab === 'ROSTER'
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              👥 Thành Viên Lớp ({teacherList.length} GV | {studentList.length} SV)
+              👥 Thành Viên & Duyệt ({studentList.length} SV)
+              {pendingList.length > 0 && (
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950 animate-pulse">
+                  {pendingList.length} chờ
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -671,13 +733,13 @@ export default function TeacherDashboard({ user, token }) {
               </form>
             </div>
 
-            {/* Past Attendance Sessions (Lịch sử đã lưu) */}
+            {/* Past Attendance Sessions */}
             <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-3">
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Lịch Sử Các Buổi Điểm Danh ({pastSessions.length})</h4>
               {pastSessions.length === 0 ? (
                 <p className="text-xs text-slate-500 italic">Chưa có lịch sử buổi điểm danh nào.</p>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                   {pastSessions.map((sess) => (
                     <button
                       key={sess.session_id}
@@ -726,7 +788,7 @@ export default function TeacherDashboard({ user, token }) {
                   </a>
                 </div>
 
-                {/* Processed Media Preview with HTML5 Video Player & Image Zoom Lightbox */}
+                {/* Processed Media Preview */}
                 {attendanceResult.media_files && attendanceResult.media_files.length > 0 && (
                   <div className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -806,9 +868,50 @@ export default function TeacherDashboard({ user, token }) {
         </div>
       )}
 
-      {/* Class Roster Management Tab (Giảng viên & Sinh viên) */}
+      {/* Class Roster & Pending Requests Tab */}
       {selectedClass && activeTab === 'ROSTER' && (
         <div className="space-y-8">
+          {/* Section 0: Pending Join Requests Banner */}
+          {pendingList.length > 0 && (
+            <div className="glass-card rounded-2xl p-6 border border-amber-500/40 bg-amber-500/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
+                  <h3 className="text-lg font-bold text-amber-300">
+                    Yêu Cầu Gia Nhập Đang Chờ Duyệt ({pendingList.length})
+                  </h3>
+                </div>
+                <span className="text-xs text-amber-400">Sinh viên vừa nhập mã lớp {selectedClass.class_code}</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingList.map((st) => (
+                  <div key={st.id} className="p-4 rounded-xl border border-slate-700 bg-slate-900 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="font-bold text-white text-sm">{st.full_name}</div>
+                      <div className="text-xs text-slate-400 font-mono-grotesk mt-0.5">MSSV: {st.code} • {st.email}</div>
+                      <div className="text-[10px] text-slate-500 mt-1">Yêu cầu lúc: {st.joined_at}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleApproveStudent(st.id)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow transition"
+                      >
+                        ✓ Duyệt
+                      </button>
+                      <button
+                        onClick={() => handleRejectStudent(st.id)}
+                        className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 text-xs font-semibold rounded-lg transition"
+                      >
+                        ✕ Từ chối
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Section 1: Teachers List */}
           <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -821,7 +924,7 @@ export default function TeacherDashboard({ user, token }) {
                 onClick={() => setShowAddTeacherModal(true)}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
               >
-                + Thêm Giảng Viên Quản Lý
+                + Thêm Giảng Viên Đồng Quản Lý
               </button>
             </div>
 
@@ -837,9 +940,17 @@ export default function TeacherDashboard({ user, token }) {
                       Tạo Lớp
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
-                      Đồng Quản Lý
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                        Đồng Quản Lý
+                      </span>
+                      <button
+                        onClick={() => handleRemoveCoTeacher(t.id, t.full_name)}
+                        className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] rounded"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -860,14 +971,14 @@ export default function TeacherDashboard({ user, token }) {
                 onClick={() => setShowAddStudentModal(true)}
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
               >
-                + Thêm Sinh Viên Vào Lớp
+                + Thêm Sinh Viên Trực Tiếp
               </button>
             </div>
 
             <div className="overflow-x-auto">
               {studentList.length === 0 ? (
                 <div className="py-12 text-center text-slate-500 text-sm italic">
-                  Lớp học chưa có sinh viên nào. Hãy nhấn nút "+ Thêm Sinh Viên Vào Lớp" ở trên hoặc chia sẻ Mã Lớp "{selectedClass.class_code}" cho sinh viên!
+                  Lớp học chưa có sinh viên nào. Hãy nhấn nút "+ Thêm Sinh Viên Trực Tiếp" ở trên hoặc chia sẻ Mã Lớp "{selectedClass.class_code}" cho sinh viên!
                 </div>
               ) : (
                 <table className="w-full text-left text-xs">
