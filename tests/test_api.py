@@ -167,3 +167,36 @@ def test_admin_audit_logs():
     assert "items" in data
     assert len(data["items"]) >= 1
 
+def test_full_kyc_session_save():
+    setup_test_db()
+    s_login = client.post("/api/v1/auth/login", json={"code_or_email": "SV001", "password": "student123"}).json()
+    s_token = s_login["access_token"]
+    
+    # 1. Missing angle test (should fail 400)
+    fail_resp = client.post(
+        "/api/v1/enrollment/save-full-kyc-session",
+        json={"angles": {"FRONT": "data:image/jpeg;base64,/9j/4AAQSkZJRg=="}},
+        headers={"Authorization": f"Bearer {s_token}"}
+    )
+    assert fail_resp.status_code == 400
+
+    # 2. Complete 4 angles payload (120 samples aggregate) test
+    dummy_img = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP--------------------------------------------------------------------------------------/2wBDAP--------------------------------------------------------------------------------------/wAARCAABAAADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAEC/8QAFREBAAAAAAAAAAAAAAAAAAAAAD/2gAMAw24D0BAH//Z"
+    full_resp = client.post(
+        "/api/v1/enrollment/save-full-kyc-session",
+        json={
+            "angles": {
+                "FRONT": dummy_img,
+                "LEFT": dummy_img,
+                "RIGHT": dummy_img,
+                "TILT": dummy_img
+            }
+        },
+        headers={"Authorization": f"Bearer {s_token}"}
+    )
+    assert full_resp.status_code == 200
+    res_data = full_resp.json()
+    assert res_data["status"] == "SUCCESS"
+    assert res_data["is_complete"] is True
+
+

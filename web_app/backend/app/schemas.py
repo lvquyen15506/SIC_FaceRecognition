@@ -59,6 +59,9 @@ class EnrollFaceRequest(BaseModel):
     angle_label: str  # 'FRONT', 'LEFT', 'RIGHT', 'TILT'
     image_base64: str
 
+class FullKycEnrollRequest(BaseModel):
+    angles: dict  # {"FRONT": "base64...", "LEFT": "base64...", "RIGHT": "base64...", "TILT": "base64..."}
+
 class AttendanceRecordResponse(BaseModel):
     student_name: str
     student_code: str
