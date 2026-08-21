@@ -349,7 +349,7 @@ export default function TeacherDashboard({ user, token }) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       {/* Hero Header Banner */}
-      <div className="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+      <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-blue-600/10 text-blue-700 dark:text-blue-400 border border-blue-600/20 uppercase tracking-wider font-mono">
@@ -436,9 +436,9 @@ export default function TeacherDashboard({ user, token }) {
       {/* Add Co-Teacher Modal */}
       {showAddTeacherModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-lg w-full border border-slate-800 space-y-4 relative">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-xl font-bold text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
               <button
                 onClick={() => {
                   setShowAddTeacherModal(false);
@@ -534,9 +534,9 @@ export default function TeacherDashboard({ user, token }) {
       {/* Add Student Modal */}
       {showAddStudentModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-lg w-full border border-slate-800 space-y-4 relative">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-xl font-bold text-white">Thêm Sinh Viên Vào Lớp</h3>
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Sinh Viên Vào Lớp</h3>
               <button
                 onClick={() => {
                   setShowAddStudentModal(false);
@@ -632,8 +632,8 @@ export default function TeacherDashboard({ user, token }) {
       {/* Create Class Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card rounded-2xl p-6 max-w-md w-full border border-slate-800 space-y-4">
-            <h3 className="text-xl font-bold text-white">Tạo Lớp Học Mới</h3>
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Tạo Lớp Học Mới</h3>
             <p className="text-xs text-slate-400">Chỉ cần nhập Tên lớp và Chủ đề học, hệ thống tự sinh Mã Lớp</p>
 
             <form onSubmit={handleCreateClass} className="space-y-4">
@@ -739,7 +739,7 @@ export default function TeacherDashboard({ user, token }) {
           {/* Left Column: Upload Form & Past Sessions List */}
           <div className="space-y-6">
             {/* Attendance Studio Upload Form */}
-            <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Studio Điểm Danh Hàng Loạt</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">AI v4.4</span>
@@ -819,7 +819,7 @@ export default function TeacherDashboard({ user, token }) {
             </div>
 
             {/* Past Attendance Sessions Sidebar */}
-            <div className="glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm">
+            <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                   <span>📜 Lịch Sử Điểm Danh</span>
@@ -865,7 +865,7 @@ export default function TeacherDashboard({ user, token }) {
           </div>
 
           {/* Right Column: Interactive Results Canvas & Table */}
-          <div className="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-sm">
+          <div className="md:col-span-2 glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
             {!attendanceResult ? (
               <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-sm border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
                 <span className="text-2xl mb-2">📥</span>
@@ -1069,7 +1069,7 @@ export default function TeacherDashboard({ user, token }) {
           )}
 
           {/* Section 1: Teachers List */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-xl font-bold text-white">👨‍🏫 Giảng Viên Quản Lý Lớp ({teacherList.length})</h3>
@@ -1114,7 +1114,7 @@ export default function TeacherDashboard({ user, token }) {
           </div>
 
           {/* Section 2: Students List */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-xl font-bold text-white">👥 Danh Sách Sinh Viên Lớp ({studentList.length})</h3>
