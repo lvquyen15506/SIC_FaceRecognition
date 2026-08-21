@@ -214,9 +214,10 @@ async def process_batch_attendance(
     student_users = [cs.student for cs in class_students if cs.student]
     
     # Always include all assigned Teachers and the Class Creator Teacher
-    teacher_users = list(classroom.teachers)
-    if classroom.created_by_teacher and classroom.created_by_teacher not in teacher_users:
-        teacher_users.append(classroom.created_by_teacher)
+    teacher_users = list(classroom.teachers) if classroom.teachers else []
+    creator_teacher = db.query(User).filter(User.id == classroom.created_by_teacher_id).first()
+    if creator_teacher and creator_teacher not in teacher_users:
+        teacher_users.append(creator_teacher)
 
     all_gallery_users = student_users + [t for t in teacher_users if t]
 
