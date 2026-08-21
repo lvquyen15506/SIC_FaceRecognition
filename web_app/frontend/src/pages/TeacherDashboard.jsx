@@ -841,19 +841,19 @@ export default function TeacherDashboard({ user, token }) {
                         onClick={() => setAttendanceResult(sess)}
                         className={`w-full p-3 rounded-xl text-left border transition text-xs flex items-center justify-between gap-2 ${
                           isSelected
-                            ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 shadow-sm'
-                            : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-700 text-blue-900 dark:text-blue-100 shadow-sm'
+                            : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                         }`}
                       >
                         <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="font-bold truncate text-slate-900 dark:text-white">{sess.title}</div>
+                          <div className="font-bold truncate text-slate-900 dark:text-white max-w-[170px] sm:max-w-[200px]" title={sess.title}>
+                            {sess.title}
+                          </div>
                           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                            {sess.session_date} • <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{sess.present_count}/{sess.total_students} SV có mặt</span>
+                            {sess.session_date} • <span className="text-emerald-700 dark:text-emerald-400 font-bold">{sess.present_count}/{sess.total_students} SV có mặt</span>
                           </div>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${
-                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}>
+                        <span className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition shrink-0">
                           Xem
                         </span>
                       </button>
@@ -893,33 +893,33 @@ export default function TeacherDashboard({ user, token }) {
                     </a>
                   </div>
 
-                  {/* 4 Quick Metric Cards Grid */}
+                  {/* 4 Quick Metric Cards Grid (High Contrast Accessibility) */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 space-y-1">
-                      <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">🔍 Tổng Phát Hiện</span>
-                      <p className="text-2xl font-black font-mono text-blue-950 dark:text-blue-100">
-                        {attendanceResult.total_faces_detected || attendanceResult.present_count} <span className="text-xs font-normal text-blue-600 dark:text-blue-300">mặt</span>
+                    <div className="p-4 rounded-xl bg-blue-500/10 dark:bg-blue-950/40 border border-blue-500/30 space-y-1">
+                      <span className="text-[11px] font-extrabold text-blue-800 dark:text-blue-300 uppercase tracking-wider block">🔍 TỔNG PHÁT HIỆN</span>
+                      <p className="text-2xl font-black font-mono text-blue-950 dark:text-white">
+                        {attendanceResult.total_faces_detected || attendanceResult.present_count} <span className="text-xs font-bold text-blue-700 dark:text-blue-300">mặt</span>
                       </p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50 space-y-1">
-                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">✅ Có Mặt</span>
-                      <p className="text-2xl font-black font-mono text-emerald-950 dark:text-emerald-100">
-                        {attendanceResult.present_count}<span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">/{attendanceResult.total_students} SV</span>
+                    <div className="p-4 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 space-y-1">
+                      <span className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">✅ CÓ MẶT</span>
+                      <p className="text-2xl font-black font-mono text-emerald-950 dark:text-white">
+                        {attendanceResult.present_count}<span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">/{attendanceResult.total_students} SV</span>
                       </p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 space-y-1">
-                      <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider block">❌ Vắng Mặt</span>
-                      <p className="text-2xl font-black font-mono text-rose-950 dark:text-rose-100">
-                        {attendanceResult.absent_count} <span className="text-xs font-normal text-rose-600 dark:text-rose-300">SV</span>
+                    <div className="p-4 rounded-xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/30 space-y-1">
+                      <span className="text-[11px] font-extrabold text-rose-800 dark:text-rose-300 uppercase tracking-wider block">❌ VẮNG MẶT</span>
+                      <p className="text-2xl font-black font-mono text-rose-950 dark:text-white">
+                        {attendanceResult.absent_count} <span className="text-xs font-bold text-rose-700 dark:text-rose-300">SV</span>
                       </p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 space-y-1">
-                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">⚠️ Người Lạ</span>
-                      <p className="text-2xl font-black font-mono text-amber-950 dark:text-amber-100">
-                        {attendanceResult.unknown_count || 0} <span className="text-xs font-normal text-amber-600 dark:text-amber-300">người</span>
+                    <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 space-y-1">
+                      <span className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wider block">⚠️ NGƯỜI LẠ</span>
+                      <p className="text-2xl font-black font-mono text-amber-950 dark:text-white">
+                        {attendanceResult.unknown_count || 0} <span className="text-xs font-bold text-amber-700 dark:text-amber-300">người</span>
                       </p>
                     </div>
                   </div>
@@ -928,12 +928,12 @@ export default function TeacherDashboard({ user, token }) {
                 {/* Processed Media Preview */}
                 {attendanceResult.media_files && attendanceResult.media_files.length > 0 && (
                   <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                      Ảnh / Video Bằng Chứng Đã Xử Lý <span className="text-blue-400 normal-case font-normal">(Bấm để xem video hoặc Phóng to ảnh)</span>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Ảnh / Video Bằng Chứng Đã Xử Lý <span className="text-blue-600 dark:text-blue-400 normal-case font-normal">(Bấm để xem video hoặc Phóng to ảnh)</span>
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       {attendanceResult.media_files.map((mf) => (
-                        <div key={mf.id} className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-2 group relative">
+                        <div key={mf.id} className="rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-950 p-2 group relative shadow-sm">
                           {mf.media_type === 'VIDEO' ? (
                             <video
                               src={mf.processed_url}
@@ -957,7 +957,7 @@ export default function TeacherDashboard({ user, token }) {
                             <button
                               type="button"
                               onClick={() => setZoomMedia(mf)}
-                              className="text-[10px] text-blue-400 hover:underline font-semibold flex items-center gap-1"
+                              className="text-[10px] text-blue-400 hover:underline font-bold flex items-center gap-1"
                             >
                               {mf.media_type === 'VIDEO' ? '▶ Phóng To Video' : '🔍 Phóng To Ảnh'}
                             </button>
@@ -968,44 +968,53 @@ export default function TeacherDashboard({ user, token }) {
                   </div>
                 )}
 
-                {/* Attendance Summary Table */}
-                <div className="overflow-x-auto">
+                {/* Refactored Attendance Summary Table with Clean Unknown Grouping */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900/80 text-slate-400 uppercase font-mono-grotesk">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 uppercase font-mono font-bold border-b border-slate-200 dark:border-slate-800">
                       <tr>
-                        <th className="p-3">MSSV</th>
-                        <th className="p-3">Họ và Tên</th>
-                        <th className="p-3">Trạng Thái</th>
-                        <th className="p-3">Tỷ Lệ Khớp</th>
+                        <th className="p-3.5">MSSV</th>
+                        <th className="p-3.5">Họ và Tên</th>
+                        <th className="p-3.5">Trạng Thái</th>
+                        <th className="p-3.5">Tỷ Lệ Khớp</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800">
-                      {attendanceResult.summary.map((rec, idx) => (
-                        <tr key={idx} className={`hover:bg-slate-800/40 ${rec.status === 'UNKNOWN' ? 'bg-amber-950/10' : ''}`}>
-                          <td className="p-3 font-mono-grotesk text-slate-300 font-semibold">
-                            {rec.student_code === 'NGƯỜI LẠ' ? (
-                              <span className="text-amber-400 font-bold">⚠️ NGƯỜI LẠ</span>
-                            ) : (
-                              rec.student_code
-                            )}
-                          </td>
-                          <td className="p-3 font-semibold text-white">{rec.student_name}</td>
-                          <td className="p-3">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                              rec.status === 'PRESENT'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : rec.status === 'UNKNOWN'
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}>
-                              {rec.status === 'PRESENT' ? '✓ CÓ MẶT' : rec.status === 'UNKNOWN' ? '⚠️ NGƯỜI LẠ' : '✗ VẮNG MẶT'}
-                            </span>
-                          </td>
-                          <td className="p-3 font-mono-grotesk text-slate-400">
-                            {rec.status === 'UNKNOWN' ? '0.0% (Khung đỏ)' : `${(rec.confidence * 100).toFixed(1)}%`}
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
+                      {/* Filter out individual UNKNOWN records from the main loop */}
+                      {attendanceResult.summary
+                        .filter((rec) => rec.status !== 'UNKNOWN' && rec.student_code !== 'NGƯỜI LẠ')
+                        .map((rec, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                            <td className="p-3.5 font-mono text-slate-900 dark:text-slate-200 font-bold">
+                              {rec.student_code}
+                            </td>
+                            <td className="p-3.5 font-bold text-slate-900 dark:text-white">{rec.student_name}</td>
+                            <td className="p-3.5">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-extrabold shadow-sm ${
+                                  rec.status === 'PRESENT'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-rose-600 text-white'
+                                }`}
+                              >
+                                {rec.status === 'PRESENT' ? '✓ CÓ MẶT' : '✗ VẮNG MẶT'}
+                              </span>
+                            </td>
+                            <td className="p-3.5 font-mono font-bold text-slate-700 dark:text-slate-300">
+                              {(rec.confidence * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+
+                      {/* Grouped Single Summary Row for Unknown Persons */}
+                      {(attendanceResult.unknown_count > 0 ||
+                        attendanceResult.summary.some((rec) => rec.status === 'UNKNOWN' || rec.student_code === 'NGƯỜI LẠ')) && (
+                        <tr className="bg-amber-500/10 border-t-2 border-amber-500/30">
+                          <td colSpan="4" className="p-4 text-center font-bold text-amber-800 dark:text-amber-300 text-xs">
+                            ⚠️ Phát hiện {attendanceResult.unknown_count || attendanceResult.summary.filter((r) => r.status === 'UNKNOWN' || r.student_code === 'NGƯỜI LẠ').length} người lạ (Khung màu đỏ trên ảnh/video bằng chứng)
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
