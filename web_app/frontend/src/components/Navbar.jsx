@@ -1,6 +1,22 @@
 import React from 'react';
 
 export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
+  const handleThemeToggle = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    const root = document.documentElement;
+    if (nextTheme === 'dark') {
+      root.classList.add('dark');
+      document.body.classList.remove('light-mode');
+    } else {
+      root.classList.remove('dark');
+      document.body.classList.add('light-mode');
+    }
+    localStorage.setItem('sic_theme', nextTheme);
+    if (onToggleTheme) {
+      onToggleTheme();
+    }
+  };
+
   return (
     <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md sticky top-0 z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -20,7 +36,7 @@ export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
         {/* User Info, Theme Toggle & Logout */}
         <div className="flex items-center space-x-3">
           <button
-            onClick={onToggleTheme}
+            onClick={handleThemeToggle}
             className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-500 hover:text-amber-600 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center text-lg transition-all transform active:scale-95 shadow-sm"
             title={theme === 'light' ? 'Chuyển sang Chế độ Tối (Dark Mode)' : 'Chuyển sang Chế độ Sáng (White Mode)'}
           >
