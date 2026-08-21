@@ -219,11 +219,63 @@ except Exception as e:
     print(f"[AI Engine Warning] GalleryManager load failed: {e}")
     GalleryManager = None
 
+def numpy_identify(query_vec, gallery_dict, threshold=0.42):
+    query_vec = np.array(query_vec, dtype=np.float32)
+    query_vec = query_vec / (np.linalg.norm(query_vec) + 1e-7)
+
+    if not gallery_dict:
+        return {"name": "Unknown", "distance": 999.0, "confidence": 0.0, "is_known": False}
+
+    user_distances = []
+    user_names = []
+
+    for u_name, vecs in gallery_dict.items():
+        if not vecs:
+            continue
+        v_matrix = np.array(vecs, dtype=np.float32)
+        norms = np.linalg.norm(v_matrix, axis=1, keepdims=True) + 1e-7
+        v_matrix = v_matrix / norms
+
+        # 1. Global Centroid Distance
+        centroid = np.mean(v_matrix, axis=0)
+        centroid = centroid / (np.linalg.norm(centroid) + 1e-7)
+        d_centroid = float(np.linalg.norm(centroid - query_vec))
+
+        # 2. Top-5 Sample Distance
+        sample_dists = np.linalg.norm(v_matrix - query_vec, axis=1)
+        sample_dists.sort()
+        k = min(5, len(sample_dists))
+        d_top5 = float(np.mean(sample_dists[:k]))
+
+        d_hybrid = 0.4 * d_centroid + 0.6 * d_top5
+        user_distances.append(d_hybrid)
+        user_names.append(u_name)
+
+    if not user_distances:
+        return {"name": "Unknown", "distance": 999.0, "confidence": 0.0, "is_known": False}
+
+    min_idx = int(np.argmin(user_distances))
+    min_dist = float(user_distances[min_idx])
+    matched_name = user_names[min_idx]
+
+    is_known = min_dist <= threshold
+    if is_known:
+        ratio = 1.0 - (min_dist / threshold)
+        conf = 50.0 + 50.0 * (ratio ** 0.35)
+        name = matched_name
+    else:
+        ratio = (min_dist - threshold) / (2.0 - threshold)
+        conf = max(0.0, 50.0 * (1.0 - min(1.0, ratio)))
+        name = "Unknown"
+
+    conf = max(0.0, min(99.9, conf))
+    return {"name": name, "matched_gallery_name": matched_name, "distance": min_dist, "confidence": conf, "is_known": is_known}
+
 def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
     """
     Xử lý ảnh toàn cảnh lớp học:
     1. Bóc tách tất cả khuôn mặt bằng SOTA YuNet Face Detector (score_threshold=0.25)
-    2. Trích xuất 512-d embeddings & So khớp với Core AI GalleryManager (ngưỡng L2 0.7641 ~ Cosine 0.70)
+    2. Trích xuất embeddings & So khớp với Core AI GalleryManager (ngưỡng L2 0.42)
     3. Phân loại: Có trong DB & Khớp khuôn mặt ➔ Khớp MSSV (Khung xanh). Không có/Không khớp ➔ Nguoi la (Khung đỏ)
     4. Khử trùng lặp (Duplicate Identity Disambiguation): Mỗi Mã SV chỉ được gán 1 lần cho vị trí khớp nhất trong cùng 1 ảnh.
     5. Vẽ Bounding Box & xuất ảnh cùng kết quả chi tiết
@@ -252,7 +304,7 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         except Exception:
             faces = []
 
-    # Step 1: Extract features for all valid face crops using Core AI Detector padding (15%) and shadow lifting
+    # Step 1: Extract features for all valid face crops
     face_data_list = []
     for idx, (x, y, w, h) in enumerate(faces):
         if w < 10 or h < 10:
@@ -261,11 +313,9 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             try:
                 face_bgr, _ = detector.crop_face(img, (x, y, w, h))
             except Exception:
-                face_bgr = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
-                face_bgr = cv2.resize(face_bgr, (224, 224))
+                face_bgr = img[max(0, y):min(img.shape[0], y+h), max(0, x):min(img.shape[1], x+w)]
         else:
-            face_bgr = img[max(0,y):min(img.shape[0], y+h), max(0,x):min(img.shape[1], x+w)]
-            face_bgr = cv2.resize(face_bgr, (224, 224))
+            face_bgr = img[max(0, y):min(img.shape[0], y+h), max(0, x):min(img.shape[1], x+w)]
 
         if face_bgr is None or face_bgr.size == 0:
             continue
@@ -281,58 +331,44 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
         return processed_bytes, []
 
-    # Step 2: Build GalleryManager instance with Gold Standard Threshold 0.42 (exact match to src/app_demo.py & gallery.py)
-    gallery_mgr = None
-    model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
+    # Step 2: Build active gallery dictionary for pure NumPy / PyTorch matching
+    model_dim = len(face_data_list[0]["vec"]) if face_data_list else 128
+    thresh = 0.42
 
-    if GalleryManager is not None:
-        try:
-            gallery_mgr = GalleryManager(threshold=0.42)
-            if student_gallery:
-                # Clear static disk-loaded gallery samples to use ONLY class-specific student gallery
-                gallery_mgr.gallery_embeddings = []
-                gallery_mgr.gallery_names = []
-                gallery_mgr.threshold = 0.42
-                for u_code, u_vecs in student_gallery.items():
-                    for vec in u_vecs:
-                        if len(vec) == model_dim:
-                            gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
-                        else:
-                            print(f"[AI Engine Warning] Skipping vector for {u_code} with mismatched dim ({len(vec)} != {model_dim})")
-            
-            # If after loading student_gallery the embeddings list is empty, reload default disk gallery
-            if len(gallery_mgr.gallery_embeddings) == 0:
-                print("[AI Engine] Student gallery is empty, loading default disk gallery to compute natural confidence scores...")
-                gallery_mgr.load_db()
-                gallery_mgr.threshold = 0.42
-        except Exception as e:
-            print(f"[AI Engine Gallery Warning] {e}")
-            gallery_mgr = None
+    active_gallery = {}
 
-    # Step 3: Match each face against Gallery using Core AI GalleryManager.identify()
+    if student_gallery:
+        for u_code, u_vecs in student_gallery.items():
+            valid_vecs = [v for v in u_vecs if len(v) == model_dim]
+            if valid_vecs:
+                active_gallery[u_code] = valid_vecs
+
+    # Fallback to GalleryManager or disk .pt database if active_gallery is empty
+    if not active_gallery:
+        if GalleryManager is not None:
+            try:
+                gallery_mgr = GalleryManager(threshold=thresh)
+                for name, emb in zip(gallery_mgr.gallery_names, gallery_mgr.gallery_embeddings):
+                    if name not in active_gallery:
+                        active_gallery[name] = []
+                    active_gallery[name].append(emb.numpy() if hasattr(emb, "numpy") else np.array(emb))
+            except Exception as e:
+                print(f"[AI Engine Warning] GalleryManager load error: {e}")
+
+    # Step 3: Match each face against active_gallery using numpy_identify
     face_matches = []
     for item in face_data_list:
         f_vec = item["vec"]
         box = item["box"]
-        if gallery_mgr is not None and len(gallery_mgr.gallery_embeddings) > 0:
-            match = gallery_mgr.identify(np.array(f_vec, dtype=np.float32))
-            face_matches.append({
-                "idx": item["idx"],
-                "box": box,
-                "name": match["name"],
-                "distance": match["distance"],
-                "confidence": match["confidence"],
-                "is_known": match["is_known"]
-            })
-        else:
-            face_matches.append({
-                "idx": item["idx"],
-                "box": box,
-                "name": "Unknown",
-                "distance": 999.0,
-                "confidence": 0.0,
-                "is_known": False
-            })
+        match = numpy_identify(f_vec, active_gallery, threshold=thresh)
+        face_matches.append({
+            "idx": item["idx"],
+            "box": box,
+            "name": match["name"],
+            "distance": match["distance"],
+            "confidence": match["confidence"],
+            "is_known": match["is_known"]
+        })
 
     # Step 4: Non-Duplicate Identity Assignment (Exact logic from app_demo.py & attendance.py)
     face_matches.sort(key=lambda item: item["distance"])
