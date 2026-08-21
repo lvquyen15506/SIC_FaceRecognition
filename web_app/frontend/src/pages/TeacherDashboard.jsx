@@ -682,32 +682,35 @@ export default function TeacherDashboard({ user, token }) {
       )}
 
       {/* Class Selection Tabs */}
-      <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div className="flex gap-3 overflow-x-auto">
-          {classes.map((cls) => (
-            <button
-              key={cls.id}
-              onClick={() => setSelectedClass(cls)}
-              className={`px-5 py-3 rounded-xl text-xs font-semibold border transition text-left shrink-0 ${
-                selectedClass?.id === cls.id
-                  ? 'bg-blue-600/20 border-blue-500 text-blue-300 shadow-lg ring-2 ring-blue-500/20'
-                  : 'glass-card border-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              <div className="font-mono-grotesk font-bold text-blue-400 mb-0.5">{cls.class_code}</div>
-              <div className="font-bold text-white">{cls.class_name}</div>
-            </button>
-          ))}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+        <div className="flex gap-3 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
+          {classes.map((cls) => {
+            const isSelected = selectedClass?.id === cls.id;
+            return (
+              <button
+                key={cls.id}
+                onClick={() => setSelectedClass(cls)}
+                className={`px-5 py-3 rounded-2xl text-xs border transition text-left shrink-0 shadow-sm ${
+                  isSelected
+                    ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-400 dark:border-blue-600 text-blue-900 dark:text-blue-100 ring-2 ring-blue-500/20'
+                    : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <div className="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px] mb-0.5">{cls.class_code}</div>
+                <div className="font-bold text-slate-900 dark:text-white">{cls.class_name}</div>
+              </button>
+            );
+          })}
         </div>
 
         {selectedClass && (
-          <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shrink-0">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shrink-0 shadow-sm">
             <button
               onClick={() => setActiveTab('ATTENDANCE')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'ATTENDANCE'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
               }`}
             >
               📷 Studio Điểm Danh
@@ -716,13 +719,13 @@ export default function TeacherDashboard({ user, token }) {
               onClick={() => setActiveTab('ROSTER')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 relative ${
                 activeTab === 'ROSTER'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
               }`}
             >
-              👥 Thành Viên & Duyệt ({studentList.length} SV)
+              👥 Thành Viên &amp; Duyệt ({studentList.length} SV)
               {pendingList.length > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950 animate-pulse">
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950 animate-pulse shadow-sm">
                   {pendingList.length} chờ
                 </span>
               )}
