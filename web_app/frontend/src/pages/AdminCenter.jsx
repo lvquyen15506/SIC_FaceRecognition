@@ -745,38 +745,38 @@ export default function AdminCenter({ token }) {
                        (cls.subject_topic || '').toLowerCase().includes(kw);
               })
               .map((cls) => (
-                <div key={cls.id} className="p-5 rounded-2xl glass-card border border-slate-700/60 hover:border-purple-500/50 transition space-y-4 flex flex-col justify-between shadow-xl">
+                <div key={cls.id} className="p-5 rounded-2xl glass-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-500/50 transition space-y-4 flex flex-col justify-between shadow-sm">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono-grotesk font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+                      <span className="text-xs font-mono font-bold text-purple-700 dark:text-purple-400 bg-purple-600/10 px-2.5 py-1 rounded-lg border border-purple-600/20">
                         🔑 {cls.class_code}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-mono-grotesk">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                         ID: #{cls.id}
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="text-lg font-bold text-white line-clamp-1">{cls.class_name}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                      <h4 className="text-lg font-extrabold text-slate-900 dark:text-white line-clamp-1">{cls.class_name}</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">
                         📚 {cls.subject_topic}
                       </p>
                     </div>
 
                     {/* Teachers List & Co-teaching Info */}
-                    <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-1.5 text-xs">
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">👨‍🏫 Giảng Viên Quản Lý:</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-3 border border-slate-200 dark:border-slate-700/80 space-y-1.5 text-xs shadow-sm">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">👨‍🏫 Giảng Viên Quản Lý:</p>
                       {cls.primary_teacher ? (
-                        <div className="flex items-center justify-between text-slate-200">
-                          <span className="font-semibold text-purple-300">⭐ {cls.primary_teacher.full_name}</span>
-                          <span className="font-mono-grotesk text-[10px] text-slate-400">({cls.primary_teacher.code})</span>
+                        <div className="flex items-center justify-between text-slate-900 dark:text-slate-200">
+                          <span className="font-bold text-purple-700 dark:text-purple-300">⭐ {cls.primary_teacher.full_name}</span>
+                          <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">({cls.primary_teacher.code})</span>
                         </div>
                       ) : (
                         <p className="text-slate-500 italic text-[11px]">Chưa gán GV chủ nhiệm</p>
                       )}
 
                       {cls.co_teachers && cls.co_teachers.length > 1 && (
-                        <div className="pt-1 border-t border-slate-800 text-[11px] text-slate-400">
+                        <div className="pt-1 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                           + {cls.co_teachers.length - 1} Giảng viên đồng quản lý
                         </div>
                       )}
@@ -784,22 +784,22 @@ export default function AdminCenter({ token }) {
 
                     {/* Metrics Row */}
                     <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                        <p className="text-[10px] text-slate-400">Sinh Viên</p>
-                        <p className="text-sm font-bold text-emerald-400 font-mono-grotesk">{cls.students_count || 0}</p>
+                      <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Sinh Viên</p>
+                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">{cls.students_count || 0}</p>
                       </div>
-                      <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                        <p className="text-[10px] text-slate-400">Buổi Điểm Danh</p>
-                        <p className="text-sm font-bold text-indigo-400 font-mono-grotesk">{cls.sessions_count || 0}</p>
+                      <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Buổi Điểm Danh</p>
+                        <p className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">{cls.sessions_count || 0}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions Bar */}
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+                  {/* High Contrast Solid Actions Bar */}
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
                     <button
                       onClick={() => openMembersModal(cls)}
-                      className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-xl font-bold transition flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-sm transition flex items-center gap-1.5"
                     >
                       👥 Thành Viên
                     </button>
@@ -807,7 +807,7 @@ export default function AdminCenter({ token }) {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => openEditClassModal(cls)}
-                        className="px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl font-medium transition"
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition"
                         title="Sửa lớp học"
                       >
                         ✏️ Sửa
@@ -815,7 +815,7 @@ export default function AdminCenter({ token }) {
 
                       <button
                         onClick={() => handleDeleteClass(cls)}
-                        className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl font-medium transition"
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm transition"
                         title="Xóa vĩnh viễn lớp"
                       >
                         🗑️ Xóa
@@ -830,55 +830,83 @@ export default function AdminCenter({ token }) {
 
       {/* Audit Logs Management */}
       {activeTab === 'AUDIT_LOGS' && (
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-lg font-bold text-white">Nhật Ký Hoạt Động Hệ Thống (Audit Logs)</h3>
+        <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Nhật Ký Hoạt Động Hệ Thống (Audit Logs)</h3>
             <button
               onClick={fetchAuditLogs}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg transition"
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-700 transition"
             >
               🔄 Tải Lại Nhật Ký
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             {auditLogs.length === 0 ? (
-              <p className="py-8 text-center text-slate-500 text-sm">Chưa có nhật ký hoạt động nào được ghi nhận.</p>
+              <p className="py-8 text-center text-slate-500 text-sm italic">Chưa có nhật ký hoạt động nào được ghi nhận.</p>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 uppercase font-mono-grotesk">
+                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="p-3">ID</th>
-                    <th className="p-3">Thời Gian</th>
-                    <th className="p-3">Người Thực Hiện</th>
-                    <th className="p-3">Hành Động</th>
-                    <th className="p-3">Chi Tiết</th>
+                    <th className="p-3.5">ID</th>
+                    <th className="p-3.5">Thời Gian</th>
+                    <th className="p-3.5">Người Thực Hiện</th>
+                    <th className="p-3.5">Hành Động</th>
+                    <th className="p-3.5">Chi Tiết</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-800/40">
-                      <td className="p-3 font-mono-grotesk text-slate-500">#{log.id}</td>
-                      <td className="p-3 font-mono-grotesk text-slate-300">{log.timestamp}</td>
-                      <td className="p-3 font-medium text-white">
-                        {log.user_info ? (
-                          <span>
-                            {log.user_info.full_name} <span className="text-slate-400 font-mono-grotesk">({log.user_info.code})</span>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
+                  {auditLogs.map((log) => {
+                    const formatLogDetails = (detailsStr) => {
+                      if (!detailsStr || detailsStr === '-') return '-';
+                      try {
+                        const obj = typeof detailsStr === 'string' ? JSON.parse(detailsStr) : detailsStr;
+                        if (typeof obj === 'object' && obj !== null) {
+                          return Object.entries(obj)
+                            .map(([k, v]) => {
+                              const keyName = k === 'role' ? 'Vai trò' : k === 'code' ? 'Mã' : k === 'class_id' ? 'ID Lớp' : k;
+                              return `${keyName}: ${v}`;
+                            })
+                            .join(' • ');
+                        }
+                        return String(detailsStr);
+                      } catch (e) {
+                        return String(detailsStr);
+                      }
+                    };
+
+                    const formattedDetails = formatLogDetails(log.details);
+
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                        <td className="p-3.5 font-mono text-slate-500">#{log.id}</td>
+                        <td className="p-3.5 font-mono font-bold text-slate-700 dark:text-slate-300">{log.timestamp}</td>
+                        <td className="p-3.5 font-bold text-slate-900 dark:text-white">
+                          {log.user_info ? (
+                            <span>
+                              {log.user_info.full_name ? (
+                                <>
+                                  {log.user_info.full_name} <span className="text-slate-500 dark:text-slate-400 font-mono text-xs ml-1">({log.user_info.code})</span>
+                                </>
+                              ) : (
+                                <span className="font-mono text-slate-800 dark:text-slate-200">{log.user_info.code}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic font-normal">Hệ thống</span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-600 text-white shadow-sm">
+                            {log.action}
                           </span>
-                        ) : (
-                          <span className="text-slate-500 italic">Hệ thống / Guest</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono-grotesk bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono-grotesk text-slate-400 max-w-xs truncate">
-                        {log.details || '-'}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-3.5 font-mono text-slate-700 dark:text-slate-300 max-w-sm truncate" title={formattedDetails}>
+                          {formattedDetails}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
