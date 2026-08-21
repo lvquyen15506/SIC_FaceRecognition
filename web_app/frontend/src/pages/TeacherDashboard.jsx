@@ -65,8 +65,9 @@ export default function TeacherDashboard({ user, token }) {
       const timer = setTimeout(() => {
         searchTeachers(teacherQuery, selectedClass.id);
       }, 150);
-      return () => clearTimeout(timer);
     }
+  }, [teacherQuery, showAddTeacherModal, selectedClass]);
+
   // Close Lightbox Modal on ESC Keypress
   useEffect(() => {
     const handleKeyDown = (e) => {
