@@ -281,23 +281,30 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
         processed_bytes = cv2.imencode('.jpg', img)[1].tobytes()
         return processed_bytes, []
 
-    # Step 2: Build GalleryManager instance with Gold Standard Threshold 0.42 (exact match to app_demo.py)
+    # Step 2: Build GalleryManager instance with Practical Recognition Threshold 0.65 (smooth recognition threshold)
     gallery_mgr = None
     model_dim = len(face_data_list[0]["vec"]) if face_data_list else 512
 
-    if GalleryManager is not None and student_gallery:
+    if GalleryManager is not None:
         try:
-            gallery_mgr = GalleryManager(threshold=0.42)
-            # Clear static disk-loaded gallery samples to use ONLY class-specific student gallery
-            gallery_mgr.gallery_embeddings = []
-            gallery_mgr.gallery_names = []
-            gallery_mgr.threshold = 0.42
-            for u_code, u_vecs in student_gallery.items():
-                for vec in u_vecs:
-                    if len(vec) == model_dim:
-                        gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
-                    else:
-                        print(f"[AI Engine Warning] Skipping vector for {u_code} with mismatched dim ({len(vec)} != {model_dim})")
+            gallery_mgr = GalleryManager(threshold=0.65)
+            if student_gallery:
+                # Clear static disk-loaded gallery samples to use ONLY class-specific student gallery
+                gallery_mgr.gallery_embeddings = []
+                gallery_mgr.gallery_names = []
+                gallery_mgr.threshold = 0.65
+                for u_code, u_vecs in student_gallery.items():
+                    for vec in u_vecs:
+                        if len(vec) == model_dim:
+                            gallery_mgr.add_identity(u_code, np.array(vec, dtype=np.float32))
+                        else:
+                            print(f"[AI Engine Warning] Skipping vector for {u_code} with mismatched dim ({len(vec)} != {model_dim})")
+            
+            # If after loading student_gallery the embeddings list is empty, reload default disk gallery
+            if len(gallery_mgr.gallery_embeddings) == 0:
+                print("[AI Engine] Student gallery is empty, loading default disk gallery to compute natural confidence scores...")
+                gallery_mgr.load_db()
+                gallery_mgr.threshold = 0.65
         except Exception as e:
             print(f"[AI Engine Gallery Warning] {e}")
             gallery_mgr = None
@@ -353,12 +360,14 @@ def process_classroom_image(image_bytes: bytes, student_gallery: dict) -> tuple:
             }
         else:
             color = (0, 0, 255)  # Red for Unknown / Nguoi la
-            label = f"Nguoi la ({conf:.1f}%)"
+            # Natural Red Box confidence scaling (0% - 49.9% range for strangers / demoted faces)
+            red_conf = max(0.0, min(49.9, 50.0 * (1.0 - min(1.0, dist / 0.65))))
+            label = f"Nguoi la ({red_conf:.1f}%)"
             res = {
                 "code": "UNKNOWN",
                 "closest_code": None,
                 "status": "UNKNOWN",
-                "confidence": conf / 100.0,
+                "confidence": red_conf / 100.0,
                 "is_known": False,
                 "box": item["box"]
             }
