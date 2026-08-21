@@ -188,12 +188,26 @@ def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
 
 def extract_face_feature_512d(image_bytes: bytes) -> list:
     """
-    Trích xuất vector 512-d từ ảnh bằng Core AI FaceViT ONNX Model
+    Trích xuất vector 512-d từ ảnh bằng Core AI FaceViT ONNX Model.
+    Tự động bóc tách khuôn mặt bằng YuNet Face Detector nếu đầu vào là toàn khung ảnh (eKYC webcam).
     """
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
         raise ValueError("Cannot decode image bytes")
+
+    # If full frame (larger than 224x224), detect largest face & apply 15% padding + CLAHE lighting enhancement
+    h, w = img.shape[:2]
+    if (w > 224 or h > 224) and detector is not None:
+        try:
+            boxes = detector.detect_faces(img)
+            if boxes:
+                boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
+                largest_box = boxes[0]
+                face_bgr, _ = detector.crop_face(img, largest_box, padding=0.15, enhance_light=True)
+                img = face_bgr
+        except Exception as e:
+            print(f"[AI Engine Warning] Auto face crop in extract_face_feature_512d failed: {e}")
 
     # Resize & Normalize to (1, 3, 224, 224)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
