@@ -763,7 +763,7 @@ export default function TeacherDashboard({ user, token }) {
                     Tải Lên Tệp Ảnh &amp; Video Lớp Học
                   </label>
                   
-                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 bg-slate-50/60 dark:bg-slate-900/60 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-all rounded-2xl p-5 text-center cursor-pointer group">
+                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 bg-slate-50/80 dark:bg-slate-900/60 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all rounded-2xl p-5 text-center cursor-pointer group">
                     <input
                       type="file"
                       multiple
@@ -772,13 +772,13 @@ export default function TeacherDashboard({ user, token }) {
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div className="space-y-1">
-                      <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform">
+                      <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform shadow-sm">
                         📁
                       </div>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {uploadFiles.length === 0 ? 'Kéo thả hoặc nhấp để tải tệp Ảnh/Video' : `Đã chọn ${uploadFiles.length} tệp ready!`}
                       </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                         Hỗ trợ định dạng JPG, PNG, MP4, MOV (Tối đa 100MB/file)
                       </p>
                     </div>
@@ -786,11 +786,14 @@ export default function TeacherDashboard({ user, token }) {
                 </div>
 
                 {uploadFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 custom-scrollbar">
+                  <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto p-1 custom-scrollbar">
                     {uploadFiles.map((f, idx) => (
-                      <span key={idx} className="text-[10px] font-mono px-2 py-1 rounded-lg bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-slate-700 flex items-center gap-1">
-                        📄 {f.name}
-                      </span>
+                      <div key={idx} className="text-xs font-mono px-3 py-2 rounded-xl bg-blue-50/80 dark:bg-slate-800 text-blue-900 dark:text-blue-300 border border-blue-200/80 dark:border-slate-700 flex items-center justify-between gap-2 shadow-sm">
+                        <span className="truncate flex items-center gap-2 font-medium">
+                          <span className="text-blue-600 dark:text-blue-400">📄</span> {f.name}
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans">{(f.size / (1024 * 1024)).toFixed(2)} MB</span>
+                      </div>
                     ))}
                   </div>
                 )}
