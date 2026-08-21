@@ -556,71 +556,73 @@ export default function AdminCenter({ token }) {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900/80 text-slate-400 uppercase font-mono-grotesk">
+              <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="p-3">ID</th>
-                  <th className="p-3">Mã Số</th>
-                  <th className="p-3">Họ và Tên</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Vai Trò</th>
-                  <th className="p-3">Trạng Thái</th>
-                  <th className="p-3">Dữ Liệu Khuôn Mặt</th>
-                  <th className="p-3 text-right">Thao Tác</th>
+                  <th className="p-3.5">ID</th>
+                  <th className="p-3.5">Mã Số</th>
+                  <th className="p-3.5">Họ và Tên</th>
+                  <th className="p-3.5">Email</th>
+                  <th className="p-3.5">Vai Trò</th>
+                  <th className="p-3.5">Trạng Thái</th>
+                  <th className="p-3.5">Dữ Liệu Khuôn Mặt</th>
+                  <th className="p-3.5 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-500">
+                    <td colSpan={8} className="py-8 text-center text-slate-500 italic">
                       Không tìm thấy người dùng nào phù hợp.
                     </td>
                   </tr>
                 ) : (
                   users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-800/40">
-                      <td className="p-3 font-mono-grotesk text-slate-500">#{u.id}</td>
-                      <td className="p-3 font-mono-grotesk text-purple-400 font-bold">{u.code}</td>
-                      <td className="p-3 font-semibold text-white">{u.full_name}</td>
-                      <td className="p-3 text-slate-400">{u.email}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                          u.role === 'TEACHER' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                          'bg-slate-800 text-slate-300 border border-slate-700'
+                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                      <td className="p-3.5 font-mono text-slate-500">#{u.id}</td>
+                      <td className="p-3.5 font-mono text-purple-600 dark:text-purple-400 font-bold">{u.code}</td>
+                      <td className="p-3.5 font-bold text-slate-900 dark:text-white">
+                        {u.full_name || <span className="text-slate-400 italic font-normal">Chưa cập nhật</span>}
+                      </td>
+                      <td className="p-3.5 text-slate-600 dark:text-slate-400">{u.email}</td>
+                      <td className="p-3.5">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold shadow-sm ${
+                          u.role === 'ADMIN' ? 'bg-purple-600 text-white' :
+                          u.role === 'TEACHER' ? 'bg-blue-600 text-white' :
+                          'bg-slate-600 text-white'
                         }`}>
                           {u.role}
                         </span>
                       </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                      <td className="p-3.5">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold shadow-sm ${
+                          u.is_active ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
                         }`}>
                           {u.is_active ? 'KÍCH HOẠT' : 'KHÓA'}
                         </span>
                       </td>
 
                       {/* Face Biometrics Status Badge */}
-                      <td className="p-3">
+                      <td className="p-3.5">
                         {u.has_face_data ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 w-fit">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 border border-emerald-600/20 flex items-center gap-1.5 w-fit shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             Đã Có DL ({u.face_angles_count} góc)
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-1.5 w-fit">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 w-fit shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
                             Chưa Có DL
                           </span>
                         )}
                       </td>
 
-                      {/* Action Buttons */}
-                      <td className="p-3 text-right flex items-center justify-end gap-2">
+                      {/* Standardized Compact Action Buttons */}
+                      <td className="p-3.5 text-right flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => openEditModal(u)}
-                          className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium transition"
+                          className="px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg shadow-sm transition"
                           title="Sửa thông tin"
                         >
                           ✏️ Sửa
@@ -628,7 +630,7 @@ export default function AdminCenter({ token }) {
 
                         <button
                           onClick={() => handleToggleActive(u.id)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-medium transition"
+                          className="px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700/80 rounded-lg shadow-sm transition"
                           title={u.is_active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                         >
                           {u.is_active ? '🔒 Khóa' : '🔓 Mở'}
@@ -638,7 +640,7 @@ export default function AdminCenter({ token }) {
                         {u.has_face_data ? (
                           <button
                             onClick={() => handleResetFace(u)}
-                            className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium transition"
+                            className="px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-lg shadow-sm transition"
                             title="Reset dữ liệu khuôn mặt"
                           >
                             🔄 Reset Mặt
@@ -646,7 +648,7 @@ export default function AdminCenter({ token }) {
                         ) : (
                           <button
                             disabled
-                            className="px-2.5 py-1 bg-slate-900 text-slate-600 border border-slate-800 rounded text-[11px] font-medium cursor-not-allowed opacity-60"
+                            className="px-2.5 py-1 text-[11px] font-medium text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg cursor-not-allowed opacity-60"
                             title="Chưa có dữ liệu khuôn mặt để reset"
                           >
                             Chưa có DL
@@ -655,7 +657,7 @@ export default function AdminCenter({ token }) {
 
                         <button
                           onClick={() => handleDeleteUser(u)}
-                          className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium transition"
+                          className="px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/60 rounded-lg shadow-sm transition"
                           title="Xóa vĩnh viễn"
                         >
                           🗑️ Xóa
@@ -669,9 +671,9 @@ export default function AdminCenter({ token }) {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800 text-xs text-slate-400">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
             <div>
-              Hiển thị từ <span className="text-white font-bold">{totalUsers > 0 ? (page - 1) * pageSize + 1 : 0}</span> đến <span className="text-white font-bold">{Math.min(page * pageSize, totalUsers)}</span> trên tổng số <span className="text-white font-bold">{totalUsers}</span> tài khoản
+              Hiển thị từ <strong className="text-slate-900 dark:text-white font-bold font-mono">{totalUsers > 0 ? (page - 1) * pageSize + 1 : 0}</strong> đến <strong className="text-slate-900 dark:text-white font-bold font-mono">{Math.min(page * pageSize, totalUsers)}</strong> trên tổng số <strong className="text-slate-900 dark:text-white font-bold font-mono">{totalUsers}</strong> tài khoản
             </div>
 
             <div className="flex items-center gap-2">
@@ -679,13 +681,13 @@ export default function AdminCenter({ token }) {
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
-                  page === 1 ? 'border-slate-800 text-slate-600 cursor-not-allowed' : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  page === 1 ? 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed' : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
                 ◀ Trước
               </button>
 
-              <span className="px-3 py-1.5 rounded-lg bg-purple-600/20 border border-purple-500/40 text-purple-300 font-bold font-mono-grotesk">
+              <span className="px-3 py-1.5 rounded-lg bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-600/20 font-bold font-mono">
                 Trang {page} / {totalPages}
               </span>
 
@@ -693,7 +695,7 @@ export default function AdminCenter({ token }) {
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
-                  page >= totalPages ? 'border-slate-800 text-slate-600 cursor-not-allowed' : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  page >= totalPages ? 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed' : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
                 Sau ▶
