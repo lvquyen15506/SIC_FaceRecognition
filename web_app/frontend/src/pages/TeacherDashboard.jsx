@@ -893,33 +893,33 @@ export default function TeacherDashboard({ user, token }) {
                     </a>
                   </div>
 
-                  {/* 4 Quick Metric Cards Grid (High Contrast Accessibility) */}
+                  {/* 4 Quick Metric Cards Grid (SOLID High Contrast Accessibility) */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-4 rounded-xl bg-blue-500/10 dark:bg-blue-950/40 border border-blue-500/30 space-y-1">
-                      <span className="text-[11px] font-extrabold text-blue-800 dark:text-blue-300 uppercase tracking-wider block">🔍 TỔNG PHÁT HIỆN</span>
-                      <p className="text-2xl font-black font-mono text-blue-950 dark:text-white">
-                        {attendanceResult.total_faces_detected || attendanceResult.present_count} <span className="text-xs font-bold text-blue-700 dark:text-blue-300">mặt</span>
+                    <div className="p-4 rounded-xl bg-blue-600 text-white shadow-md space-y-1">
+                      <span className="text-[11px] font-extrabold text-blue-100 uppercase tracking-wider block">🔍 TỔNG PHÁT HIỆN</span>
+                      <p className="text-2xl font-black font-mono text-white">
+                        {attendanceResult.total_faces_detected || attendanceResult.present_count} <span className="text-xs font-bold text-blue-100">mặt</span>
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 space-y-1">
-                      <span className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">✅ CÓ MẶT</span>
-                      <p className="text-2xl font-black font-mono text-emerald-950 dark:text-white">
-                        {attendanceResult.present_count}<span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">/{attendanceResult.total_students} SV</span>
+                    <div className="p-4 rounded-xl bg-emerald-600 text-white shadow-md space-y-1">
+                      <span className="text-[11px] font-extrabold text-emerald-100 uppercase tracking-wider block">✅ CÓ MẶT</span>
+                      <p className="text-2xl font-black font-mono text-white">
+                        {attendanceResult.present_count}<span className="text-xs font-bold text-emerald-100">/{attendanceResult.total_students} SV</span>
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/30 space-y-1">
-                      <span className="text-[11px] font-extrabold text-rose-800 dark:text-rose-300 uppercase tracking-wider block">❌ VẮNG MẶT</span>
-                      <p className="text-2xl font-black font-mono text-rose-950 dark:text-white">
-                        {attendanceResult.absent_count} <span className="text-xs font-bold text-rose-700 dark:text-rose-300">SV</span>
+                    <div className="p-4 rounded-xl bg-rose-600 text-white shadow-md space-y-1">
+                      <span className="text-[11px] font-extrabold text-rose-100 uppercase tracking-wider block">❌ VẮNG MẶT</span>
+                      <p className="text-2xl font-black font-mono text-white">
+                        {attendanceResult.absent_count} <span className="text-xs font-bold text-rose-100">SV</span>
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 space-y-1">
-                      <span className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wider block">⚠️ NGƯỜI LẠ</span>
-                      <p className="text-2xl font-black font-mono text-amber-950 dark:text-white">
-                        {attendanceResult.unknown_count || 0} <span className="text-xs font-bold text-amber-700 dark:text-amber-300">người</span>
+                    <div className="p-4 rounded-xl bg-amber-600 text-white shadow-md space-y-1">
+                      <span className="text-[11px] font-extrabold text-amber-100 uppercase tracking-wider block">⚠️ NGƯỜI LẠ</span>
+                      <p className="text-2xl font-black font-mono text-white">
+                        {attendanceResult.unknown_count || 0} <span className="text-xs font-bold text-amber-100">người</span>
                       </p>
                     </div>
                   </div>
