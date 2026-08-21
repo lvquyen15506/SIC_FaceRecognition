@@ -130,6 +130,30 @@ body.light-mode .bg-slate-950 {
   background-color: #ffffff !important;
 }
 
+body.light-mode table thead tr,
+body.light-mode table thead th {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+
+body.light-mode table tbody tr {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+body.light-mode .bg-slate-800\/80,
+body.light-mode .bg-slate-800\/60,
+body.light-mode .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .bg-slate-700\/80,
+body.light-mode .bg-slate-700 {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
 body.light-mode .bg-slate-900,
 body.light-mode .bg-slate-800 {
   background-color: #f1f5f9 !important;
