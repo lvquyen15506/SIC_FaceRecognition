@@ -67,7 +67,18 @@ export default function TeacherDashboard({ user, token }) {
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [teacherQuery, showAddTeacherModal, selectedClass]);
+  // Close Lightbox Modal on ESC Keypress
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setZoomMedia(null);
+      }
+    };
+    if (zoomMedia) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomMedia]);
 
   const fetchMyClasses = async () => {
     try {
@@ -358,32 +369,55 @@ export default function TeacherDashboard({ user, token }) {
       {zoomMedia && (
         <div
           onClick={() => setZoomMedia(null)}
-          className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50 cursor-zoom-out"
+          className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-50 animate-in fade-in duration-200"
         >
-          <div className="relative max-w-5xl max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
+          {/* Modal Header Bar */}
+          <div
+            className="w-full max-w-5xl flex items-center justify-between mb-3 px-4 py-2.5 rounded-2xl glass-card border border-slate-700/80 bg-slate-900/80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-semibold text-white tracking-wide uppercase">
+                {zoomMedia.media_type === 'VIDEO' ? '🎥 Bằng Chứng Video Điểm Danh' : '🖼️ Bằng Chứng Ảnh Lớp Học Phóng To'}
+              </span>
+            </div>
+
             <button
               onClick={() => setZoomMedia(null)}
-              className="absolute -top-10 right-2 text-white bg-slate-800/80 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border border-slate-600 z-10"
+              className="px-3 py-1 bg-slate-800 hover:bg-red-600/80 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700"
+              title="Đóng (Bấm phím ESC)"
             >
-              ✕
+              <span>Đóng</span>
+              <kbd className="px-1.5 py-0.5 bg-slate-900 text-[10px] rounded font-mono border border-slate-700 text-slate-300">ESC</kbd>
             </button>
+          </div>
 
+          {/* Modal Media Container */}
+          <div
+            className="relative max-w-5xl max-h-[82vh] flex items-center justify-center p-1 rounded-2xl overflow-hidden glass-card border border-slate-700/80 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             {zoomMedia.media_type === 'VIDEO' ? (
               <video
                 src={zoomMedia.processed_url}
                 controls
                 autoPlay
-                className="max-w-full max-h-[85vh] rounded-2xl border border-slate-700 shadow-2xl"
+                className="max-w-full max-h-[78vh] rounded-xl object-contain shadow-2xl"
               />
             ) : (
               <img
                 src={zoomMedia.processed_url}
                 alt="Zoomed evidence"
-                className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-slate-700 shadow-2xl"
+                className="max-w-full max-h-[78vh] object-contain rounded-xl shadow-2xl"
               />
             )}
-            <p className="text-center text-xs text-slate-400 mt-2 font-mono-grotesk">🔍 Nhấp vào ngoài hoặc nút ✕ để đóng</p>
           </div>
+
+          {/* Footer Helper Text */}
+          <p className="text-center text-xs text-slate-400 mt-3 font-mono-grotesk flex items-center gap-2 bg-slate-900/60 px-4 py-1.5 rounded-full border border-slate-800">
+            <span>💡 Mẹo: Bấm phím <kbd className="px-1.5 py-0.5 bg-slate-800 text-[10px] text-slate-200 rounded border border-slate-700">ESC</kbd> hoặc nhấp vùng đen ngoài để thoát</span>
+          </p>
         </div>
       )}
 

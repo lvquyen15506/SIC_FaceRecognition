@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Navbar({ user, onLogout }) {
+export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
   return (
     <header className="border-b border-slate-800 bg-[#090D16]/90 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -17,23 +17,33 @@ export default function Navbar({ user, onLogout }) {
           </div>
         </div>
 
-        {/* User Info & Logout */}
-        {user && (
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-slate-200">{user.full_name}</p>
-              <p className="text-xs text-slate-400 font-mono-grotesk">
-                {user.code} • <span className="text-blue-400 font-semibold">{user.role}</span>
-              </p>
+        {/* User Info, Theme Toggle & Logout */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={onToggleTheme}
+            className="p-2 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl border border-slate-700/80 flex items-center gap-1.5 transition"
+            title="Chuyển đổi Chế độ Sáng (White Mode) / Chế độ Tối (Dark Mode)"
+          >
+            {theme === 'light' ? '🌙 Dark Mode' : '☀️ White Mode'}
+          </button>
+
+          {user && (
+            <div className="flex items-center space-x-3 border-l border-slate-800 pl-3">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-slate-200">{user.full_name}</p>
+                <p className="text-xs text-slate-400 font-mono-grotesk">
+                  {user.code} • <span className="text-blue-400 font-semibold">{user.role}</span>
+                </p>
+              </div>
+              <button
+                onClick={onLogout}
+                className="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg border border-slate-700 transition"
+              >
+                Đăng xuất
+              </button>
             </div>
-            <button
-              onClick={onLogout}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg border border-slate-700 transition"
-            >
-              Đăng xuất
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

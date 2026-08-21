@@ -91,11 +91,6 @@ export default function Login({ onLoginSuccess }) {
           </button>
         </form>
 
-        <div className="text-center border-t border-slate-800 pt-4">
-          <p className="text-[11px] text-slate-500">
-            Tài khoản mẫu: <span className="font-mono text-slate-300">SV001 / student123</span> | <span className="font-mono text-slate-300">GV001 / teacher123</span> | <span className="font-mono text-slate-300">ADMIN01 / admin123</span>
-          </p>
-        </div>
       </div>
     </div>
   );
