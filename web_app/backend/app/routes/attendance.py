@@ -211,10 +211,17 @@ async def process_batch_attendance(
         ClassStudent.class_id == class_id,
         ClassStudent.status == "APPROVED"
     ).all()
-    student_users = [cs.student for cs in class_students] + classroom.teachers
+    student_users = [cs.student for cs in class_students if cs.student]
+    
+    # Always include all assigned Teachers and the Class Creator Teacher
+    teacher_users = list(classroom.teachers)
+    if classroom.created_by_teacher and classroom.created_by_teacher not in teacher_users:
+        teacher_users.append(classroom.created_by_teacher)
+
+    all_gallery_users = student_users + [t for t in teacher_users if t]
 
     student_gallery = {}
-    for user in student_users:
+    for user in all_gallery_users:
         embeddings = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user.id).all()
         if embeddings:
             vectors = [json.loads(e.embedding_json) for e in embeddings]
