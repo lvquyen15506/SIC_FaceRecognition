@@ -65,7 +65,7 @@ export default function App() {
   const requiresKyc = user && (user.role === 'STUDENT' || user.role === 'TEACHER') && (user.kyc_status === 'UNVERIFIED' || user.face_count === 0);
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
+    <div className="app-root-container min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans transition-colors duration-200">
       <Navbar user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
 
       <main className="flex-1">
