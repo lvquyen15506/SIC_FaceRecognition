@@ -348,22 +348,33 @@ export default function TeacherDashboard({ user, token }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Header Banner */}
-      <div className="glass-card rounded-3xl p-8 border border-slate-800 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
-            Workspace Giảng Viên
-          </span>
-          <h2 className="text-3xl font-bold text-white mt-2">Giảng viên: {user.full_name}</h2>
-          <p className="text-sm text-slate-400 mt-1">Mã GV: <span className="font-mono-grotesk">{user.code}</span></p>
+      {/* Hero Header Banner */}
+      <div className="glass-card rounded-2xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-blue-600/10 text-blue-700 dark:text-blue-400 border border-blue-600/20 uppercase tracking-wider font-mono">
+              ⚡ Workspace Giảng Viên Enterprise
+            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Giảng viên: {user.full_name}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+            <span>Mã GV: <strong className="font-mono text-slate-800 dark:text-slate-200">{user.code}</strong></span>
+            <span>•</span>
+            <span>Email: <strong className="text-slate-700 dark:text-slate-300">{user.email}</strong></span>
+          </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/25 transition"
-        >
-          + Tạo Lớp Học Mới
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 active:scale-95 transition flex items-center justify-center gap-2"
+          >
+            <span>+ Tạo Lớp Học Mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Media Zoom / Video Lightbox Modal */}
@@ -726,117 +737,186 @@ export default function TeacherDashboard({ user, token }) {
           <div className="space-y-6">
             {/* Attendance Studio Upload Form */}
             <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-              <h3 className="text-lg font-bold text-white">Studio Điểm Danh Hàng Loạt</h3>
-              <p className="text-xs text-slate-400">Kéo-thả tùy ý nhiều file Ảnh &amp; Video lớp học</p>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Studio Điểm Danh Hàng Loạt</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">AI v4.4</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Kéo-thả tùy ý nhiều file Ảnh &amp; Video lớp học</p>
 
               <form onSubmit={handleBatchProcess} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Tiêu Đề Buổi Học</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">
+                    Tiêu Đề Buổi Học
+                  </label>
                   <input
                     type="text"
+                    required
                     value={sessionTitle}
                     onChange={(e) => setSessionTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl glass-input text-sm"
+                    placeholder="Ví dụ: Điểm danh Tuần 5 - Học phần AI"
+                    className="w-full glass-input rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none transition shadow-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Chọn Tệp Ảnh &amp; Video</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,video/*"
-                    onChange={(e) => setUploadFiles(Array.from(e.target.files))}
-                    className="w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-blue-400 hover:file:bg-slate-700"
-                  />
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">
+                    Tải Lên Tệp Ảnh &amp; Video Lớp Học
+                  </label>
+                  
+                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 bg-slate-50/60 dark:bg-slate-900/60 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-all rounded-2xl p-5 text-center cursor-pointer group">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={(e) => setUploadFiles(Array.from(e.target.files))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="space-y-1">
+                      <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform">
+                        📁
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {uploadFiles.length === 0 ? 'Kéo thả hoặc nhấp để tải tệp Ảnh/Video' : `Đã chọn ${uploadFiles.length} tệp ready!`}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Hỗ trợ định dạng JPG, PNG, MP4, MOV (Tối đa 100MB/file)
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
+                {uploadFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 custom-scrollbar">
+                    {uploadFiles.map((f, idx) => (
+                      <span key={idx} className="text-[10px] font-mono px-2 py-1 rounded-lg bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-slate-700 flex items-center gap-1">
+                        📄 {f.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <button
                   type="submit"
                   disabled={isProcessing || uploadFiles.length === 0}
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs rounded-xl shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isProcessing ? (
                     <>
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      <span>AI Đang Nhận Diện Khuôn Mặt...</span>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>AI Engine Đang Nhận Diện Khuôn Mặt...</span>
                     </>
                   ) : (
-                    `Tiến Hành Điểm Danh (${uploadFiles.length} Tệp)`
+                    `⚡ Tiến Hành Điểm Danh AI (${uploadFiles.length} Tệp)`
                   )}
                 </button>
               </form>
             </div>
 
-            {/* Past Attendance Sessions */}
-            <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-3">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Lịch Sử Các Buổi Điểm Danh ({pastSessions.length})</h4>
+            {/* Past Attendance Sessions Sidebar */}
+            <div className="glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📜 Lịch Sử Điểm Danh</span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px]">
+                    {pastSessions.length}
+                  </span>
+                </h4>
+              </div>
+
               {pastSessions.length === 0 ? (
-                <p className="text-xs text-slate-500 italic">Chưa có lịch sử buổi điểm danh nào.</p>
+                <p className="text-xs text-slate-500 italic py-4 text-center">Chưa có lịch sử buổi điểm danh nào.</p>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                  {pastSessions.map((sess) => (
-                    <button
-                      key={sess.session_id}
-                      onClick={() => setAttendanceResult(sess)}
-                      className={`w-full p-3 rounded-xl text-left border transition text-xs flex items-center justify-between ${
-                        attendanceResult?.session_id === sess.session_id
-                          ? 'bg-blue-600/20 border-blue-500 text-white'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-bold text-white">{sess.title}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          {sess.session_date} • {sess.present_count}/{sess.total_students} SV có mặt
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                  {pastSessions.map((sess) => {
+                    const isSelected = attendanceResult?.session_id === sess.session_id;
+                    return (
+                      <button
+                        key={sess.session_id}
+                        onClick={() => setAttendanceResult(sess)}
+                        className={`w-full p-3 rounded-xl text-left border transition text-xs flex items-center justify-between gap-2 ${
+                          isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 shadow-sm'
+                            : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <div className="font-bold truncate text-slate-900 dark:text-white">{sess.title}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                            {sess.session_date} • <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{sess.present_count}/{sess.total_students} SV có mặt</span>
+                          </div>
                         </div>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-blue-400">Xem Báo Cáo</span>
-                    </button>
-                  ))}
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          Xem
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
 
           {/* Right Column: Interactive Results Canvas & Table */}
-          <div className="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
+          <div className="md:col-span-2 glass-card rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-sm">
             {!attendanceResult ? (
-              <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-sm border-2 border-dashed border-slate-800 rounded-xl">
-                <span>Chọn các tệp ảnh/video bên trái và nhấn Tiến Hành Điểm Danh</span>
+              <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-sm border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+                <span className="text-2xl mb-2">📥</span>
+                <span className="font-medium">Chọn các tệp ảnh/video bên trái và nhấn Tiến Hành Điểm Danh</span>
               </div>
             ) : (
               <>
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                  <div className="space-y-1.5">
-                    <h3 className="text-xl font-bold text-white">{attendanceResult.title || 'Kết Quả Điểm Danh Buổi Học'}</h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 font-mono text-slate-200">
-                        📅 {attendanceResult.session_date}
+                <div className="space-y-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
+                        📅 Buổi Học: {attendanceResult.session_date}
                       </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium">
-                        🔍 Tổng phát hiện: <b className="text-indigo-400 font-mono">{attendanceResult.total_faces_detected || attendanceResult.present_count}</b> khuôn mặt
-                      </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-medium">
-                        ✓ Có mặt: <b className="text-emerald-400 font-mono">{attendanceResult.present_count}/{attendanceResult.total_students}</b> SV
-                      </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20 font-medium">
-                        ✗ Vắng mặt: <b className="text-rose-400 font-mono">{attendanceResult.absent_count}</b> SV
-                      </span>
-                      {attendanceResult.unknown_count > 0 && (
-                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
-                          ⚠️ Người lạ: <b className="text-amber-400 font-mono">{attendanceResult.unknown_count}</b> người
-                        </span>
-                      )}
+                      <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
+                        {attendanceResult.title || 'Kết Quả Điểm Danh Buổi Học'}
+                      </h3>
+                    </div>
+
+                    <a
+                      href={`/api/v1/attendance/export-excel/${attendanceResult.session_id}`}
+                      download
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                    >
+                      📊 Xuất Excel (.xlsx)
+                    </a>
+                  </div>
+
+                  {/* 4 Quick Metric Cards Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 space-y-1">
+                      <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">🔍 Tổng Phát Hiện</span>
+                      <p className="text-2xl font-black font-mono text-blue-950 dark:text-blue-100">
+                        {attendanceResult.total_faces_detected || attendanceResult.present_count} <span className="text-xs font-normal text-blue-600 dark:text-blue-300">mặt</span>
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50 space-y-1">
+                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">✅ Có Mặt</span>
+                      <p className="text-2xl font-black font-mono text-emerald-950 dark:text-emerald-100">
+                        {attendanceResult.present_count}<span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">/{attendanceResult.total_students} SV</span>
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 space-y-1">
+                      <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider block">❌ Vắng Mặt</span>
+                      <p className="text-2xl font-black font-mono text-rose-950 dark:text-rose-100">
+                        {attendanceResult.absent_count} <span className="text-xs font-normal text-rose-600 dark:text-rose-300">SV</span>
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 space-y-1">
+                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">⚠️ Người Lạ</span>
+                      <p className="text-2xl font-black font-mono text-amber-950 dark:text-amber-100">
+                        {attendanceResult.unknown_count || 0} <span className="text-xs font-normal text-amber-600 dark:text-amber-300">người</span>
+                      </p>
                     </div>
                   </div>
-                  <a
-                    href={`/api/v1/attendance/export-excel/${attendanceResult.session_id}`}
-                    download
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5 shrink-0"
-                  >
-                    📊 Tải Báo Cáo Excel (.xlsx)
-                  </a>
                 </div>
 
                 {/* Processed Media Preview */}
