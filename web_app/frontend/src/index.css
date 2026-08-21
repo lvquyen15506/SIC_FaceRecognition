@@ -64,7 +64,7 @@ body {
   transform: scaleX(-1);
 }
 
-/* Light / White Mode Theme Overrides - Premium Google Labs Design System */
+/* Light / White Mode Theme Overrides - Sally Google Labs Urban Pearl System */
 body.light-mode {
   background-color: #f8fafc !important;
   color: #0f172a !important;
@@ -78,23 +78,29 @@ body.light-mode .app-root-container {
 }
 
 body.light-mode header {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-bottom-color: #e2e8f0 !important;
-  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03) !important;
 }
 
 body.light-mode .glass-card {
   background: #ffffff !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03), 0 2px 6px -1px rgba(15, 23, 42, 0.02) !important;
 }
 
 body.light-mode .glass-input {
-  background: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
   color: #0f172a !important;
+}
+
+body.light-mode .glass-input:focus {
+  background: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.15) !important;
 }
 
 body.light-mode .glass-input::placeholder {
@@ -106,7 +112,10 @@ body.light-mode .text-white {
 }
 
 body.light-mode .text-slate-100,
-body.light-mode .text-slate-200,
+body.light-mode .text-slate-200 {
+  color: #0f172a !important;
+}
+
 body.light-mode .text-slate-300 {
   color: #1e293b !important;
 }
@@ -121,40 +130,33 @@ body.light-mode .border-slate-700 {
   border-color: #e2e8f0 !important;
 }
 
-body.light-mode .bg-slate-900,
-body.light-mode .bg-slate-800 {
-  background-color: #f1f5f9 !important;
-}
-
-body.light-mode .bg-slate-950 {
-  background-color: #ffffff !important;
-}
-
 body.light-mode table thead tr,
 body.light-mode table thead th {
-  background-color: #e2e8f0 !important;
-  color: #334155 !important;
-  border-bottom-color: #cbd5e1 !important;
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
 }
 
 body.light-mode table tbody tr {
-  border-bottom-color: #f1f5f9 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body.light-mode table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+body.light-mode .bg-slate-900,
+body.light-mode .bg-slate-850,
+body.light-mode .bg-slate-800 {
+  background-color: #ffffff !important;
 }
 
 body.light-mode .bg-slate-800\/80,
-body.light-mode .bg-slate-800\/60,
-body.light-mode .bg-slate-800 {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
+body.light-mode .bg-slate-800\/60 {
+  background-color: #f8fafc !important;
 }
 
 body.light-mode .bg-slate-700\/80,
 body.light-mode .bg-slate-700 {
-  background-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-body.light-mode .bg-slate-900,
-body.light-mode .bg-slate-800 {
   background-color: #f1f5f9 !important;
 }
