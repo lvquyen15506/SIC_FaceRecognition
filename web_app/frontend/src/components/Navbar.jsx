@@ -38,9 +38,9 @@ export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
           <button
             onClick={handleThemeToggle}
             className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-500 hover:text-amber-600 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center text-lg transition-all transform active:scale-95 shadow-sm"
-            title={theme === 'light' ? 'Chuyển sang Chế độ Tối (Dark Mode)' : 'Chuyển sang Chế độ Sáng (White Mode)'}
+            title={theme === 'dark' ? 'Chuyển sang Chế độ Sáng (Light Mode)' : 'Chuyển sang Chế độ Tối (Dark Mode)'}
           >
-            {theme === 'light' ? '🌙' : '☀️'}
+            {theme === 'dark' ? '☀️' : '🌙'}
           </button>
 
           {user && (
