@@ -916,15 +916,15 @@ export default function AdminCenter({ token }) {
 
       {/* CREATE USER MODAL */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>➕ Tạo Người Dùng Mới</span>
               </h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg transition"
               >
                 ✕
               </button>
@@ -932,59 +932,59 @@ export default function AdminCenter({ token }) {
 
             <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">Mã Số (MSSV / MGV / Admin Code)</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mã Số (MSSV / MGV / Admin Code) *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ví dụ: SV260099 hoặc GV009"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Họ và Tên</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Họ và Tên *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ví dụ: Nguyễn Văn An"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Email</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Email *</label>
                 <input
                   type="email"
                   required
                   placeholder="user@sic.edu.vn"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Mật khẩu</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mật khẩu *</label>
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Vai Trò (Role)</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Vai Trò (Role) *</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="STUDENT">STUDENT (Sinh viên)</option>
                   <option value="TEACHER">TEACHER (Giảng viên)</option>
@@ -992,17 +992,17 @@ export default function AdminCenter({ token }) {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl border border-slate-300 dark:border-slate-700 transition"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition"
                 >
                   Tạo Người Dùng
                 </button>
@@ -1014,15 +1014,15 @@ export default function AdminCenter({ token }) {
 
       {/* EDIT USER MODAL */}
       {isEditModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>✏️ Sửa Người Dùng #{selectedUser.id}</span>
               </h3>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg transition"
               >
                 ✕
               </button>
@@ -1030,55 +1030,55 @@ export default function AdminCenter({ token }) {
 
             <form onSubmit={handleUpdateUser} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">Mã Số</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mã Số *</label>
                 <input
                   type="text"
                   required
                   value={editFormData.code}
                   onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Họ và Tên</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Họ và Tên *</label>
                 <input
                   type="text"
                   required
                   value={editFormData.full_name}
                   onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Email</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Email *</label>
                 <input
                   type="email"
                   required
                   value={editFormData.email}
                   onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Mật khẩu Mới (Bỏ trống nếu giữ nguyên)</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mật khẩu Mới (Bỏ trống nếu giữ nguyên)</label>
                 <input
                   type="password"
                   placeholder="•••••••• (Giữ nguyên Mật khẩu cũ)"
                   value={editFormData.password}
                   onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Vai Trò (Role)</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Vai Trò (Role) *</label>
                 <select
                   value={editFormData.role}
                   onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="STUDENT">STUDENT (Sinh viên)</option>
                   <option value="TEACHER">TEACHER (Giảng viên)</option>
@@ -1086,17 +1086,17 @@ export default function AdminCenter({ token }) {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl border border-slate-300 dark:border-slate-700 transition"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition"
                 >
                   Lưu Thay Đổi
                 </button>
@@ -1105,17 +1105,18 @@ export default function AdminCenter({ token }) {
           </div>
         </div>
       )}
+
       {/* CREATE CLASS MODAL */}
       {isCreateClassModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>➕ Tạo Lớp Học Mới</span>
               </h3>
               <button
                 onClick={() => setIsCreateClassModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg transition"
               >
                 ✕
               </button>
@@ -1123,35 +1124,35 @@ export default function AdminCenter({ token }) {
 
             <form onSubmit={handleCreateClass} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Tên Lớp Học *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Tên Lớp Học *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ví dụ: K20 - Thị Giác Máy Tính Advanced"
                   value={classFormData.class_name}
                   onChange={(e) => setClassFormData({ ...classFormData, class_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Chủ Đề / Môn Học *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Chủ Đề / Môn Học *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ví dụ: FaceViT & Deep Learning Enterprise"
                   value={classFormData.subject_topic}
                   onChange={(e) => setClassFormData({ ...classFormData, subject_topic: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Giảng Viên Chủ Nhiệm Ban Đầu</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Giảng Viên Chủ Nhiệm Ban Đầu</label>
                 <select
                   value={classFormData.teacher_id}
                   onChange={(e) => setClassFormData({ ...classFormData, teacher_id: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="">-- Mặc định (Gán cho Admin hiện tại) --</option>
                   {users
@@ -1164,17 +1165,17 @@ export default function AdminCenter({ token }) {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsCreateClassModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl border border-slate-300 dark:border-slate-700 transition"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition"
                 >
                   Tạo Lớp Học
                 </button>
@@ -1186,15 +1187,15 @@ export default function AdminCenter({ token }) {
 
       {/* EDIT CLASS MODAL */}
       {isEditClassModalOpen && selectedClass && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>✏️ Sửa Lớp Học: {selectedClass.class_code}</span>
               </h3>
               <button
                 onClick={() => setIsEditClassModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-lg"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg transition"
               >
                 ✕
               </button>
@@ -1202,33 +1203,33 @@ export default function AdminCenter({ token }) {
 
             <form onSubmit={handleUpdateClass} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Tên Lớp Học *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Tên Lớp Học *</label>
                 <input
                   type="text"
                   required
                   value={editClassFormData.class_name}
                   onChange={(e) => setEditClassFormData({ ...editClassFormData, class_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Chủ Đề / Môn Học *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Chủ Đề / Môn Học *</label>
                 <input
                   type="text"
                   required
                   value={editClassFormData.subject_topic}
                   onChange={(e) => setEditClassFormData({ ...editClassFormData, subject_topic: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Giảng Viên Chủ Nhiệm</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Giảng Viên Chủ Nhiệm</label>
                 <select
                   value={editClassFormData.teacher_id}
                   onChange={(e) => setEditClassFormData({ ...editClassFormData, teacher_id: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="">-- Giữ nguyên / Chọn Giảng viên mới --</option>
                   {users
@@ -1241,17 +1242,17 @@ export default function AdminCenter({ token }) {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsEditClassModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl border border-slate-300 dark:border-slate-700 transition"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition"
                 >
                   Lưu Thay Đổi
                 </button>
@@ -1263,32 +1264,32 @@ export default function AdminCenter({ token }) {
 
       {/* MANAGE CLASS MEMBERS MODAL (TEACHERS & STUDENTS) */}
       {isMembersModalOpen && selectedClass && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-3xl space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-3xl space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
-                <span className="text-[10px] font-mono-grotesk font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                <span className="text-[10px] font-mono font-bold text-purple-700 dark:text-purple-400 bg-purple-600/10 px-2 py-0.5 rounded border border-purple-600/20">
                   {selectedClass.class_code}
                 </span>
-                <h3 className="text-xl font-bold text-white mt-1">
+                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-1">
                   Quản Lý Thành Viên: {selectedClass.class_name}
                 </h3>
               </div>
               <button
                 onClick={() => setIsMembersModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-xl"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-xl transition"
               >
                 ✕
               </button>
             </div>
 
             {/* Sub Tabs: Teachers vs Students */}
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
               <button
                 onClick={() => { setMemberActiveTab('TEACHERS'); setNewMemberInput(''); setAddMemberMsg(''); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  memberActiveTab === 'TEACHERS' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  memberActiveTab === 'TEACHERS' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 👨‍🏫 Giảng Viên Đồng Quản Lý ({classMembers.teachers?.length || 0})
@@ -1296,7 +1297,7 @@ export default function AdminCenter({ token }) {
               <button
                 onClick={() => { setMemberActiveTab('STUDENTS'); setNewMemberInput(''); setAddMemberMsg(''); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  memberActiveTab === 'STUDENTS' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  memberActiveTab === 'STUDENTS' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 🎓 Danh Sách Sinh Viên ({classMembers.students?.length || 0})
@@ -1305,7 +1306,7 @@ export default function AdminCenter({ token }) {
 
             {/* Status Message */}
             {addMemberMsg && (
-              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold text-slate-200">
+              <div className="p-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200">
                 {addMemberMsg}
               </div>
             )}
@@ -1321,32 +1322,32 @@ export default function AdminCenter({ token }) {
                     placeholder="Nhập Mã Giảng Viên (MGV) hoặc Email..."
                     value={newMemberInput}
                     onChange={(e) => setNewMemberInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
                   >
                     <span>➕ Thêm Giảng Viên</span>
                   </button>
                 </form>
 
                 {/* Teachers Table */}
-                <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950 text-slate-400 font-mono-grotesk uppercase">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <tr>
-                        <th className="p-3">Mã GV</th>
-                        <th className="p-3">Họ và Tên</th>
-                        <th className="p-3">Email</th>
-                        <th className="p-3">Vai Trò Lớp</th>
-                        <th className="p-3 text-right">Thao Tác</th>
+                        <th className="p-3.5">Mã GV</th>
+                        <th className="p-3.5">Họ và Tên</th>
+                        <th className="p-3.5">Email</th>
+                        <th className="p-3.5">Vai Trò Lớp</th>
+                        <th className="p-3.5 text-right">Thao Tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
                       {(!classMembers.teachers || classMembers.teachers.length === 0) ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-500">
+                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">
                             Chưa có Giảng viên đồng quản lý nào.
                           </td>
                         </tr>
@@ -1354,25 +1355,25 @@ export default function AdminCenter({ token }) {
                         classMembers.teachers.map((t) => {
                           const isPrimary = selectedClass.created_by_teacher_id === t.id;
                           return (
-                            <tr key={t.id} className="hover:bg-slate-800/40">
-                              <td className="p-3 font-mono-grotesk font-bold text-purple-400">{t.code}</td>
-                              <td className="p-3 font-semibold text-white">{t.full_name}</td>
-                              <td className="p-3 text-slate-400">{t.email}</td>
-                              <td className="p-3">
+                            <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                              <td className="p-3.5 font-mono font-bold text-purple-600 dark:text-purple-400">{t.code}</td>
+                              <td className="p-3.5 font-bold text-slate-900 dark:text-white">{t.full_name}</td>
+                              <td className="p-3.5 text-slate-600 dark:text-slate-400">{t.email}</td>
+                              <td className="p-3.5">
                                 {isPrimary ? (
-                                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-600 text-white shadow-sm">
                                     ⭐ CHỦ NHIỆM
                                   </span>
                                 ) : (
-                                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-600 text-white shadow-sm">
                                     🤝 ĐỒNG QUẢN LÝ
                                   </span>
                                 )}
                               </td>
-                              <td className="p-3 text-right">
+                              <td className="p-3.5 text-right">
                                 <button
                                   onClick={() => handleRemoveTeacherFromClass(t.id)}
-                                  className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium transition"
+                                  className="px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/60 rounded-lg shadow-sm transition"
                                 >
                                   🗑️ Xóa Khỏi Lớp
                                 </button>
@@ -1398,50 +1399,50 @@ export default function AdminCenter({ token }) {
                     placeholder="Nhập Mã Sinh Viên (MSSV) hoặc Email..."
                     value={newMemberInput}
                     onChange={(e) => setNewMemberInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
                   >
                     <span>➕ Thêm Sinh Viên</span>
                   </button>
                 </form>
 
                 {/* Students Table */}
-                <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950 text-slate-400 font-mono-grotesk uppercase">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <tr>
-                        <th className="p-3">Mã SV</th>
-                        <th className="p-3">Họ và Tên</th>
-                        <th className="p-3">Email</th>
-                        <th className="p-3">Trạng Thái</th>
-                        <th className="p-3 text-right">Thao Tác</th>
+                        <th className="p-3.5">Mã SV</th>
+                        <th className="p-3.5">Họ và Tên</th>
+                        <th className="p-3.5">Email</th>
+                        <th className="p-3.5">Trạng Thái</th>
+                        <th className="p-3.5 text-right">Thao Tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
                       {(!classMembers.students || classMembers.students.length === 0) ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-500">
+                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">
                             Chưa có Sinh viên nào trong lớp.
                           </td>
                         </tr>
                       ) : (
                         classMembers.students.map((s) => (
-                          <tr key={s.id} className="hover:bg-slate-800/40">
-                            <td className="p-3 font-mono-grotesk font-bold text-emerald-400">{s.code}</td>
-                            <td className="p-3 font-semibold text-white">{s.full_name}</td>
-                            <td className="p-3 text-slate-400">{s.email}</td>
-                            <td className="p-3">
-                              <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                          <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                            <td className="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">{s.code}</td>
+                            <td className="p-3.5 font-bold text-slate-900 dark:text-white">{s.full_name}</td>
+                            <td className="p-3.5 text-slate-600 dark:text-slate-400">{s.email}</td>
+                            <td className="p-3.5">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-sm">
                                 {s.status || 'APPROVED'}
                               </span>
                             </td>
-                            <td className="p-3 text-right">
+                            <td className="p-3.5 text-right">
                               <button
                                 onClick={() => handleRemoveStudentFromClass(s.id)}
-                                className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium transition"
+                                className="px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/60 rounded-lg shadow-sm transition"
                               >
                                 🗑️ Xóa Khỏi Lớp
                               </button>
