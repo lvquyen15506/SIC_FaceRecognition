@@ -14,8 +14,10 @@ export default function App() {
   useEffect(() => {
     if (theme === 'light') {
       document.body.classList.add('light-mode');
+      document.documentElement.classList.remove('dark');
     } else {
       document.body.classList.remove('light-mode');
+      document.documentElement.classList.add('dark');
     }
     localStorage.setItem('sic_theme', theme);
   }, [theme]);
@@ -65,7 +67,7 @@ export default function App() {
   const requiresKyc = user && (user.role === 'STUDENT' || user.role === 'TEACHER') && (user.kyc_status === 'UNVERIFIED' || user.face_count === 0);
 
   return (
-    <div className="app-root-container min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="app-root-container min-h-screen bg-slate-50 dark:bg-[#090D16] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       <Navbar user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
 
       <main className="flex-1">
@@ -90,7 +92,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
         SIC FaceRecognition Project • Google Labs Design System • Built with FastAPI &amp; React
       </footer>
     </div>
