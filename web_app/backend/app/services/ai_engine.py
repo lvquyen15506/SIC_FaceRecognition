@@ -160,7 +160,7 @@ def check_image_quality(image_bytes: bytes, required_angle: str = None) -> dict:
                     "yaw_ratio": round(yaw_ratio, 2)
                 }
         elif req == "TILT":
-            if pitch_ratio >= 0.95:
+            if pitch_ratio >= 1.05:
                 return {
                     "pass": False,
                     "status": "WRONG_POSE",
