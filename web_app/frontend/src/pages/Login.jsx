@@ -36,7 +36,7 @@ export default function Login({ onLoginSuccess }) {
 
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.detail || 'Mã số hoặc mật khẩu không chính xác');
+        setErrorMsg(data.detail || 'Username/Email hoặc mật khẩu không chính xác');
       } else {
         onLoginSuccess(data);
       }
@@ -143,14 +143,14 @@ export default function Login({ onLoginSuccess }) {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                Mã Số (MSSV / MGV) hoặc Email
+                Username hoặc Email
               </label>
               <input
                 type="text"
                 required
                 value={codeOrEmail}
                 onChange={(e) => setCodeOrEmail(e.target.value)}
-                placeholder="Ví dụ: SV26001, GV26001 hoặc email..."
+                placeholder="Ví dụ: vdq, SV26001, GV26001 hoặc email..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:border-blue-500 transition"
               />
             </div>
@@ -246,14 +246,14 @@ export default function Login({ onLoginSuccess }) {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                {regRole === 'TEACHER' ? 'Mã Giảng Viên (MGV) *' : 'Mã Số Sinh Viên (MSSV) *'}
+                {regRole === 'TEACHER' ? 'Username (Mã Giảng Viên) *' : 'Username (Mã Sinh Viên) *'}
               </label>
               <input
                 type="text"
                 required
                 value={regCode}
                 onChange={(e) => setRegCode(e.target.value)}
-                placeholder={regRole === 'TEACHER' ? 'Ví dụ: GV26001' : 'Ví dụ: SV260099'}
+                placeholder={regRole === 'TEACHER' ? 'Ví dụ: vdq, GV26001...' : 'Ví dụ: vdq, SV260099...'}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-500 transition"
               />
             </div>

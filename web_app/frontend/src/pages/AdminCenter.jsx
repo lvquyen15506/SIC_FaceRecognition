@@ -680,7 +680,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
               <div className="relative flex-1 md:w-64">
                 <input
                   type="text"
-                  placeholder="🔍 Tìm theo Mã số, Tên, Email..."
+                  placeholder="🔍 Tìm theo Username, Tên, Email..."
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
@@ -731,7 +731,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
               <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="p-3.5">ID</th>
-                  <th className="p-3.5">Mã Số</th>
+                  <th className="p-3.5">USERNAME</th>
                   <th className="p-3.5">Họ và Tên</th>
                   <th className="p-3.5">Email</th>
                   <th className="p-3.5">Vai Trò</th>
@@ -1180,7 +1180,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                       <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 uppercase font-mono font-bold sticky top-0">
                         <tr>
                           <th className="p-2 border-b border-slate-200 dark:border-slate-800">STT</th>
-                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Mã Số</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">USERNAME</th>
                           <th className="p-2 border-b border-slate-200 dark:border-slate-800">Email</th>
                           <th className="p-2 border-b border-slate-200 dark:border-slate-800">Họ và Tên</th>
                           <th className="p-2 border-b border-slate-200 dark:border-slate-800">Vai Trò</th>
@@ -1275,7 +1275,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
 
             <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mã Số (MSSV / MGV / Admin Code) *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Username (MSSV / MGV / Admin Code) *</label>
                 <input
                   type="text"
                   required
@@ -1374,7 +1374,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
 
             <form onSubmit={handleUpdateUser} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Mã Số *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">Username *</label>
                 <input
                   type="text"
                   required
