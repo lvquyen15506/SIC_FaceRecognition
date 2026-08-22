@@ -68,6 +68,7 @@ export default function AdminCenter({ user, token }) {
     role: 'STUDENT'
   });
 
+  const [allStudents, setAllStudents] = useState([]);
   const [allTeachers, setAllTeachers] = useState([]);
 
   useEffect(() => {
@@ -78,22 +79,24 @@ export default function AdminCenter({ user, token }) {
     fetchClasses();
     fetchDbHealth();
     fetchAuditLogs();
-    fetchAllTeachers();
+    fetchAllUsersForSelection();
   }, []);
 
-  const fetchAllTeachers = async () => {
+  const fetchAllUsersForSelection = async () => {
     try {
-      const res = await fetch('/api/v1/admin/users?skip=0&limit=500', {
+      const res = await fetch('/api/v1/admin/users?skip=0&limit=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
         const items = Array.isArray(data) ? data : (data.items || []);
+        const students = items.filter(u => u.role === 'STUDENT');
         const teachersAndAdmins = items.filter(u => u.role === 'TEACHER' || u.role === 'ADMIN');
+        setAllStudents(students);
         setAllTeachers(teachersAndAdmins);
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách Giảng viên:', err);
+      console.error('Lỗi khi tải danh sách người dùng:', err);
     }
   };
 
@@ -247,6 +250,14 @@ export default function AdminCenter({ user, token }) {
     }
   };
 
+  const availableStudents = allStudents.filter(
+    s => !(classMembers.students || []).some(existing => existing.id === s.id)
+  );
+
+  const availableTeachers = allTeachers.filter(
+    t => !(classMembers.teachers || []).some(existing => existing.id === t.id)
+  );
+
   // Class Member Management Handlers
   const openMembersModal = async (cls) => {
     setSelectedClass(cls);
@@ -254,6 +265,7 @@ export default function AdminCenter({ user, token }) {
     setAddMemberMsg('');
     setIsMembersModalOpen(true);
     fetchClassMembers(cls.id);
+    fetchAllUsersForSelection();
   };
 
   const fetchClassMembers = async (classId) => {
@@ -1601,22 +1613,33 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
             {memberActiveTab === 'TEACHERS' && (
               <div className="space-y-4">
                 {/* Form Add Teacher */}
-                <form onSubmit={handleAddTeacherToClass} className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nhập Mã Giảng Viên (MGV) hoặc Email..."
-                    value={newMemberInput}
-                    onChange={(e) => setNewMemberInput(e.target.value)}
-                    className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
-                  >
-                    <span>➕ Thêm Giảng Viên</span>
-                  </button>
-                </form>
+                {availableTeachers.length > 0 ? (
+                  <form onSubmit={handleAddTeacherToClass} className="flex items-center gap-3">
+                    <select
+                      required
+                      value={newMemberInput}
+                      onChange={(e) => setNewMemberInput(e.target.value)}
+                      className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                    >
+                      <option value="">-- Chọn Giảng Viên đồng quản lý ({availableTeachers.length} GV chưa vào) --</option>
+                      {availableTeachers.map((t) => (
+                        <option key={t.id} value={t.code}>
+                          {t.full_name} ({t.code} - {t.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition shrink-0"
+                    >
+                      <span>➕ Thêm Giảng Viên</span>
+                    </button>
+                  </form>
+                ) : (
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                    <span>🎉 Tất cả Giảng Viên trong hệ thống đều đã tham gia quản lý lớp này!</span>
+                  </div>
+                )}
 
                 {/* Teachers Table */}
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -1678,22 +1701,33 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
             {memberActiveTab === 'STUDENTS' && (
               <div className="space-y-4">
                 {/* Form Add Student */}
-                <form onSubmit={handleAddStudentToClass} className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nhập Mã Sinh Viên (MSSV) hoặc Email..."
-                    value={newMemberInput}
-                    onChange={(e) => setNewMemberInput(e.target.value)}
-                    className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
-                  >
-                    <span>➕ Thêm Sinh Viên</span>
-                  </button>
-                </form>
+                {availableStudents.length > 0 ? (
+                  <form onSubmit={handleAddStudentToClass} className="flex items-center gap-3">
+                    <select
+                      required
+                      value={newMemberInput}
+                      onChange={(e) => setNewMemberInput(e.target.value)}
+                      className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                    >
+                      <option value="">-- Chọn Sinh Viên để thêm vào lớp ({availableStudents.length} SV chưa vào) --</option>
+                      {availableStudents.map((s) => (
+                        <option key={s.id} value={s.code}>
+                          {s.full_name} ({s.code} - {s.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition shrink-0"
+                    >
+                      <span>➕ Thêm Sinh Viên</span>
+                    </button>
+                  </form>
+                ) : (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                    <span>🎉 Tất cả Sinh Viên trong hệ thống đều đã tham gia lớp học này!</span>
+                  </div>
+                )}
 
                 {/* Students Table */}
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
