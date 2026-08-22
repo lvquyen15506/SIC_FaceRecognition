@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function AdminCenter({ token }) {
+export default function AdminCenter({ user, token }) {
   const [activeTab, setActiveTab] = useState('USERS');
   const [users, setUsers] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -483,14 +483,14 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
   };
 
   // Delete User Handler
-  const handleDeleteUser = async (user) => {
-    if (user.id === currentUser?.id) {
+  const handleDeleteUser = async (targetUser) => {
+    if (targetUser.id === user?.id) {
       alert("⚠️ Không thể tự xóa tài khoản Admin đang đăng nhập!");
       return;
     }
-    if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN người dùng ${user.full_name} (${user.code})?`)) return;
+    if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN người dùng ${targetUser.full_name} (${targetUser.code})?`)) return;
     try {
-      const res = await fetch(`/api/v1/admin/users/${user.id}`, {
+      const res = await fetch(`/api/v1/admin/users/${targetUser.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -500,7 +500,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
         alert(data.detail || 'Không thể xóa người dùng này');
         return;
       }
-      alert(`🎉 Đã xóa thành công người dùng ${user.full_name}!`);
+      alert(`🎉 Đã xóa thành công người dùng ${targetUser.full_name}!`);
       fetchUsers();
       fetchDbHealth();
     } catch (err) {
@@ -755,15 +755,15 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
 
                         <button
                           onClick={() => handleDeleteUser(u)}
-                          disabled={u.id === currentUser?.id}
+                          disabled={u.id === user?.id}
                           className={`px-2.5 py-1 text-[11px] font-bold rounded-lg shadow-sm transition ${
-                            u.id === currentUser?.id
+                            u.id === user?.id
                               ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
                               : 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/60'
                           }`}
-                          title={u.id === currentUser?.id ? "Tài khoản Admin đang đăng nhập (Không thể tự xóa)" : "Xóa vĩnh viễn tài khoản"}
+                          title={u.id === user?.id ? "Tài khoản Admin đang đăng nhập (Không thể tự xóa)" : "Xóa vĩnh viễn tài khoản"}
                         >
-                          {u.id === currentUser?.id ? '🔒 Đang dùng' : '🗑️ Xóa'}
+                          {u.id === user?.id ? '🔒 Đang dùng' : '🗑️ Xóa'}
                         </button>
                       </td>
                     </tr>
