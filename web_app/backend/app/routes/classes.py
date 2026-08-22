@@ -1,6 +1,7 @@
 """
 Classroom Management API Endpoints
 """
+import os
 import random
 import string
 from typing import List
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User, ClassRoom, ClassStudent, FaceEmbedding
+from app.models import User, ClassRoom, ClassStudent, FaceEmbedding, AttendanceSession, SessionMediaFile, AttendanceDetail
 from app.schemas import ClassCreate, ClassResponse, AddTeacherRequest, UserResponse
 from app.security import get_current_user, require_role, get_password_hash
 from app.services.audit import log_action
@@ -368,4 +369,58 @@ def remove_student_from_class(
     db.commit()
     log_action(db, current_user.id, "REMOVE_STUDENT", {"class_id": class_id, "student_id": student_id})
     return {"status": "SUCCESS", "message": "Đã xóa sinh viên khỏi lớp học thành công"}
+
+@router.delete("/{class_id}")
+def delete_class(
+    class_id: int,
+    current_user: User = Depends(require_role(["TEACHER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Xóa vĩnh viễn Lớp Học và dọn sạch 100% tệp đĩa phương tiện (Video/Ảnh/Thumbnail)
+    """
+    classroom = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
+
+    if current_user.role != "ADMIN" and classroom.created_by_teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Chỉ Giảng viên chủ nhiệm hoặc Admin mới có quyền xóa lớp học này")
+
+    code_tmp = classroom.class_code
+
+    # Cascade Physical Disk File Cleanup
+    sessions = db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).all()
+    deleted_files_count = 0
+
+    for sess in sessions:
+        media_files = db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).all()
+        for mf in media_files:
+            for fpath in [mf.raw_file_path, mf.processed_file_path]:
+                if fpath and os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                        deleted_files_count += 1
+                    except OSError as e:
+                        print(f"[File Delete Error] Failed to remove {fpath}: {e}")
+
+            if mf.processed_file_path and mf.processed_file_path.endswith('.mp4'):
+                thumb_path = mf.processed_file_path.replace('.mp4', '.jpg').replace('_h264_', '_')
+                if os.path.exists(thumb_path):
+                    try:
+                        os.remove(thumb_path)
+                        deleted_files_count += 1
+                    except OSError as e:
+                        print(f"[File Delete Error] Failed to remove thumbnail {thumb_path}: {e}")
+
+        db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).delete(synchronize_session=False)
+        db.query(AttendanceDetail).filter(AttendanceDetail.session_id == sess.id).delete(synchronize_session=False)
+
+    db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).delete(synchronize_session=False)
+    db.query(ClassStudent).filter(ClassStudent.class_id == class_id).delete(synchronize_session=False)
+
+    db.delete(classroom)
+    db.commit()
+
+    log_action(db, current_user.id, "DELETE_CLASS", {"class_id": class_id, "class_code": code_tmp, "deleted_files": deleted_files_count})
+    return {"status": "SUCCESS", "message": f"Đã xóa vĩnh viễn lớp học {code_tmp} và dọn sạch {deleted_files_count} tệp đĩa!"}
 
