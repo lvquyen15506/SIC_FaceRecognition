@@ -58,3 +58,9 @@ body.light-mode .bg-slate-850,
 body.light-mode .bg-slate-800 {
   background-color: #f1f5f9 !important;
 }
+
+@keyframes scan {
+  0%, 100% { top: 0%; }
+  50% { top: 90%; }
+}
+

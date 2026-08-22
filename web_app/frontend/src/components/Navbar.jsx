@@ -21,13 +21,19 @@ export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
     <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md sticky top-0 z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 flex items-center justify-center text-white relative group">
-            <span className="font-black text-xl tracking-tighter">SIC</span>
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 overflow-hidden shrink-0">
+            {/* Face Scanning Brackets SVG */}
+            <svg className="w-6 h-6 text-white absolute z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8V6a2 2 0 012-2h2M3 16v2a2 2 0 002 2h2M21 8V6a2 2 0 00-2-2h-2M21 16v2a2 2 0 01-2 2h-2" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            {/* Subtle scanning line animation */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-blue-300/50 blur-sm animate-[scan_2s_ease-in-out_infinite]" />
           </div>
           <div className="flex flex-col justify-center">
             <h1 className="text-base sm:text-lg flex items-center gap-1.5 leading-none">
-              <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">SIC</span>
+              <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 tracking-tighter">SIC</span>
               <span className="font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">FaceRecognition</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide mt-0.5">
