@@ -33,9 +33,6 @@ COPY --chown=appuser:appuser web_app/backend/app /app/app
 COPY --chown=appuser:appuser web_app/backend/main.py /app/main.py
 COPY --chown=appuser:appuser src /app/src
 COPY --chown=appuser:appuser weights /app/weights
-COPY --chown=appuser:appuser data_gallery /app/data_gallery
-COPY --chown=appuser:appuser reports /app/reports
-COPY --chown=appuser:appuser web_app/backend/data /app/web_app/backend/data
 
 # Ensure data directories exist and belong to appuser
 RUN mkdir -p /app/data_gallery /app/reports /app/web_app/backend/data/uploads && \
