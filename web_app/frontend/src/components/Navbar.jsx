@@ -22,14 +22,20 @@ export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-extrabold text-white shadow-md shadow-blue-500/20 text-sm tracking-widest">
-            SIC
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 flex items-center justify-center text-white relative group">
+            <svg className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
           </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              SIC FaceRecognition <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">v4.4 Enterprise</span>
+          <div className="flex flex-col justify-center">
+            <h1 className="text-base sm:text-lg flex items-center gap-1.5 leading-none">
+              <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">SIC</span>
+              <span className="font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">FaceRecognition</span>
             </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Hệ thống Điểm danh Lớp học AI &amp; Đăng ký Dữ liệu Đa góc mặt</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide mt-0.5">
+              Hệ thống Điểm danh Lớp học AI &amp; Đăng ký Dữ liệu Đa góc mặt
+            </p>
           </div>
         </div>
 
