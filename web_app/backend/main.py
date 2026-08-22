@@ -53,8 +53,6 @@ def seed_default_users():
     db = SessionLocal()
     try:
         default_users = [
-            {"email": "student01@sic.edu.vn", "code": "SV001", "full_name": "Nguyễn Văn Sinh Viên", "password": "student123", "role": "STUDENT"},
-            {"email": "teacher01@sic.edu.vn", "code": "GV001", "full_name": "TS. Trịnh Văn Giảng Viên", "password": "teacher123", "role": "TEACHER"},
             {"email": "admin01@sic.edu.vn", "code": "ADMIN01", "full_name": "Quản Trị Viên Hệ Thống", "password": "AdminTriTech@123", "role": "ADMIN"},
             {"email": "admin@tritech.vn", "code": "ADMIN", "full_name": "Admin TriTech Systems", "password": "AdminTriTech@123", "role": "ADMIN"},
         ]
@@ -74,35 +72,8 @@ def seed_default_users():
                 if u["role"] == "ADMIN":
                     exists.password_hash = get_password_hash(u["password"])
         db.commit()
-
-        # Seed Default Class for Demo
-        teacher = db.query(User).filter(User.code == "GV001").first()
-        student = db.query(User).filter(User.code == "SV001").first()
-        if teacher:
-            cls = db.query(ClassRoom).filter(ClassRoom.class_code == "SIC-6940IZ").first()
-            if not cls:
-                cls = ClassRoom(
-                    class_code="SIC-6940IZ",
-                    class_name="Lớp Nhận Diện Khuôn Mặt SIC AI N01",
-                    subject_topic="AI Core & Computer Vision",
-                    created_by_teacher_id=teacher.id
-                )
-                db.add(cls)
-                db.commit()
-                db.refresh(cls)
-
-                if cls and teacher:
-                    cls.teachers.append(teacher)
-                    db.commit()
-
-            if cls and student:
-                cs = db.query(ClassStudent).filter(ClassStudent.class_id == cls.id, ClassStudent.student_id == student.id).first()
-                if not cs:
-                    cs = ClassStudent(class_id=cls.id, student_id=student.id, status="APPROVED")
-                    db.add(cs)
-                    db.commit()
-
     except Exception as e:
+        print(f"[Seeding Error] {e}")
         db.rollback()
     finally:
         db.close()
