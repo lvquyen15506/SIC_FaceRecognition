@@ -68,6 +68,8 @@ export default function AdminCenter({ user, token }) {
     role: 'STUDENT'
   });
 
+  const [allTeachers, setAllTeachers] = useState([]);
+
   useEffect(() => {
     fetchUsers();
   }, [page, pageSize, searchTerm, roleFilter]);
@@ -76,7 +78,24 @@ export default function AdminCenter({ user, token }) {
     fetchClasses();
     fetchDbHealth();
     fetchAuditLogs();
+    fetchAllTeachers();
   }, []);
+
+  const fetchAllTeachers = async () => {
+    try {
+      const res = await fetch('/api/v1/admin/users?skip=0&limit=500', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.items || []);
+        const teachersAndAdmins = items.filter(u => u.role === 'TEACHER' || u.role === 'ADMIN');
+        setAllTeachers(teachersAndAdmins);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách Giảng viên:', err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -167,6 +186,7 @@ export default function AdminCenter({ user, token }) {
   };
 
   const openEditClassModal = (cls) => {
+    fetchAllTeachers();
     setSelectedClass(cls);
     setEditClassFormData({
       class_name: cls.class_name,
@@ -828,6 +848,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
 
             <button
               onClick={() => {
+                fetchAllTeachers();
                 setClassFormData({ class_name: '', subject_topic: '', teacher_id: '' });
                 setIsCreateClassModalOpen(true);
               }}
@@ -1424,13 +1445,11 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                   className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="">-- Mặc định (Gán cho Admin hiện tại) --</option>
-                  {users
-                    .filter(u => u.role === 'TEACHER' || u.role === 'ADMIN')
-                    .map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.full_name} ({t.code} - {t.role})
-                      </option>
-                    ))}
+                  {allTeachers.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name} ({t.code} - {t.role})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1501,13 +1520,11 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                   className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                 >
                   <option value="">-- Giữ nguyên / Chọn Giảng viên mới --</option>
-                  {users
-                    .filter(u => u.role === 'TEACHER' || u.role === 'ADMIN')
-                    .map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.full_name} ({t.code} - {t.role})
-                      </option>
-                    ))}
+                  {allTeachers.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name} ({t.code} - {t.role})
+                    </option>
+                  ))}
                 </select>
               </div>
 
