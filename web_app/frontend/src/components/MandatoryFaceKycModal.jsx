@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const KYC_ANGLES = [
   { key: 'FRONT', displayLabel: 'TRỰC DIỆN', label: '1. Nhìn Thẳng Chính Diện', guide: 'Giữ đầu thẳng và nhìn trực diện vào Camera', icon: '😐' },
@@ -230,8 +231,8 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-4 z-[100] overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-y-auto">
       <div className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-4 sm:space-y-6 my-auto max-h-[96vh] overflow-y-auto">
         {/* Header Alert & Progress */}
         <div className="space-y-3 sm:space-y-4 border-b border-slate-800 pb-3 sm:pb-4">
@@ -372,6 +373,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           )}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function TeacherDashboard({ user, token }) {
   const [classes, setClasses] = useState([]);
@@ -378,10 +379,10 @@ export default function TeacherDashboard({ user, token }) {
       </div>
 
       {/* Media Zoom / Video Lightbox Modal */}
-      {zoomMedia && (
+      {zoomMedia && createPortal(
         <div
           onClick={() => setZoomMedia(null)}
-          className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-[100] animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-[9999] animate-in fade-in duration-200"
         >
           {/* Modal Header Bar */}
           <div
@@ -430,13 +431,14 @@ export default function TeacherDashboard({ user, token }) {
           <p className="text-center text-xs text-slate-400 mt-3 font-mono-grotesk flex items-center gap-2 bg-slate-900/60 px-4 py-1.5 rounded-full border border-slate-800">
             <span>💡 Mẹo: Bấm phím <kbd className="px-1.5 py-0.5 bg-slate-800 text-[10px] text-slate-200 rounded border border-slate-700">ESC</kbd> hoặc nhấp vùng đen ngoài để thoát</span>
           </p>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Co-Teacher Modal */}
-      {showAddTeacherModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
-          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+      {showAddTeacherModal && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[9999]">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl my-auto max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
               <button
@@ -521,19 +523,20 @@ export default function TeacherDashboard({ user, token }) {
                 <button
                   type="submit"
                   disabled={isAddingTeacher}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg transition"
+                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl shadow-lg transition"
                 >
                   {isAddingTeacher ? 'Đang Thêm...' : 'Thêm Giảng Viên'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Student Modal */}
-      {showAddStudentModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
+      {showAddStudentModal && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[9999]">
           <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Sinh Viên Vào Lớp</h3>
@@ -626,13 +629,14 @@ export default function TeacherDashboard({ user, token }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Create Class Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
-          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+      {showCreateModal && createPortal(
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[9999]">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl my-auto max-h-[85vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Tạo Lớp Học Mới</h3>
             <p className="text-xs text-slate-400">Chỉ cần nhập Tên lớp và Chủ đề học, hệ thống tự sinh Mã Lớp</p>
 
