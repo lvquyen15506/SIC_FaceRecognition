@@ -7,14 +7,26 @@ export default function StudentPortal({ user, token }) {
   const [joinMsg, setJoinMsg] = useState('');
   const [myClasses, setMyClasses] = useState([]);
   const [historyData, setHistoryData] = useState(null);
-  const [enrollStatus, setEnrollStatus] = useState({ is_complete: false, total_angles: 0 });
+  const [enrollStatus, setEnrollStatus] = useState({
+    is_complete: (user?.face_count >= 4) || (user?.kyc_status === 'VERIFIED'),
+    total_angles: user?.face_count || 0
+  });
   const [selectedClassId, setSelectedClassId] = useState(null);
 
   useEffect(() => {
     fetchMyClasses();
     fetchEnrollStatus();
     fetchAttendanceHistory();
-  }, []);
+  }, [token]);
+
+  useEffect(() => {
+    if (user && user.face_count !== undefined) {
+      setEnrollStatus(prev => ({
+        is_complete: user.face_count >= 4 || user.kyc_status === 'VERIFIED' || prev.is_complete,
+        total_angles: Math.max(user.face_count, prev.total_angles)
+      }));
+    }
+  }, [user]);
 
   const fetchMyClasses = async () => {
     try {
