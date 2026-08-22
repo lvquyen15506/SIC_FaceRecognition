@@ -231,28 +231,28 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="glass-card rounded-3xl p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-6 my-auto">
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-2xl w-full border border-indigo-500/30 shadow-2xl space-y-4 sm:space-y-6 my-auto max-h-[96vh] overflow-y-auto">
         {/* Header Alert & Progress */}
-        <div className="space-y-4 border-b border-slate-800 pb-4">
+        <div className="space-y-3 sm:space-y-4 border-b border-slate-800 pb-3 sm:pb-4">
           <div className="flex items-center justify-between">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider flex items-center gap-1">
+            <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider flex items-center gap-1">
               🛡️ Quét 3D Face ID Đa Góc Độ
             </span>
             <button
               onClick={onLogout}
-              className="text-xs text-slate-400 hover:text-red-400 font-semibold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 transition"
+              className="text-[11px] sm:text-xs text-slate-400 hover:text-red-400 font-semibold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-slate-800 border border-slate-700 transition"
             >
               Đăng Xuất
             </button>
           </div>
 
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-lg sm:text-2xl font-bold text-white">
             Xác Thực Khuôn Mặt: <span className="text-indigo-400">{user.full_name} ({user.code})</span>
           </h2>
 
-          {/* 4 Steps Visual Badges */}
-          <div className="grid grid-cols-4 gap-3 pt-1">
+          {/* 5 Steps Visual Badges */}
+          <div className="grid grid-cols-5 gap-1 sm:gap-2.5 pt-1">
             {KYC_ANGLES.map((ang, idx) => {
               const count = stepSampleCounts[idx] || 0;
               const isDone = count >= SAMPLES_PER_STEP;
@@ -261,7 +261,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
               return (
                 <div
                   key={ang.key}
-                  className={`py-3.5 px-2 rounded-2xl border text-center transition-all duration-300 flex items-center justify-center gap-1.5 font-bold text-xs ${
+                  className={`py-2 px-1 sm:py-3.5 sm:px-2 rounded-xl sm:rounded-2xl border text-center transition-all duration-300 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 font-bold text-[10px] sm:text-xs leading-tight ${
                     isDone
                       ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
                       : isCurrent
@@ -269,9 +269,9 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
                       : 'bg-slate-900 border-slate-800 text-slate-500'
                   }`}
                 >
-                  <span>{ang.icon}</span>
-                  <span>{ang.displayLabel}</span>
-                  {isDone && <span className="text-xs">✓</span>}
+                  <span className="text-xs sm:text-sm shrink-0">{ang.icon}</span>
+                  <span className="truncate max-w-full whitespace-nowrap">{ang.displayLabel}</span>
+                  {isDone && <span className="text-[10px] sm:text-xs">✓</span>}
                 </div>
               );
             })}
@@ -280,18 +280,18 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
 
         {/* Live Guidance & Active Smooth Progress Bar Banner */}
         {errorMsg ? (
-          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
             ⚠️ {errorMsg}
           </div>
         ) : (
-          <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{currentAngle.icon}</span>
-              <div className="flex-1">
-                <div className="text-sm font-bold text-white">
-                  Bước {currentStepIndex + 1}/4: {currentAngle.label}
+          <div className="p-3 sm:p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2.5 sm:space-y-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <span className="text-2xl sm:text-3xl shrink-0">{currentAngle.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-bold text-white truncate">
+                  Bước {currentStepIndex + 1}/{KYC_ANGLES.length}: {currentAngle.label}
                 </div>
-                <div className="text-xs text-indigo-300 mt-0.5">{statusMsg}</div>
+                <div className="text-[11px] sm:text-xs text-indigo-300 mt-0.5 truncate">{statusMsg}</div>
               </div>
             </div>
 
@@ -306,7 +306,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
         )}
 
         {/* Live Camera Feed Box */}
-        <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-video flex items-center justify-center shadow-inner">
+        <div className="relative rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-900 aspect-[4/3] sm:aspect-video flex items-center justify-center shadow-inner">
           <canvas ref={canvasRef} className="hidden" />
 
           <video
@@ -318,32 +318,32 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           />
 
           {!hasCameraStream && (
-            <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
-              <span className="text-4xl">🎥</span>
+            <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 sm:p-6 text-center space-y-3 sm:space-y-4 z-10">
+              <span className="text-3xl sm:text-4xl">🎥</span>
               <p className="text-xs text-slate-300 font-semibold max-w-sm">
-                Cấp quyền truy cập Camera Laptop để quét khuôn mặt 3D.
+                Cấp quyền truy cập Camera thiết bị để quét khuôn mặt 3D.
               </p>
               <button
                 type="button"
                 onClick={initCameraStream}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
               >
-                🎥 Bật Camera Laptop
+                🎥 Bật Camera
               </button>
             </div>
           )}
 
           {/* Dynamic Target Oval Guide (Turns SOLID EMERALD GREEN when face/pose is matched!) */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-2">
             <div
-              className={`w-56 h-64 rounded-full flex flex-col items-center justify-center backdrop-blur-[1px] transition-all duration-300 ${
+              className={`w-44 h-52 sm:w-56 sm:h-64 max-h-[88%] max-w-[72%] rounded-full flex flex-col items-center justify-center backdrop-blur-[1px] transition-all duration-300 ${
                 isPoseMatched
                   ? 'border-4 border-emerald-400 bg-emerald-500/15 shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-[1.02]'
                   : 'border-2 border-dashed border-indigo-400/70 bg-indigo-950/10 shadow-2xl'
               }`}
             >
               <span
-                className={`text-[11px] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full border shadow-lg transition-all duration-300 ${
+                className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full border shadow-lg transition-all duration-300 whitespace-nowrap ${
                   isPoseMatched
                     ? 'bg-emerald-600 text-white border-emerald-300 shadow-emerald-600/40'
                     : 'bg-slate-900/90 text-indigo-200 border-indigo-500/40'
@@ -360,7 +360,7 @@ export default function MandatoryFaceKycModal({ user, token, onKycSuccess, onLog
           type="button"
           onClick={startSilentKycProcess}
           disabled={isScanning}
-          className="w-full py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isScanning ? (
             <>
