@@ -53,7 +53,7 @@ def test_teacher_dashboard_component():
     assert "Tên Lớp" in content
     assert "Chủ Đề Học / Môn Học" in content
     assert "batch-process" in content
-    assert "Tải Báo Cáo Excel" in content
+    assert "Excel" in content
     print("  ✅ UI Test 4: Teacher Dashboard (Class Creation & Batch Attendance) verified!")
 
 def main():

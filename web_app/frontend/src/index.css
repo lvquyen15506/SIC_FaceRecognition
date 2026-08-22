@@ -5,6 +5,8 @@
 /* Clean CSS Variables System for Dark and Light Modes */
 :root {
   --bg-color: #090D16;
+  --bg-midnight: #090D16;
+  --electric-blue: #2563EB;
   --header-bg: rgba(9, 13, 22, 0.9);
   --card-bg: rgba(30, 41, 59, 0.7);
   --border-color: rgba(255, 255, 255, 0.1);
@@ -63,4 +65,11 @@ body.light-mode .bg-slate-800 {
   0%, 100% { top: 0%; }
   50% { top: 90%; }
 }
+
+/* Mirror camera preview for natural selfie/webcam interaction */
+.camera-mirror-preview {
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+}
+
 

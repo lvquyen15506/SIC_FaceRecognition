@@ -39,6 +39,7 @@ runs/
 # Video test artifacts and reports
 reports/*.avi
 reports/*.mp4
+reports/*.jpg
 reports/temp_*
 *.avi
 *.mp4
