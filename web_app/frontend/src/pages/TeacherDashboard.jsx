@@ -381,7 +381,7 @@ export default function TeacherDashboard({ user, token }) {
       {zoomMedia && (
         <div
           onClick={() => setZoomMedia(null)}
-          className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-[100] animate-in fade-in duration-200"
         >
           {/* Modal Header Bar */}
           <div
@@ -435,8 +435,8 @@ export default function TeacherDashboard({ user, token }) {
 
       {/* Add Co-Teacher Modal */}
       {showAddTeacherModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Giảng Viên Quản Lý Lớp</h3>
               <button
@@ -533,8 +533,8 @@ export default function TeacherDashboard({ user, token }) {
 
       {/* Add Student Modal */}
       {showAddStudentModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 space-y-4 relative shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Thêm Sinh Viên Vào Lớp</h3>
               <button
@@ -631,8 +631,8 @@ export default function TeacherDashboard({ user, token }) {
 
       {/* Create Class Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto z-[100]">
+          <div className="glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Tạo Lớp Học Mới</h3>
             <p className="text-xs text-slate-400">Chỉ cần nhập Tên lớp và Chủ đề học, hệ thống tự sinh Mã Lớp</p>
 

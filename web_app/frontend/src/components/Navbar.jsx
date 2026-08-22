@@ -18,7 +18,7 @@ export default function Navbar({ user, onLogout, theme, onToggleTheme }) {
   };
 
   return (
-    <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md sticky top-0 z-50 transition-colors">
+    <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md sticky top-0 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <div className="flex items-center gap-3 group cursor-pointer">
