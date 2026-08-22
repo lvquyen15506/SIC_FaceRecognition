@@ -53,7 +53,6 @@ def seed_default_users():
     db = SessionLocal()
     try:
         default_users = [
-            {"email": "admin01@sic.edu.vn", "code": "ADMIN01", "full_name": "Quản Trị Viên Hệ Thống", "password": "AdminTriTech@123", "role": "ADMIN"},
             {"email": "admin@tritech.vn", "code": "ADMIN", "full_name": "Admin TriTech Systems", "password": "AdminTriTech@123", "role": "ADMIN"},
         ]
         for u in default_users:
