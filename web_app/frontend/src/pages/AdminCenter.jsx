@@ -19,6 +19,15 @@ export default function AdminCenter({ token }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // Batch User Import States
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchRawText, setBatchRawText] = useState('');
+  const [batchDefaultRole, setBatchDefaultRole] = useState('STUDENT');
+  const [batchDefaultPassword, setBatchDefaultPassword] = useState('123456');
+  const [batchParsedUsers, setBatchParsedUsers] = useState([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchResult, setBatchResult] = useState(null);
+
   // Class Modal States & Filters
   const [isCreateClassModalOpen, setIsCreateClassModalOpen] = useState(false);
   const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
@@ -356,6 +365,82 @@ export default function AdminCenter({ token }) {
     }
   };
 
+  // Parse Raw Text into Batch Users
+  useEffect(() => {
+    if (!batchRawText.trim()) {
+      setBatchParsedUsers([]);
+      return;
+    }
+    const lines = batchRawText.split('\n');
+    const parsed = [];
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const parts = trimmed.split(/[\t,;|]/).map(p => p.trim());
+      if (parts.length >= 2) {
+        const code = parts[0] || '';
+        const email = parts[1] || '';
+        const full_name = parts[2] || parts[1] || '';
+        const role = (parts[3] || batchDefaultRole).toUpperCase();
+        const password = parts[4] || batchDefaultPassword;
+
+        parsed.push({
+          line: idx + 1,
+          code,
+          email,
+          full_name,
+          role: ['STUDENT', 'TEACHER', 'ADMIN'].includes(role) ? role : batchDefaultRole,
+          password
+        });
+      }
+    });
+    setBatchParsedUsers(parsed);
+  }, [batchRawText, batchDefaultRole, batchDefaultPassword]);
+
+  const handleLoadSampleCSV = () => {
+    const sample = `SV202601, student01@hcmut.edu.vn, Nguyễn Văn Sinh Viên 1, STUDENT, 123456
+SV202602, student02@hcmut.edu.vn, Trần Thị Sinh Viên 2, STUDENT, 123456
+GV202601, teacher01@hcmut.edu.vn, TS. Lê Văn Giảng Viên 1, TEACHER, 123456
+GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER, 123456`;
+    setBatchRawText(sample);
+  };
+
+  const handleBatchSubmit = async (e) => {
+    e.preventDefault();
+    if (batchParsedUsers.length === 0) {
+      alert('Vui lòng nhập hoặc dán ít nhất 1 dòng tài khoản hợp lệ!');
+      return;
+    }
+    setBatchLoading(true);
+    setBatchResult(null);
+
+    try {
+      const res = await fetch('/api/v1/admin/users/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ users: batchParsedUsers })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || 'Có lỗi xảy ra khi tạo tài khoản hàng loạt');
+        setBatchLoading(false);
+        return;
+      }
+      setBatchResult(data);
+      if (data.created_count > 0) {
+        fetchUsers();
+        fetchDbHealth();
+      }
+    } catch (err) {
+      alert('Lỗi kết nối khi gửi dữ liệu tạo hàng loạt!');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   // Edit User Handler
   const openEditModal = (user) => {
     setSelectedUser(user);
@@ -547,12 +632,20 @@ export default function AdminCenter({ token }) {
               </select>
             </div>
 
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition"
-            >
-              <span>➕ Thêm Người Dùng Mới</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              <button
+                onClick={() => setIsBatchModalOpen(true)}
+                className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                <span>📥 Thêm Hàng Loạt</span>
+              </button>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition"
+              >
+                <span>➕ Thêm Người Dùng Mới</span>
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -910,6 +1003,165 @@ export default function AdminCenter({ token }) {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* BATCH CREATE USERS MODAL */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-3xl space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>📥 Thêm Tài Khoản Hàng Loạt (Batch User Import)</span>
+              </h3>
+              <button
+                onClick={() => { setIsBatchModalOpen(false); setBatchResult(null); }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Guide & Config Header */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 text-xs">
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Vai trò mặc định</label>
+                <select
+                  value={batchDefaultRole}
+                  onChange={(e) => setBatchDefaultRole(e.target.value)}
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs"
+                >
+                  <option value="STUDENT">STUDENT (Sinh viên)</option>
+                  <option value="TEACHER">TEACHER (Giảng viên)</option>
+                  <option value="ADMIN">ADMIN (Quản trị viên)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Mật khẩu mặc định</label>
+                <input
+                  type="text"
+                  value={batchDefaultPassword}
+                  onChange={(e) => setBatchDefaultPassword(e.target.value)}
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleLoadSampleCSV}
+                  className="w-full px-3 py-1.5 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/30 rounded-xl transition text-xs flex items-center justify-center gap-1"
+                >
+                  <span>📋 Nạp Mẫu Dữ Liệu Ví Dụ</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Form Input */}
+            <form onSubmit={handleBatchSubmit} className="space-y-4 text-xs">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 dark:text-slate-300 font-bold">
+                    Dán Danh Sách Tài Khoản (Mã, Email, Họ Tên, [Vai trò], [Mật khẩu]) *
+                  </label>
+                  <span className="text-slate-400 text-[11px]">Hỗ trợ định dạng CSV, Tab Excel, Dấu phẩy</span>
+                </div>
+                <textarea
+                  rows={5}
+                  value={batchRawText}
+                  onChange={(e) => setBatchRawText(e.target.value)}
+                  placeholder={`Ví dụ định dạng copy từ Excel / CSV:\nSV2601, sv01@sic.edu.vn, Nguyễn Văn A, STUDENT, 123456\nGV2601, gv01@sic.edu.vn, TS. Lê Văn B, TEACHER, 123456`}
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-2xl p-3.5 focus:outline-none focus:border-purple-500 shadow-sm transition"
+                />
+              </div>
+
+              {/* Live Preview Table */}
+              {batchParsedUsers.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200">
+                      👀 Xem Trước Dữ Liệu Sẽ Tạo ({batchParsedUsers.length} tài khoản)
+                    </h4>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 uppercase font-mono font-bold sticky top-0">
+                        <tr>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">STT</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Mã Số</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Email</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Họ và Tên</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Vai Trò</th>
+                          <th className="p-2 border-b border-slate-200 dark:border-slate-800">Mật Khẩu</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-mono">
+                        {batchParsedUsers.map((u, i) => (
+                          <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="p-2 text-slate-400">{i + 1}</td>
+                            <td className="p-2 font-bold text-purple-600 dark:text-purple-400">{u.code}</td>
+                            <td className="p-2 text-slate-600 dark:text-slate-300">{u.email}</td>
+                            <td className="p-2 text-slate-900 dark:text-white font-sans font-medium">{u.full_name}</td>
+                            <td className="p-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                u.role === 'ADMIN' ? 'bg-rose-500/20 text-rose-500' :
+                                u.role === 'TEACHER' ? 'bg-purple-500/20 text-purple-400' :
+                                'bg-blue-500/20 text-blue-400'
+                              }`}>
+                                {u.role}
+                              </span>
+                            </td>
+                            <td className="p-2 text-slate-400">{u.password}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Execution Results Summary */}
+              {batchResult && (
+                <div className={`p-4 rounded-2xl border text-xs space-y-2 ${
+                  batchResult.error_count > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                }`}>
+                  <div className="flex items-center justify-between font-bold">
+                    <span>🎉 {batchResult.message}</span>
+                    <span>Đã tạo: {batchResult.created_count} | Lỗi/Bỏ qua: {batchResult.error_count}</span>
+                  </div>
+                  {batchResult.errors && batchResult.errors.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-amber-500/20 max-h-32 overflow-y-auto">
+                      <p className="font-bold text-rose-500">Các dòng không tạo được:</p>
+                      {batchResult.errors.map((err, k) => (
+                        <p key={k} className="font-mono text-[11px] text-rose-400">
+                          • Dòng {err.line} ({err.code}): {err.reason}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsBatchModalOpen(false); setBatchResult(null); }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  disabled={batchLoading || batchParsedUsers.length === 0}
+                  className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 flex items-center gap-2 disabled:opacity-50 transition"
+                >
+                  {batchLoading ? '⏳ Đang Tạo Hàng Loạt...' : `🚀 Tạo Hàng Loạt (${batchParsedUsers.length} Tài Khoản)`}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

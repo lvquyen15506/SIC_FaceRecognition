@@ -1,10 +1,11 @@
 import os
 from typing import List, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.models import User, ClassRoom, AuditLog, FaceEmbedding, AttendanceSession, ClassStudent, SessionMediaFile, AttendanceDetail
+from app.models import User, ClassRoom, AuditLog, FaceEmbedding, AttendanceSession, ClassStudent, SessionMediaFile, AttendanceRecord
 from app.schemas import UserResponse, UserCreateRequest, UserUpdateRequest, ClassResponse
 from app.security import require_role, get_password_hash
 
@@ -114,7 +115,7 @@ def create_user(
         email=req.email,
         code=req.code,
         full_name=req.full_name,
-        hashed_password=get_password_hash(req.password),
+        password_hash=get_password_hash(req.password),
         role=req.role.upper(),
         is_active=True
     )
@@ -140,6 +141,89 @@ def create_user(
         has_face_data=False,
         face_angles_count=0
     )
+
+class BatchUserItem(BaseModel):
+    code: str
+    email: str
+    full_name: str
+    role: Optional[str] = "STUDENT"
+    password: Optional[str] = "123456"
+
+class BatchUserRequest(BaseModel):
+    users: List[BatchUserItem]
+
+@router.post("/users/batch")
+def create_users_batch(
+    req: BatchUserRequest,
+    current_user: User = Depends(require_role(["ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Tạo hàng loạt nhiều tài khoản người dùng cùng lúc (Batch Import Users)
+    """
+    if not req.users:
+        raise HTTPException(status_code=400, detail="Danh sách tài khoản gửi lên rỗng!")
+
+    created_users = []
+    errors = []
+
+    existing_codes = set(c[0].upper() for c in db.query(User.code).all() if c[0])
+    existing_emails = set(e[0].lower() for e in db.query(User.email).all() if e[0])
+
+    for idx, item in enumerate(req.users, 1):
+        code_clean = (item.code or "").strip().upper()
+        email_clean = (item.email or "").strip().lower()
+        full_name_clean = (item.full_name or "").strip()
+        role_clean = (item.role or "STUDENT").strip().upper()
+        pwd = item.password.strip() if item.password and item.password.strip() else "123456"
+
+        if not code_clean or not email_clean or not full_name_clean:
+            errors.append({"line": idx, "code": code_clean or f"Dòng {idx}", "reason": "Thiếu Mã/Email/Họ tên"})
+            continue
+
+        if role_clean not in ["STUDENT", "TEACHER", "ADMIN"]:
+            role_clean = "STUDENT"
+
+        if code_clean in existing_codes:
+            errors.append({"line": idx, "code": code_clean, "reason": f"Mã '{code_clean}' đã tồn tại"})
+            continue
+
+        if email_clean in existing_emails:
+            errors.append({"line": idx, "code": code_clean, "reason": f"Email '{email_clean}' đã tồn tại"})
+            continue
+
+        new_user = User(
+            email=email_clean,
+            code=code_clean,
+            full_name=full_name_clean,
+            password_hash=get_password_hash(pwd),
+            role=role_clean,
+            is_active=True
+        )
+        db.add(new_user)
+        existing_codes.add(code_clean)
+        existing_emails.add(email_clean)
+        created_users.append(new_user)
+
+    db.commit()
+
+    if created_users:
+        audit = AuditLog(
+            user_id=current_user.id,
+            action="BATCH_CREATE_USERS",
+            details=f"Admin đã tạo hàng loạt {len(created_users)} tài khoản mới"
+        )
+        db.add(audit)
+        db.commit()
+
+    return {
+        "status": "SUCCESS",
+        "total_submitted": len(req.users),
+        "created_count": len(created_users),
+        "error_count": len(errors),
+        "errors": errors,
+        "message": f"Đã tạo thành công {len(created_users)} / {len(req.users)} tài khoản!"
+    }
 
 @router.put("/users/{user_id}")
 def update_user(
@@ -170,7 +254,7 @@ def update_user(
     if req.role:
         user.role = req.role.upper()
     if req.password:
-        user.hashed_password = get_password_hash(req.password)
+        user.password_hash = get_password_hash(req.password)
 
     db.commit()
 
@@ -391,7 +475,7 @@ def delete_class_by_admin(
 
         # Delete child DB records for this session
         db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).delete(synchronize_session=False)
-        db.query(AttendanceDetail).filter(AttendanceDetail.session_id == sess.id).delete(synchronize_session=False)
+        db.query(AttendanceRecord).filter(AttendanceRecord.session_id == sess.id).delete(synchronize_session=False)
 
     db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).delete(synchronize_session=False)
     db.query(ClassStudent).filter(ClassStudent.class_id == class_id).delete(synchronize_session=False)
