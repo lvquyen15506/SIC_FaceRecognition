@@ -250,6 +250,8 @@ export default function AdminCenter({ user, token }) {
     }
   };
 
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
+
   const availableStudents = allStudents.filter(
     s => !(classMembers.students || []).some(existing => existing.id === s.id)
   );
@@ -258,10 +260,31 @@ export default function AdminCenter({ user, token }) {
     t => !(classMembers.teachers || []).some(existing => existing.id === t.id)
   );
 
+  const filteredAvailableStudents = availableStudents.filter(s => {
+    if (!memberSearchTerm.trim()) return true;
+    const kw = memberSearchTerm.toLowerCase();
+    return (
+      (s.full_name && s.full_name.toLowerCase().includes(kw)) ||
+      (s.code && s.code.toLowerCase().includes(kw)) ||
+      (s.email && s.email.toLowerCase().includes(kw))
+    );
+  });
+
+  const filteredAvailableTeachers = availableTeachers.filter(t => {
+    if (!memberSearchTerm.trim()) return true;
+    const kw = memberSearchTerm.toLowerCase();
+    return (
+      (t.full_name && t.full_name.toLowerCase().includes(kw)) ||
+      (t.code && t.code.toLowerCase().includes(kw)) ||
+      (t.email && t.email.toLowerCase().includes(kw))
+    );
+  });
+
   // Class Member Management Handlers
   const openMembersModal = async (cls) => {
     setSelectedClass(cls);
     setNewMemberInput('');
+    setMemberSearchTerm('');
     setAddMemberMsg('');
     setIsMembersModalOpen(true);
     fetchClassMembers(cls.id);
@@ -282,7 +305,8 @@ export default function AdminCenter({ user, token }) {
 
   const handleAddTeacherToClass = async (e) => {
     e.preventDefault();
-    if (!newMemberInput.trim() || !selectedClass) return;
+    const targetCode = newMemberInput.trim() || memberSearchTerm.trim();
+    if (!targetCode || !selectedClass) return;
     setAddMemberMsg('');
     try {
       const res = await fetch(`/api/v1/admin/classes/${selectedClass.id}/add-teacher`, {
@@ -291,7 +315,7 @@ export default function AdminCenter({ user, token }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ user_code_or_email: newMemberInput.trim() })
+        body: JSON.stringify({ user_code_or_email: targetCode })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -300,6 +324,7 @@ export default function AdminCenter({ user, token }) {
       }
       setAddMemberMsg(`✅ ${data.message}`);
       setNewMemberInput('');
+      setMemberSearchTerm('');
       fetchClassMembers(selectedClass.id);
       fetchClasses();
     } catch (err) {
@@ -327,7 +352,8 @@ export default function AdminCenter({ user, token }) {
 
   const handleAddStudentToClass = async (e) => {
     e.preventDefault();
-    if (!newMemberInput.trim() || !selectedClass) return;
+    const targetCode = newMemberInput.trim() || memberSearchTerm.trim();
+    if (!targetCode || !selectedClass) return;
     setAddMemberMsg('');
     try {
       const res = await fetch(`/api/v1/admin/classes/${selectedClass.id}/add-student`, {
@@ -336,7 +362,7 @@ export default function AdminCenter({ user, token }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ user_code_or_email: newMemberInput.trim() })
+        body: JSON.stringify({ user_code_or_email: targetCode })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -345,6 +371,7 @@ export default function AdminCenter({ user, token }) {
       }
       setAddMemberMsg(`✅ ${data.message}`);
       setNewMemberInput('');
+      setMemberSearchTerm('');
       fetchClassMembers(selectedClass.id);
       fetchClasses();
     } catch (err) {
@@ -1614,15 +1641,36 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
               <div className="space-y-4">
                 {/* Form Add Teacher */}
                 {availableTeachers.length > 0 ? (
-                  <form onSubmit={handleAddTeacherToClass} className="flex items-center gap-3">
+                  <form onSubmit={handleAddTeacherToClass} className="flex flex-col sm:flex-row items-center gap-2">
+                    <div className="relative flex-1 w-full">
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm nhanh Mã GV, Họ tên, Email..."
+                        value={memberSearchTerm}
+                        onChange={(e) => setMemberSearchTerm(e.target.value)}
+                        className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                      />
+                      {memberSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearchTerm('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                     <select
-                      required
                       value={newMemberInput}
                       onChange={(e) => setNewMemberInput(e.target.value)}
-                      className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                      className="flex-1 w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                     >
-                      <option value="">-- Chọn Giảng Viên đồng quản lý ({availableTeachers.length} GV chưa vào) --</option>
-                      {availableTeachers.map((t) => (
+                      <option value="">
+                        {filteredAvailableTeachers.length === 0
+                          ? '-- Không tìm thấy Giảng viên phù hợp --'
+                          : `-- Chọn Giảng Viên (${filteredAvailableTeachers.length} kết quả) --`}
+                      </option>
+                      {filteredAvailableTeachers.map((t) => (
                         <option key={t.id} value={t.code}>
                           {t.full_name} ({t.code} - {t.email})
                         </option>
@@ -1630,7 +1678,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                     </select>
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition shrink-0"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition shrink-0"
                     >
                       <span>➕ Thêm Giảng Viên</span>
                     </button>
@@ -1702,15 +1750,36 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
               <div className="space-y-4">
                 {/* Form Add Student */}
                 {availableStudents.length > 0 ? (
-                  <form onSubmit={handleAddStudentToClass} className="flex items-center gap-3">
+                  <form onSubmit={handleAddStudentToClass} className="flex flex-col sm:flex-row items-center gap-2">
+                    <div className="relative flex-1 w-full">
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm nhanh MSSV, Họ tên, Email..."
+                        value={memberSearchTerm}
+                        onChange={(e) => setMemberSearchTerm(e.target.value)}
+                        className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                      />
+                      {memberSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearchTerm('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                     <select
-                      required
                       value={newMemberInput}
                       onChange={(e) => setNewMemberInput(e.target.value)}
-                      className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
+                      className="flex-1 w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 shadow-sm transition"
                     >
-                      <option value="">-- Chọn Sinh Viên để thêm vào lớp ({availableStudents.length} SV chưa vào) --</option>
-                      {availableStudents.map((s) => (
+                      <option value="">
+                        {filteredAvailableStudents.length === 0
+                          ? '-- Không tìm thấy Sinh viên phù hợp --'
+                          : `-- Chọn Sinh Viên (${filteredAvailableStudents.length} kết quả) --`}
+                      </option>
+                      {filteredAvailableStudents.map((s) => (
                         <option key={s.id} value={s.code}>
                           {s.full_name} ({s.code} - {s.email})
                         </option>
@@ -1718,7 +1787,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                     </select>
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition shrink-0"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition shrink-0"
                     >
                       <span>➕ Thêm Sinh Viên</span>
                     </button>
