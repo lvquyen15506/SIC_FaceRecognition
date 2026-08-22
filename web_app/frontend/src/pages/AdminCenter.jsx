@@ -252,6 +252,15 @@ export default function AdminCenter({ user, token }) {
 
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
 
+  const sortByName = (list) => {
+    if (!list) return [];
+    return [...list].sort((a, b) => {
+      const nameA = a.full_name || '';
+      const nameB = b.full_name || '';
+      return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+    });
+  };
+
   const availableStudents = allStudents.filter(
     s => !(classMembers.students || []).some(existing => existing.id === s.id)
   );
@@ -260,7 +269,7 @@ export default function AdminCenter({ user, token }) {
     t => !(classMembers.teachers || []).some(existing => existing.id === t.id)
   );
 
-  const filteredAvailableStudents = availableStudents.filter(s => {
+  const filteredAvailableStudents = sortByName(availableStudents.filter(s => {
     if (!memberSearchTerm.trim()) return true;
     const kw = memberSearchTerm.toLowerCase();
     return (
@@ -268,9 +277,9 @@ export default function AdminCenter({ user, token }) {
       (s.code && s.code.toLowerCase().includes(kw)) ||
       (s.email && s.email.toLowerCase().includes(kw))
     );
-  });
+  }));
 
-  const filteredAvailableTeachers = availableTeachers.filter(t => {
+  const filteredAvailableTeachers = sortByName(availableTeachers.filter(t => {
     if (!memberSearchTerm.trim()) return true;
     const kw = memberSearchTerm.toLowerCase();
     return (
@@ -278,7 +287,10 @@ export default function AdminCenter({ user, token }) {
       (t.code && t.code.toLowerCase().includes(kw)) ||
       (t.email && t.email.toLowerCase().includes(kw))
     );
-  });
+  }));
+
+  const sortedClassStudents = sortByName(classMembers.students);
+  const sortedClassTeachers = sortByName(classMembers.teachers);
 
   // Class Member Management Handlers
   const openMembersModal = async (cls) => {
@@ -1694,6 +1706,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <tr>
+                        <th className="p-3.5 w-12 text-center">STT</th>
                         <th className="p-3.5">Mã GV</th>
                         <th className="p-3.5">Họ và Tên</th>
                         <th className="p-3.5">Email</th>
@@ -1702,17 +1715,18 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
-                      {(!classMembers.teachers || classMembers.teachers.length === 0) ? (
+                      {(!sortedClassTeachers || sortedClassTeachers.length === 0) ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">
+                          <td colSpan={6} className="py-6 text-center text-slate-500 italic">
                             Chưa có Giảng viên đồng quản lý nào.
                           </td>
                         </tr>
                       ) : (
-                        classMembers.teachers.map((t) => {
+                        sortedClassTeachers.map((t, idx) => {
                           const isPrimary = selectedClass.created_by_teacher_id === t.id;
                           return (
                             <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                              <td className="p-3.5 text-center font-mono font-bold text-slate-400 dark:text-slate-500">{idx + 1}</td>
                               <td className="p-3.5 font-mono font-bold text-purple-600 dark:text-purple-400">{t.code}</td>
                               <td className="p-3.5 font-bold text-slate-900 dark:text-white">{t.full_name}</td>
                               <td className="p-3.5 text-slate-600 dark:text-slate-400">{t.email}</td>
@@ -1803,6 +1817,7 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-mono font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <tr>
+                        <th className="p-3.5 w-12 text-center">STT</th>
                         <th className="p-3.5">Mã SV</th>
                         <th className="p-3.5">Họ và Tên</th>
                         <th className="p-3.5">Email</th>
@@ -1811,15 +1826,16 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50">
-                      {(!classMembers.students || classMembers.students.length === 0) ? (
+                      {(!sortedClassStudents || sortedClassStudents.length === 0) ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-500 italic">
+                          <td colSpan={6} className="py-6 text-center text-slate-500 italic">
                             Chưa có Sinh viên nào trong lớp.
                           </td>
                         </tr>
                       ) : (
-                        classMembers.students.map((s) => (
+                        sortedClassStudents.map((s, idx) => (
                           <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                            <td className="p-3.5 text-center font-mono font-bold text-slate-400 dark:text-slate-500">{idx + 1}</td>
                             <td className="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">{s.code}</td>
                             <td className="p-3.5 font-bold text-slate-900 dark:text-white">{s.full_name}</td>
                             <td className="p-3.5 text-slate-600 dark:text-slate-400">{s.email}</td>
