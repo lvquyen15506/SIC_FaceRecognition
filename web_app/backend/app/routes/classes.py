@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User, ClassRoom, ClassStudent, FaceEmbedding, AttendanceSession, SessionMediaFile, AttendanceDetail
+from app.models import User, ClassRoom, ClassStudent, FaceEmbedding, AttendanceSession, SessionMediaFile, AttendanceRecord
 from app.schemas import ClassCreate, ClassResponse, AddTeacherRequest, UserResponse
 from app.security import get_current_user, require_role, get_password_hash
 from app.services.audit import log_action
@@ -413,7 +413,7 @@ def delete_class(
                         print(f"[File Delete Error] Failed to remove thumbnail {thumb_path}: {e}")
 
         db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).delete(synchronize_session=False)
-        db.query(AttendanceDetail).filter(AttendanceDetail.session_id == sess.id).delete(synchronize_session=False)
+        db.query(AttendanceRecord).filter(AttendanceRecord.session_id == sess.id).delete(synchronize_session=False)
 
     db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).delete(synchronize_session=False)
     db.query(ClassStudent).filter(ClassStudent.class_id == class_id).delete(synchronize_session=False)
