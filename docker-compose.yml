@@ -26,7 +26,6 @@ services:
       dockerfile: web_app/backend/Dockerfile
     image: face_recognition_project-backend:latest
     container_name: sic_facerecognition_backend
-    user: "1000:1000"
     security_opt:
       - no-new-privileges:true
     ports:
