@@ -8,8 +8,26 @@ from app.models import User, ClassRoom, ClassStudent
 from app.security import get_password_hash
 from app.routes import auth, enrollment, classes, attendance, admin
 
-# Initialize Database Tables
-Base.metadata.create_all(bind=engine)
+import time
+
+# Initialize Database Tables with Retry Loop
+def init_database_with_retry():
+    max_retries = 10
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[Database Init] Connecting to database (Attempt {attempt}/{max_retries})...")
+            Base.metadata.create_all(bind=engine)
+            print("[Database Init] Successfully created database tables!")
+            return True
+        except Exception as e:
+            print(f"[Database Init Warning] Connection failed: {e}")
+            if attempt < max_retries:
+                time.sleep(2)
+            else:
+                print("[Database Init Error] Could not connect to DB after max retries!")
+                raise e
+
+init_database_with_retry()
 
 def auto_migrate_db():
     from sqlalchemy import text
