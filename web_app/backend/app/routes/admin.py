@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from app.database import get_db
 from app.models import User, ClassRoom, AuditLog, FaceEmbedding, AttendanceSession, ClassStudent, SessionMediaFile, AttendanceRecord
 from app.schemas import UserResponse, UserCreateRequest, UserUpdateRequest, ClassResponse
@@ -103,18 +103,21 @@ def create_user(
     """
     Tạo tài khoản người dùng mới (Super Admin)
     """
-    existing_code = db.query(User).filter(User.code == req.code).first()
+    code_clean = (req.code or "").strip().upper()
+    email_clean = (req.email or "").strip().lower()
+
+    existing_code = db.query(User).filter(func.lower(User.code) == code_clean.lower()).first()
     if existing_code:
         raise HTTPException(status_code=400, detail="Mã số người dùng (MSSV/MGV) đã tồn tại trên hệ thống!")
 
-    existing_email = db.query(User).filter(User.email == req.email).first()
+    existing_email = db.query(User).filter(func.lower(User.email) == email_clean).first()
     if existing_email:
         raise HTTPException(status_code=400, detail="Email người dùng đã tồn tại trên hệ thống!")
 
     new_user = User(
-        email=req.email,
-        code=req.code,
-        full_name=req.full_name,
+        email=email_clean,
+        code=code_clean,
+        full_name=(req.full_name or "").strip(),
         password_hash=get_password_hash(req.password),
         role=req.role.upper(),
         is_active=True
@@ -568,9 +571,9 @@ def add_teacher_to_class(
     if not cls:
         raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
 
-    query_str = req.user_code_or_email.strip()
+    query_str = (req.user_code_or_email or "").strip().lower()
     teacher = db.query(User).filter(
-        (User.code == query_str) | (User.email == query_str),
+        (func.lower(User.code) == query_str) | (func.lower(User.email) == query_str) | (func.lower(User.email).like(f"{query_str}@%")),
         User.role.in_(["TEACHER", "ADMIN"])
     ).first()
 
@@ -641,9 +644,9 @@ def add_student_to_class(
     if not cls:
         raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
 
-    query_str = req.user_code_or_email.strip()
+    query_str = (req.user_code_or_email or "").strip().lower()
     student = db.query(User).filter(
-        (User.code == query_str) | (User.email == query_str)
+        (func.lower(User.code) == query_str) | (func.lower(User.email) == query_str) | (func.lower(User.email).like(f"{query_str}@%"))
     ).first()
 
     if not student:

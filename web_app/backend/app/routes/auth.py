@@ -4,6 +4,7 @@ Authentication API Endpoints (Login & Register with Smart Auto-Role Redirection 
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database import get_db
 from app.models import User, FaceEmbedding
 from app.schemas import UserRegister, UserLogin, Token, UserResponse
@@ -15,9 +16,12 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    # Check existing user
+    email_clean = (user_data.email or "").strip().lower()
+    code_clean = (user_data.code or "").strip().upper()
+    
+    # Check existing user (case-insensitive)
     existing_user = db.query(User).filter(
-        (User.email == user_data.email) | (User.code == user_data.code)
+        (func.lower(User.email) == email_clean) | (func.lower(User.code) == code_clean.lower())
     ).first()
     if existing_user:
         raise HTTPException(
@@ -26,9 +30,9 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
         )
     
     new_user = User(
-        email=user_data.email,
-        code=user_data.code.upper(),
-        full_name=user_data.full_name,
+        email=email_clean,
+        code=code_clean,
+        full_name=(user_data.full_name or "").strip(),
         password_hash=get_password_hash(user_data.password),
         role=user_data.role.upper(),
         is_active=True
@@ -41,11 +45,24 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
-    # Single login form: Match email or code (MSSV/MGV/ADMIN_ID)
+    input_str = (login_data.code_or_email or "").strip()
+    if not input_str:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vui lòng nhập Mã số / Email"
+        )
+
+    # 1. Primary lookup: Match email or code (MSSV/MGV/Username) case-insensitively
     user = db.query(User).filter(
-        (User.email == login_data.code_or_email) | (User.code == login_data.code_or_email.upper())
+        (func.lower(User.email) == input_str.lower()) | (func.lower(User.code) == input_str.lower())
     ).first()
-    
+
+    # 2. Secondary fallback: Match prefix before @ in email if input contains no @ (e.g., 'vdq' -> 'vdq@domain.com')
+    if not user and "@" not in input_str:
+        user = db.query(User).filter(
+            func.lower(User.email).like(f"{input_str.lower()}@%")
+        ).first()
+
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

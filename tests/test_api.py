@@ -72,6 +72,7 @@ def test_login_student():
     assert "access_token" in data
 
 def test_login_teacher():
+    # Login by email
     response = client.post("/api/v1/auth/login", json={
         "code_or_email": "teacher@sic.edu.vn",
         "password": "teacher123"
@@ -79,6 +80,30 @@ def test_login_teacher():
     assert response.status_code == 200
     data = response.json()
     assert data["role"] == "TEACHER"
+
+    # Login by code (uppercase)
+    response_code = client.post("/api/v1/auth/login", json={
+        "code_or_email": "GV001",
+        "password": "teacher123"
+    })
+    assert response_code.status_code == 200
+    assert response_code.json()["role"] == "TEACHER"
+
+    # Login by code (lowercase)
+    response_lower = client.post("/api/v1/auth/login", json={
+        "code_or_email": "gv001",
+        "password": "teacher123"
+    })
+    assert response_lower.status_code == 200
+    assert response_lower.json()["role"] == "TEACHER"
+
+    # Login by email prefix ('teacher' -> 'teacher@sic.edu.vn')
+    response_prefix = client.post("/api/v1/auth/login", json={
+        "code_or_email": "teacher",
+        "password": "teacher123"
+    })
+    assert response_prefix.status_code == 200
+    assert response_prefix.json()["role"] == "TEACHER"
 
 def test_create_class():
     # Login as teacher first

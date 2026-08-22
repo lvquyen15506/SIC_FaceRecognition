@@ -8,6 +8,7 @@ from typing import List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database import get_db
 from app.models import User, ClassRoom, ClassStudent, FaceEmbedding, AttendanceSession, SessionMediaFile, AttendanceRecord
 from app.schemas import ClassCreate, ClassResponse, AddTeacherRequest, UserResponse
@@ -146,9 +147,9 @@ def add_co_teacher(
     if not classroom:
         raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
     
-    query_str = req.teacher_email_or_code.strip()
+    query_str = (req.teacher_email_or_code or "").strip().lower()
     teacher = db.query(User).filter(
-        (User.email == query_str) | (User.code == query_str.upper()),
+        (func.lower(User.email) == query_str) | (func.lower(User.code) == query_str) | (func.lower(User.email).like(f"{query_str}@%")),
         User.role.in_(["TEACHER", "ADMIN"])
     ).first()
 
@@ -315,9 +316,9 @@ def add_student_to_class(
     if not classroom:
         raise HTTPException(status_code=404, detail="Lớp học không tồn tại")
 
-    query_str = req.student_code_or_email.strip()
+    query_str = (req.student_code_or_email or "").strip().lower()
     student = db.query(User).filter(
-        (User.email == query_str) | (User.code == query_str.upper()),
+        (func.lower(User.email) == query_str) | (func.lower(User.code) == query_str) | (func.lower(User.email).like(f"{query_str}@%")),
         User.role == "STUDENT"
     ).first()
 

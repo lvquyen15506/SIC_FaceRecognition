@@ -31,7 +31,7 @@ export default function Login({ onLoginSuccess }) {
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code_or_email: codeOrEmail, password })
+        body: JSON.stringify({ code_or_email: codeOrEmail.trim(), password })
       });
 
       const data = await res.json();
