@@ -1048,14 +1048,21 @@ GV202602, teacher02@hcmut.edu.vn, PGS. TS. Phạm Thị Giảng Viên 2, TEACHER
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end gap-2">
                 <button
                   type="button"
                   onClick={handleLoadSampleCSV}
-                  className="w-full px-3 py-1.5 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/30 rounded-xl transition text-xs flex items-center justify-center gap-1"
+                  className="flex-1 px-3 py-1.5 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 font-bold border border-purple-500/30 rounded-xl transition text-xs flex items-center justify-center gap-1"
                 >
-                  <span>📋 Nạp Mẫu Dữ Liệu Ví Dụ</span>
+                  <span>📋 Nạp Nhanh Mẫu</span>
                 </button>
+                <a
+                  href="/sample_users_import.csv"
+                  download="sample_users_import.csv"
+                  className="flex-1 px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 rounded-xl transition text-xs flex items-center justify-center gap-1"
+                >
+                  <span>📥 Tải CSV Mẫu</span>
+                </a>
               </div>
             </div>
 

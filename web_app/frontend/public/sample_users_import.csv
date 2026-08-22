@@ -1,0 +1,7 @@
+code,email,full_name,role,password
+SV26001,student26001@sic.edu.vn,Nguyễn Văn An,STUDENT,123456
+SV26002,student26002@sic.edu.vn,Trần Thị Bình,STUDENT,123456
+SV26003,student26003@sic.edu.vn,Lê Hoàng Cường,STUDENT,123456
+GV26001,teacher26001@sic.edu.vn,TS. Nguyễn Đức Dũng,TEACHER,Teacher@123
+GV26002,teacher26002@sic.edu.vn,PGS. TS. Phạm Thị Hương,TEACHER,Teacher@123
+ADMIN26,admin26@sic.edu.vn,Quản Trị Viên Phụ,ADMIN,Admin@123
