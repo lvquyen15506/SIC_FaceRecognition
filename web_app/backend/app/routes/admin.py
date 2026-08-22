@@ -275,7 +275,7 @@ def delete_user(
     db: Session = Depends(get_db)
 ):
     """
-    Xóa vĩnh viễn tài khoản người dùng và toàn bộ dữ liệu liên quan
+    Xóa vĩnh viễn tài khoản người dùng và toàn bộ dữ liệu liên quan (Cascade Delete)
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -284,21 +284,42 @@ def delete_user(
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Không thể tự xóa tài khoản Admin đang đăng nhập!")
 
-    # Cleanup face embeddings and class memberships
-    db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).delete()
-    db.query(ClassStudent).filter(ClassStudent.student_id == user_id).delete()
+    user_code = user.code
+    user_name = user.full_name
+
+    # 1. Clean face embeddings and student records
+    db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).delete(synchronize_session=False)
+    db.query(ClassStudent).filter(ClassStudent.student_id == user_id).delete(synchronize_session=False)
+    db.query(AttendanceRecord).filter(AttendanceRecord.user_id == user_id).delete(synchronize_session=False)
+
+    # 2. Clean co-teacher relationships
+    db.execute(text("DELETE FROM class_teachers WHERE teacher_id = :tid"), {"tid": user_id})
+
+    # 3. If teacher created any classrooms, cascade delete classrooms & attendance sessions
+    created_classes = db.query(ClassRoom).filter(ClassRoom.created_by_teacher_id == user_id).all()
+    for cls in created_classes:
+        sessions = db.query(AttendanceSession).filter(AttendanceSession.class_id == cls.id).all()
+        for sess in sessions:
+            db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).delete(synchronize_session=False)
+            db.query(AttendanceRecord).filter(AttendanceRecord.session_id == sess.id).delete(synchronize_session=False)
+        db.query(AttendanceSession).filter(AttendanceSession.class_id == cls.id).delete(synchronize_session=False)
+        db.query(ClassStudent).filter(ClassStudent.class_id == cls.id).delete(synchronize_session=False)
+        db.execute(text("DELETE FROM class_teachers WHERE class_id = :cid"), {"cid": cls.id})
+        db.delete(cls)
+
+    # 4. Delete the target user
     db.delete(user)
     db.commit()
 
     audit = AuditLog(
         user_id=current_user.id,
         action="DELETE_USER",
-        details=f"Admin đã xóa vĩnh viễn tài khoản ID {user_id} ({user.code})"
+        details=f"Admin đã xóa vĩnh viễn tài khoản {user_name} ({user_code})"
     )
     db.add(audit)
     db.commit()
 
-    return {"status": "SUCCESS", "message": f"Đã xóa thành công tài khoản {user.code}"}
+    return {"status": "SUCCESS", "message": f"Đã xóa vĩnh viễn tài khoản {user_name} ({user_code})"}
 
 import random
 import string
