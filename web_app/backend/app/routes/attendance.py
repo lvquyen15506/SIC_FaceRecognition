@@ -275,10 +275,17 @@ async def process_batch_attendance(
             file_face_counts.append(len(results))
             file_unknown_counts.append(img_unknown_cnt)
 
+            # Auto-cleanup raw uploaded image to free disk space immediately
+            if os.path.exists(raw_save_path):
+                try:
+                    os.remove(raw_save_path)
+                except Exception as e:
+                    print(f"[Cleanup Error] Cannot remove raw image {raw_save_path}: {e}")
+
             media_rec = SessionMediaFile(
                 session_id=session.id,
                 media_type="IMAGE",
-                raw_file_path=raw_save_path,
+                raw_file_path=processed_save_path,
                 processed_file_path=processed_save_path,
                 status="COMPLETED"
             )
@@ -374,10 +381,18 @@ async def process_batch_attendance(
             with open(thumbnail_jpg_path, "wb") as f:
                 f.write(best_keyframe_bytes)
 
+            # Auto-cleanup raw temporary video files to free disk space immediately
+            for tmp_path in [raw_save_path, raw_video_path]:
+                if tmp_path and tmp_path != final_video_path and os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except Exception as e:
+                        print(f"[Cleanup Error] Cannot remove raw video {tmp_path}: {e}")
+
             media_rec = SessionMediaFile(
                 session_id=session.id,
                 media_type="VIDEO",
-                raw_file_path=raw_save_path,
+                raw_file_path=final_video_path,
                 processed_file_path=final_video_path,
                 status="COMPLETED"
             )

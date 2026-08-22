@@ -1,9 +1,10 @@
+import os
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.models import User, ClassRoom, AuditLog, FaceEmbedding, AttendanceSession, ClassStudent
+from app.models import User, ClassRoom, AuditLog, FaceEmbedding, AttendanceSession, ClassStudent, SessionMediaFile, AttendanceDetail
 from app.schemas import UserResponse, UserCreateRequest, UserUpdateRequest, ClassResponse
 from app.security import require_role, get_password_hash
 
@@ -355,25 +356,58 @@ def delete_class_by_admin(
     db: Session = Depends(get_db)
 ):
     """
-    Xóa vĩnh viễn Lớp Học và toàn bộ dữ liệu liên quan
+    Xóa vĩnh viễn Lớp Học, dọn dẹp 100% tệp phương tiện đĩa (Video/Ảnh) và toàn bộ dữ liệu liên quan
     """
     cls = db.query(ClassRoom).filter(ClassRoom.id == class_id).first()
     if not cls:
         raise HTTPException(status_code=404, detail="Không tìm thấy lớp học!")
 
     code_tmp = cls.class_code
+
+    # 1. Cascade Physical Disk Files Cleanup & Attendance DB Records Removal
+    sessions = db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).all()
+    deleted_files_count = 0
+
+    for sess in sessions:
+        media_files = db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).all()
+        for mf in media_files:
+            for fpath in [mf.raw_file_path, mf.processed_file_path]:
+                if fpath and os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                        deleted_files_count += 1
+                    except Exception as e:
+                        print(f"[File Delete Error] Failed to remove {fpath}: {e}")
+
+            # Remove associated video thumbnail JPG if exists
+            if mf.processed_file_path and mf.processed_file_path.endswith('.mp4'):
+                thumb_path = mf.processed_file_path.replace('.mp4', '.jpg').replace('_h264_', '_')
+                if os.path.exists(thumb_path):
+                    try:
+                        os.remove(thumb_path)
+                        deleted_files_count += 1
+                    except Exception as e:
+                        print(f"[File Delete Error] Failed to remove thumbnail {thumb_path}: {e}")
+
+        # Delete child DB records for this session
+        db.query(SessionMediaFile).filter(SessionMediaFile.session_id == sess.id).delete(synchronize_session=False)
+        db.query(AttendanceDetail).filter(AttendanceDetail.session_id == sess.id).delete(synchronize_session=False)
+
+    db.query(AttendanceSession).filter(AttendanceSession.class_id == class_id).delete(synchronize_session=False)
+    db.query(ClassStudent).filter(ClassStudent.class_id == class_id).delete(synchronize_session=False)
+
     db.delete(cls)
     db.commit()
 
     audit = AuditLog(
         user_id=current_user.id,
         action="DELETE_CLASS",
-        details=f"Admin đã xóa vĩnh viễn lớp học {code_tmp}"
+        details=f"Admin đã xóa vĩnh viễn lớp học {code_tmp} (Đã dọn {deleted_files_count} tệp đĩa phương tiện)"
     )
     db.add(audit)
     db.commit()
 
-    return {"status": "SUCCESS", "message": f"Đã xóa vĩnh viễn lớp học {code_tmp}"}
+    return {"status": "SUCCESS", "message": f"Đã xóa vĩnh viễn lớp học {code_tmp} và dọn sạch {deleted_files_count} tệp đĩa!"}
 
 @router.get("/classes/{class_id}/members")
 def get_class_members(
